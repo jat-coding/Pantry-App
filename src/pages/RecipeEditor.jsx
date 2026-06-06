@@ -1,0 +1,280 @@
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { useData } from '../contexts/DataContext.jsx'
+import { useToast } from '../components/Toast.jsx'
+import { CATEGORIES } from '../lib/categories.js'
+
+const DRAFT_KEY = 'pantry-draft-new'
+
+function blankRecipe() {
+  return {
+    title: '',
+    imageUrl: '',
+    category: 'Dinner',
+    prepTime: { value: 10, unit: 'min' },
+    cookTime: { value: 20, unit: 'min' },
+    servings: 4,
+    ingredients: [{ qty: '', unit: '', name: '' }],
+    instructions: [''],
+    isPublic: false,
+  }
+}
+
+export default function RecipeEditor() {
+  const { id } = useParams()
+  const isEdit = !!id
+  const navigate = useNavigate()
+  const { recipes, getRecipe, createRecipe, updateRecipe, togglePantry, isInPantry } = useData()
+  const toast = useToast()
+
+  const [form, setForm] = useState(blankRecipe)
+  const [dirty, setDirty] = useState(false)
+  const [loaded, setLoaded] = useState(!isEdit)
+  const [savedId, setSavedId] = useState(null) // triggers "Add to Pantry?" prompt
+  const initial = useRef(true)
+
+  // Load existing recipe (edit) or restore draft (new).
+  useEffect(() => {
+    if (isEdit) {
+      const live = recipes.find((r) => r.id === id)
+      const apply = (r) => {
+        if (r) setForm({ ...blankRecipe(), ...r })
+        setLoaded(true)
+      }
+      live ? apply(live) : getRecipe(id).then(apply)
+    } else {
+      const saved = localStorage.getItem(DRAFT_KEY)
+      if (saved) {
+        try { setForm({ ...blankRecipe(), ...JSON.parse(saved) }) } catch {}
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
+
+  // Auto-save draft to localStorage while editing a NEW recipe.
+  useEffect(() => {
+    if (initial.current) { initial.current = false; return }
+    setDirty(true)
+    if (!isEdit) localStorage.setItem(DRAFT_KEY, JSON.stringify(form))
+  }, [form, isEdit])
+
+  // Warn before leaving with unsaved changes (browser nav).
+  useEffect(() => {
+    const handler = (e) => { if (dirty) { e.preventDefault(); e.returnValue = '' } }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [dirty])
+
+  function set(field, value) { setForm((f) => ({ ...f, [field]: value })) }
+
+  function setIngredient(i, key, value) {
+    setForm((f) => {
+      const ingredients = f.ingredients.map((ing, idx) =>
+        idx === i ? { ...ing, [key]: key === 'qty' ? value : value } : ing)
+      return { ...f, ingredients }
+    })
+  }
+  function addIngredient() { setForm((f) => ({ ...f, ingredients: [...f.ingredients, { qty: '', unit: '', name: '' }] })) }
+  function removeIngredient(i) { setForm((f) => ({ ...f, ingredients: f.ingredients.filter((_, idx) => idx !== i) })) }
+
+  function setStep(i, value) {
+    setForm((f) => ({ ...f, instructions: f.instructions.map((s, idx) => (idx === i ? value : s)) }))
+  }
+  function addStep() { setForm((f) => ({ ...f, instructions: [...f.instructions, ''] })) }
+  function removeStep(i) { setForm((f) => ({ ...f, instructions: f.instructions.filter((_, idx) => idx !== i) })) }
+  function moveStep(i, dir) {
+    setForm((f) => {
+      const arr = [...f.instructions]
+      const j = i + dir
+      if (j < 0 || j >= arr.length) return f
+      ;[arr[i], arr[j]] = [arr[j], arr[i]]
+      return { ...f, instructions: arr }
+    })
+  }
+
+  async function handleSave() {
+    if (!form.title.trim()) return toast('Please add a recipe name')
+    const clean = {
+      ...form,
+      servings: Number(form.servings) || 1,
+      ingredients: form.ingredients
+        .filter((i) => i.name.trim())
+        .map((i) => ({ qty: i.qty === '' ? '' : Number(i.qty), unit: i.unit.trim(), name: i.name.trim() })),
+      instructions: form.instructions.map((s) => s.trim()).filter(Boolean),
+    }
+    try {
+      if (isEdit) {
+        await updateRecipe(id, clean)
+        setDirty(false)
+        toast('Recipe saved ✓')
+        navigate(`/recipe/${id}`)
+      } else {
+        const newId = await createRecipe(clean)
+        localStorage.removeItem(DRAFT_KEY)
+        setDirty(false)
+        setSavedId(newId)
+      }
+    } catch (err) {
+      toast('Could not save recipe')
+    }
+  }
+
+  function handleCancel() {
+    if (dirty && !window.confirm('Discard unsaved changes?')) return
+    if (!isEdit) localStorage.removeItem(DRAFT_KEY)
+    navigate(-1)
+  }
+
+  if (!loaded) return <div className="py-20 text-center text-warm-soft">Loading…</div>
+
+  return (
+    <div className="animate-fadein space-y-5 pb-10">
+      <header className="flex items-center justify-between">
+        <h1 className="text-2xl font-extrabold">{isEdit ? 'Edit Recipe' : 'New Recipe'}</h1>
+        <button onClick={handleCancel} className="font-bold text-warm-soft">Cancel</button>
+      </header>
+
+      <Field label="Recipe name">
+        <input className="input" value={form.title} onChange={(e) => set('title', e.target.value)}
+          placeholder="Grandma's lasagna" />
+      </Field>
+
+      <Field label="Photo URL">
+        <input className="input" value={form.imageUrl} onChange={(e) => set('imageUrl', e.target.value)}
+          placeholder="https://…" />
+        {/* NOTE: Firebase Storage upload would plug in here later — replace this URL
+            input with a file picker that uploads to Storage and sets imageUrl. */}
+        {form.imageUrl && (
+          <img src={form.imageUrl} alt="preview" className="mt-2 h-40 w-full rounded-2xl object-cover"
+            onError={(e) => { e.currentTarget.style.display = 'none' }} />
+        )}
+      </Field>
+
+      <Field label="Category">
+        <div className="flex flex-wrap gap-2">
+          {CATEGORIES.map((c) => (
+            <button key={c} onClick={() => set('category', c)}
+              className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                form.category === c ? 'bg-peach text-warm shadow-card' : 'bg-white text-warm-soft'
+              }`}>{c}</button>
+          ))}
+        </div>
+      </Field>
+
+      <div className="grid grid-cols-3 gap-3">
+        <TimeField label="Prep" t={form.prepTime} onChange={(t) => set('prepTime', t)} />
+        <TimeField label="Cook" t={form.cookTime} onChange={(t) => set('cookTime', t)} />
+        <Field label="Servings">
+          <input type="number" min="1" className="input" value={form.servings}
+            onChange={(e) => set('servings', e.target.value)} />
+        </Field>
+      </div>
+
+      {/* Ingredients */}
+      <Field label="Ingredients">
+        <div className="space-y-2">
+          {form.ingredients.map((ing, i) => (
+            <div key={i} className="flex gap-2">
+              <input className="input w-16 px-2 text-center" placeholder="Qty" value={ing.qty}
+                onChange={(e) => setIngredient(i, 'qty', e.target.value)} />
+              <input className="input w-20 px-2" placeholder="unit" value={ing.unit}
+                onChange={(e) => setIngredient(i, 'unit', e.target.value)} />
+              <input className="input flex-1" placeholder="ingredient" value={ing.name}
+                onChange={(e) => setIngredient(i, 'name', e.target.value)} />
+              <button onClick={() => removeIngredient(i)} className="px-2 text-warm-soft hover:text-red-600"
+                aria-label="Remove">✕</button>
+            </div>
+          ))}
+        </div>
+        <button onClick={addIngredient} className="btn-ghost mt-2 w-full py-2 text-sm">+ Add ingredient</button>
+      </Field>
+
+      {/* Instructions */}
+      <Field label="Instructions">
+        <div className="space-y-2">
+          {form.instructions.map((step, i) => (
+            <div key={i} className="flex items-start gap-2">
+              <span className="mt-3 w-5 shrink-0 text-center font-extrabold text-warm-soft">{i + 1}</span>
+              <textarea className="input min-h-[3rem] flex-1" rows={2} value={step}
+                placeholder="Describe this step…" onChange={(e) => setStep(i, e.target.value)} />
+              <div className="flex flex-col">
+                <button onClick={() => moveStep(i, -1)} className="px-1 text-warm-soft" aria-label="Move up">▲</button>
+                <button onClick={() => moveStep(i, 1)} className="px-1 text-warm-soft" aria-label="Move down">▼</button>
+              </div>
+              <button onClick={() => removeStep(i)} className="mt-2 px-1 text-warm-soft hover:text-red-600"
+                aria-label="Remove">✕</button>
+            </div>
+          ))}
+        </div>
+        <button onClick={addStep} className="btn-ghost mt-2 w-full py-2 text-sm">+ Add step</button>
+      </Field>
+
+      {/* Public/private */}
+      <label className="flex items-center justify-between rounded-2xl bg-white p-4 shadow-card">
+        <span className="font-bold">{form.isPublic ? '🌍 Public' : '🔒 Private'}
+          <span className="ml-1 text-xs font-normal text-warm-soft">
+            {form.isPublic ? 'visible to friends' : 'only you can see this'}
+          </span>
+        </span>
+        <input type="checkbox" className="peer sr-only" checked={form.isPublic}
+          onChange={(e) => set('isPublic', e.target.checked)} />
+        <span className="relative h-7 w-12 rounded-full bg-warm/20 transition peer-checked:bg-peach-dark
+          after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5" />
+      </label>
+
+      <div className="flex gap-3">
+        <button onClick={handleCancel} className="btn-ghost flex-1">Cancel</button>
+        <button onClick={handleSave} className="btn-peach flex-1">Save Recipe</button>
+      </div>
+
+      {savedId && (
+        <AddToPantryPrompt
+          inPantry={isInPantry(savedId)}
+          onYes={async () => { await togglePantry(savedId); toast('Added to Pantry 🫙'); navigate(`/recipe/${savedId}`) }}
+          onNo={() => navigate(`/recipe/${savedId}`)}
+        />
+      )}
+    </div>
+  )
+}
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <label className="mb-1 block text-sm font-bold text-warm-soft">{label}</label>
+      {children}
+    </div>
+  )
+}
+
+function TimeField({ label, t, onChange }) {
+  return (
+    <Field label={label}>
+      <div className="flex gap-1">
+        <input type="number" min="0" className="input w-full px-2" value={t.value}
+          onChange={(e) => onChange({ ...t, value: Number(e.target.value) })} />
+        <select className="rounded-2xl border border-warm/15 bg-white px-1 text-sm font-bold"
+          value={t.unit} onChange={(e) => onChange({ ...t, unit: e.target.value })}>
+          <option value="min">min</option>
+          <option value="hr">hr</option>
+        </select>
+      </div>
+    </Field>
+  )
+}
+
+export function AddToPantryPrompt({ onYes, onNo }) {
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-warm/40 p-6" onClick={onNo}>
+      <div className="card w-full max-w-xs space-y-4 p-6 text-center" onClick={(e) => e.stopPropagation()}>
+        <div className="text-4xl">🫙</div>
+        <h3 className="text-lg font-extrabold">Add to My Pantry?</h3>
+        <p className="text-sm text-warm-soft">Keep this recipe in your favorites for quick access.</p>
+        <div className="flex gap-3">
+          <button onClick={onNo} className="btn-ghost flex-1">Not now</button>
+          <button onClick={onYes} className="btn-peach flex-1">Yes!</button>
+        </div>
+      </div>
+    </div>
+  )
+}

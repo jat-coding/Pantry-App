@@ -1,0 +1,12 @@
+{
+  "name": "Pantry",
+  "short_name": "Pantry",
+  "description": "Collect, scale, and cook the recipes you love.",
+  "theme_color": "#FFCBA4",
+  "background_color": "#F0EAD6",
+  "display": "standalone",
+  "start_url": "/",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

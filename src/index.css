@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-eggshell text-warm font-sans antialiased;
+    /* Warm subtle texture on the eggshell background */
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(255, 203, 164, 0.10) 0, transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(242, 169, 119, 0.08) 0, transparent 45%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cg fill='%232C2416' fill-opacity='0.025'%3E%3Ccircle cx='8' cy='8' r='1.2'/%3E%3Ccircle cx='28' cy='22' r='1.2'/%3E%3C/g%3E%3C/svg%3E");
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  .pill {
+    @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-bold;
+  }
+  .pill-peach {
+    @apply pill bg-peach text-warm;
+  }
+  .btn-peach {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-peach px-5 py-3
+           font-bold text-warm shadow-card transition active:scale-95
+           hover:bg-peach-dark disabled:opacity-50;
+    min-height: 44px;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-warm/15
+           bg-white px-5 py-3 font-bold text-warm transition active:scale-95 hover:bg-eggshell;
+    min-height: 44px;
+  }
+  .input {
+    @apply w-full rounded-2xl border border-warm/15 bg-white px-4 py-3 text-warm
+           placeholder-warm-soft/60 outline-none focus:border-peach-dark
+           focus:ring-2 focus:ring-peach/50;
+  }
+  .card {
+    @apply rounded-2xl bg-white shadow-card;
+  }
+}
+
+/* Hide scrollbars on horizontal filter rows but keep scrollability */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

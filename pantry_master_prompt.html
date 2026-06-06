@@ -1,0 +1,380 @@
+
+<style>
+  .container { padding: 1.5rem 0; }
+  .prompt-box { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1.25rem; font-family: var(--font-mono); font-size: 12px; line-height: 1.6; color: var(--color-text-primary); white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow-y: auto; margin-bottom: 1rem; }
+  .copy-btn { display: flex; align-items: center; gap: 8px; padding: 10px 20px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: transparent; color: var(--color-text-primary); font-size: 14px; cursor: pointer; transition: background 0.15s; }
+  .copy-btn:hover { background: var(--color-background-secondary); }
+  .copy-btn.copied { color: var(--color-text-success); border-color: var(--color-border-success); }
+  .label { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 8px; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: var(--border-radius-md); background: var(--color-background-success); color: var(--color-text-success); margin-bottom: 1rem; }
+</style>
+
+<div class="container">
+  <h2 class="sr-only">Pantry app master prompt — copy and paste into Claude Code</h2>
+  <span class="badge">Ready to paste into Claude Code</span>
+  <p class="label">Full master prompt — all 10 blocks in one:</p>
+  <div class="prompt-box" id="prompt-text">Build a React web app using Vite + TailwindCSS called "Pantry" — a recipe organizing app. Complete the entire app end to end, working through each section below in order.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 1 — DESIGN SYSTEM & PROJECT SETUP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Design system:
+- Primary background: eggshell #F0EAD6
+- Accent / buttons / tags: peach #FFCBA4
+- Card background: white #FFFFFF
+- Text: dark warm gray #2C2416
+- Font: Nunito (Google Fonts)
+- Border radius: rounded-2xl throughout
+- Subtle drop shadows on cards
+- Warm subtle texture on the eggshell background
+
+Navigation:
+- Bottom tab bar on mobile, left sidebar on desktop
+- Tabs: 🫙 My Pantry (home) | 📖 All Recipes | 🛒 Grocery List | 👥 Friends | 👤 Profile
+
+Reusable RecipeCard component showing:
+- Thumbnail image or illustrated placeholder
+- Recipe name
+- Category tag (peach pill)
+- Prep + cook time
+- Author name
+- Heart icon (filled if in Pantry, outline if not)
+- "Pocket" button (visible on friends' recipes only)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 2 — MY PANTRY & ALL RECIPES SCREENS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+MY PANTRY (home screen):
+- Header: "My Pantry 🫙"
+- Grid of recipe cards the user has favorited/hearted
+- Horizontal scrollable category filter bar
+- Real-time search bar filtering by name and ingredient
+- Empty state: warm illustrated message "Your pantry is empty — start collecting recipes you love"
+- This is the heart of the app — make it feel special and personal
+
+ALL RECIPES screen:
+- Full library of every recipe the user owns or has pocketed
+- Same search + category filter
+- Sort options: A-Z, newest, cook time
+- Floating "+" button to add/import new recipe
+- Heart icon on each card toggles recipe in/out of My Pantry
+- Satisfying pulse/pop animation on heart toggle
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 3 — RECIPE DETAIL & COOK MODE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Recipe Detail screen:
+- Full-width hero image at top (or warm placeholder)
+- Recipe name, author, category tag
+- Heart button top right — toggleable, filled if in Pantry
+- Stats row: prep time, cook time, servings
+- Cook Mode toggle switch
+
+Ingredient Scaling (build this carefully):
+- Each ingredient has its own editable quantity input
+- User edits ANY single ingredient and ALL others scale proportionally
+- Example: recipe calls for 3 eggs + 2 cups flour. User changes eggs to 1. Flour auto-updates to 0.67 cups.
+- Example: user changes 1.5 cups pasta to 3 cups — everything doubles
+- "Reset" button returns to original quantities
+- Handle unit conversions (e.g. 0.5 tbsp → 1.5 tsp)
+- Servings counter at top updates to reflect scale
+
+Ingredients section:
+- Checklist style, tap to cross off
+- Quantities are the editable scaling inputs above
+
+Instructions section:
+- Numbered steps, clearly spaced
+- Active step highlighted in Cook Mode
+
+Cook Mode:
+- Activate browser Wake Lock API (prevent screen sleep)
+- Increase font size
+- Highlight active step
+- Prev / Next Step buttons pinned to bottom
+- Release wake lock on toggle off or page exit
+
+Edit button (pencil icon) in top bar for recipes the user owns.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 4 — RECIPE EDITOR & CREATOR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Recipe Editor (for creating and editing):
+- Recipe name
+- Photo: image URL input with preview (note where Firebase Storage upload goes later)
+- Category selector (pill style): Breakfast, Lunch, Dinner, Dessert, Snacks, Drinks, + Custom
+- Prep time, cook time (number + unit: min/hr)
+- Servings (number input)
+- Ingredients list: dynamic rows (quantity, unit, name) — add/remove rows
+- Instructions list: dynamic numbered steps — add/remove/drag-to-reorder
+- Public/Private toggle (public = visible to friends)
+- Save and Cancel buttons
+- Auto-save draft to localStorage while editing
+- Confirmation dialog before discarding unsaved changes
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 5 — RECIPE IMPORT SYSTEM
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Import modal triggered by "+" button (offers "Import Recipe" vs "Create from Scratch"):
+
+Tab 1 — URL Import:
+- User pastes any recipe URL (AllRecipes, NYT Cooking, Food Network, etc.)
+- Fetch page via Vite proxy to avoid CORS
+- Extract Schema.org JSON-LD <script type="application/ld+json"> recipe block
+- Map: name, recipeIngredient, recipeInstructions, prepTime, cookTime, recipeYield, image, recipeCategory
+- Show editable preview before saving
+
+Tab 2 — Paste Text:
+- Textarea for any freeform recipe text
+- Send to Claude API (claude-sonnet-4-20250514) to extract structured JSON:
+  { name, category, prepTime, cookTime, servings, ingredients: [{qty, unit, name}], instructions: [string] }
+- Show editable preview before saving
+
+Tab 3 — Photo / Scan:
+- Image file picker (jpg/png, from device)
+- Send as base64 to Claude API vision to extract recipe from photo of recipe card, cookbook page, or handwritten note
+- Show editable preview before saving
+
+After saving from any tab, prompt: "Add to My Pantry?"
+
+Anthropic API key will be provided in .env as: VITE_ANTHROPIC_API_KEY
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 5.5 — RECIPE PARSER & CARD GENERATOR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+All import methods and manual creation flow through this single pipeline before saving:
+
+Step 1 — Normalize via Claude API (claude-sonnet-4-20250514):
+Prompt: "Parse this recipe and return clean structured JSON only, no markdown, no explanation:
+{
+  title: string,
+  category: string (Breakfast/Lunch/Dinner/Dessert/Snacks/Drinks),
+  prepTime: { value: number, unit: 'min'|'hr' },
+  cookTime: { value: number, unit: 'min'|'hr' },
+  servings: number,
+  ingredients: [{ qty: number, unit: string, name: string }],
+  instructions: [string],
+  imageUrl: string | null
+}"
+
+Step 2 — Preview card:
+- Render parsed JSON as a live recipe card preview
+- Every field is editable before saving
+- Card looks exactly as it will in the library
+
+Step 3 — Save to Firestore:
+- Write normalized recipe object to Firestore
+- Generate unique recipeId
+- Attach authorId, authorName, createdAt, isPublic: false
+- Prompt: "Add to My Pantry?" before closing
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 6 — FIREBASE BACKEND
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Install firebase. Set up firebase.js config using .env variables.
+Initialize: Firebase Auth, Firestore. Enable offline persistence.
+
+Auth screens:
+- Sign up (email + password + display name)
+- Log in
+- "Browse as Guest" (read-only, cannot save or friend)
+- Persist login session across refreshes
+
+Firestore structure:
+
+users/{userId}:
+{ displayName, avatarUrl, bio, friendIds[], pantryIds[], createdAt }
+
+recipes/{recipeId}:
+{ title, category, ingredients, instructions, prepTime, cookTime, servings, imageUrl, authorId, authorName, isPublic, createdAt }
+
+friendRequests/{requestId}:
+{ fromUserId, fromDisplayName, toUserId, status: pending/accepted/declined, createdAt }
+
+pocketed/{userId}/recipes/{recipeId}:
+{ originalRecipeId, originalAuthorId, originalAuthorName, pocketedAt }
+
+users/{userId}/groceryList:
+[{ id, name, qty, unit, unit, fromRecipe, checked }]
+
+Security rules:
+- Users can only edit their own recipes and profile
+- Public recipes readable by all logged-in users
+- Friends can view each other's private recipes
+- Only the recipient can accept/decline friend requests
+
+Replace all localStorage with Firestore reads/writes.
+Add loading skeletons for all async operations.
+Enable Firestore offline persistence.
+Skip Firebase Storage and Analytics.
+
+Firebase config keys:
+apiKey: "AIzaSyDqNvIvABGZkx3ju9k52wTUmUiVkkhgggM"
+authDomain: "recipe-app-920c3.firebaseapp.com"
+projectId: "recipe-app-920c3"
+storageBucket: "recipe-app-920c3.firebasestorage.app"
+messagingSenderId: "382650471378"
+appId: "1:382650471378:web:1175163de7e2b9dbe9ae0b"
+
+Store all keys in .env with VITE_ prefixes. Add .env to .gitignore.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 7 — FRIENDS & POCKET SYSTEM
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FRIENDS TAB:
+- Search bar to find users by display name
+- Send friend request button on search results
+- Pending requests section: incoming requests with Accept / Decline buttons
+- Friends list: avatar, display name, recipe count, "View Pantry" button
+
+FRIEND PROFILE screen:
+- Their display name, avatar, bio
+- Their public recipes as cards
+- "Pocket" button on each recipe
+- "Remove Friend" in overflow menu
+
+POCKET mechanic:
+- Tapping "Pocket" copies recipe into user's All Recipes library
+- Credits original author: "Pocketed from [Name]"
+- After pocketing, prompt: "Add to My Pantry?"
+- Pocketed recipe is fully editable by new owner
+- Original recipe unchanged for author
+- Pocket button becomes "Pocketed ✓" after saving
+
+NOTIFICATIONS:
+- Bell icon in top bar
+- Incoming friend requests
+- "[Name] pocketed your recipe [Recipe Name]!"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 8 — GROCERY LIST & REVERSE RECIPE SEARCH
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+GROCERY LIST (dedicated tab):
+- "Add to Grocery List" button on every Recipe Detail screen
+- Pulls all ingredients using current scaled quantities
+- Combines duplicates intelligently (1 cup flour + 2 cups flour = 3 cups flour)
+- Groups ingredients by category: Produce, Dairy, Meat, Pantry, Bakery, Other
+- Tap item to cross off while shopping
+- Swipe to delete individual items
+- Manual "Add item" input
+- "Clear Completed" and "Clear All" buttons (with confirmation)
+- Each item shows which recipe it came from
+- Fully offline capable
+
+REVERSE RECIPE SEARCH ("What Can I Make?"):
+- Button on Grocery List tab and toggle on main search bar
+- User types ingredients one at a time, added as removable pill tags (e.g. [eggs] [butter] [flour])
+- "Find Recipes" button triggers search
+
+Layer 1 — Own library:
+- Match against all user's recipes
+- Rank by number of matching ingredients
+- Show match %: "You have 4/6 ingredients"
+- Highlight which ingredients they have vs what's missing
+
+Layer 2 — Friends' public recipes:
+- Same matching against friends' visible recipes
+- Show "Pocket this recipe" on friend results
+
+Display as ranked recipe cards, best match first.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 9 — PWA SETUP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Convert Pantry into a Progressive Web App:
+- Add vite-plugin-pwa
+- manifest.json: name "Pantry", short_name "Pantry", theme_color #FFCBA4, background_color #F0EAD6, display standalone
+- Icons: placeholder icons at 192x192 and 512x512 in peach/eggshell with jar design
+
+Service Worker:
+- Cache all static assets on install
+- Cache visited recipes for offline viewing
+- Grocery list fully offline
+- My Pantry screen works offline with cached data
+- Subtle "You're offline" banner when disconnected
+
+Install prompt:
+- "Add Pantry to your home screen" banner after second visit
+- Dismissable, remembers if dismissed
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 10 — POLISH & RESPONSIVE QA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Responsive:
+- 375px (iPhone SE), 768px (tablet), 1280px (desktop)
+- Bottom tab bar mobile, sidebar desktop
+- Cards: 1 col mobile, 2 col tablet, 3 col desktop
+
+Animations:
+- Heart toggle: pulse/pop animation
+- Page transitions: subtle fade
+- Pocket button: satisfying confirmation animation
+- Card hover: gentle lift on desktop
+
+Loading states:
+- Skeleton cards on all grid screens
+- Spinner on import processing
+- Optimistic UI on heart toggle (instant, syncs in background)
+
+Toast notifications:
+- "Added to Pantry 🫙"
+- "Recipe pocketed!"
+- "Friend request sent"
+- "Added to grocery list"
+
+Accessibility:
+- All tap targets minimum 44px
+- Proper contrast ratios
+- Focus states on all interactive elements
+
+Additional:
+- Pull to refresh on mobile
+- Long press on card shows quick actions menu
+- Sticky category pills on scroll
+- Dark warm-toned subtle pattern on eggshell background
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+IMPORTANT NOTES FOR CLAUDE CODE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- Work through all sections in order, completing each fully before moving to the next
+- Store all API keys in .env with VITE_ prefixes, add .env to .gitignore
+- The Anthropic API key will be added to .env as VITE_ANTHROPIC_API_KEY (user will provide it)
+- Add comments wherever Firebase Storage upload would plug in later
+- Add comments wherever a real notification backend would plug in
+- After completing all sections, run the dev server and confirm the app loads correctly</div>
+
+  <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+    <button class="copy-btn" id="copy-btn" onclick="copyPrompt()">
+      <i class="ti ti-copy" aria-hidden="true"></i>
+      Copy full prompt
+    </button>
+    <span style="font-size: 12px; color: var(--color-text-secondary);">Then paste directly into Claude Code</span>
+  </div>
+</div>
+
+<script>
+function copyPrompt() {
+  const text = document.getElementById('prompt-text').innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.classList.add('copied');
+    btn.innerHTML = '<i class="ti ti-check" aria-hidden="true"></i> Copied!';
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = '<i class="ti ti-copy" aria-hidden="true"></i> Copy full prompt';
+    }, 2500);
+  });
+}
+</script>
