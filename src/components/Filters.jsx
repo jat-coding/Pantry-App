@@ -1,9 +1,12 @@
 import { CATEGORIES } from '../lib/categories.js'
+import { SearchIcon } from './icons.jsx'
 
 export function SearchBar({ value, onChange, placeholder = 'Search recipes or ingredients…' }) {
   return (
     <div className="relative">
-      <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-warm-soft">🔍</span>
+      <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-800">
+        <SearchIcon className="h-5 w-5" />
+      </span>
       <input
         className="input pl-11"
         value={value}

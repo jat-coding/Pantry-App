@@ -40,7 +40,7 @@ export default function Layout() {
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-warm/10 bg-white/60 px-4 py-6 backdrop-blur sm:flex">
         <div className="mb-8 flex items-center gap-2 px-2">
-          <PantryIcon className="h-7 w-7 text-warm" />
+          <PantryIcon className="h-7 w-7 text-zinc-800" />
           <span className="text-xl font-extrabold">Pantry</span>
         </div>
         <nav className="flex flex-col gap-1">
@@ -55,7 +55,7 @@ export default function Layout() {
                 }`
               }
             >
-              <t.Icon className="h-6 w-6" />
+              <t.Icon className="h-6 w-6 text-zinc-800" />
               {t.label === 'Pantry' ? 'My Pantry' : t.label === 'Recipes' ? 'All Recipes' : t.label === 'Grocery' ? 'Grocery List' : t.label}
             </NavLink>
           ))}
@@ -86,7 +86,7 @@ export default function Layout() {
           >
             {({ isActive }) => (
               <>
-                <t.Icon className={`h-6 w-6 transition ${isActive ? 'scale-110' : ''}`} />
+                <t.Icon className={`h-6 w-6 text-zinc-800 transition ${isActive ? 'scale-110' : 'opacity-50'}`} />
                 {t.label}
               </>
             )}

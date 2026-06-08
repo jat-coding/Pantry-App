@@ -1,4 +1,4 @@
-export const CATEGORIES = ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snacks', 'Drinks']
+export const CATEGORIES = ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snacks', 'Drinks', 'Sauces & Dressings']
 
 export const CATEGORY_EMOJI = {
   Breakfast: '🍳',
@@ -7,6 +7,7 @@ export const CATEGORY_EMOJI = {
   Dessert: '🍪',
   Snacks: '🥨',
   Drinks: '🥤',
+  'Sauces & Dressings': '🫙',
 }
 
 // Best-effort grocery aisle grouping by ingredient keyword.

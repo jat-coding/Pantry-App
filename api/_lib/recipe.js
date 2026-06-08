@@ -19,7 +19,7 @@ const RECIPE_SCHEMA = {
     title: { type: 'string' },
     category: {
       type: 'string',
-      enum: ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snacks', 'Drinks'],
+      enum: ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snacks', 'Drinks', 'Sauces & Dressings'],
     },
     prepTime: {
       type: 'object',

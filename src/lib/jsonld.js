@@ -67,7 +67,7 @@ export function parseIngredientLine(line) {
 }
 
 function mapCategory(c) {
-  const allowed = ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snacks', 'Drinks']
+  const allowed = ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snacks', 'Drinks', 'Sauces & Dressings']
   const raw = asArray(c)[0]
   if (!raw) return 'Dinner'
   const hit = allowed.find((a) => raw.toLowerCase().includes(a.toLowerCase()))

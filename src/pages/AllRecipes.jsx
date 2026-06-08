@@ -6,6 +6,7 @@ import { CategoryFilter, SearchBar, matchesQuery } from '../components/Filters.j
 import { GridSkeleton } from '../components/Skeleton.jsx'
 import ImportModal from './ImportModal.jsx'
 import { useToast } from '../components/Toast.jsx'
+import { LinkIcon, EditIcon } from '../components/icons.jsx'
 
 const SORTS = {
   newest: 'Newest',
@@ -50,7 +51,7 @@ export default function AllRecipes() {
     <div className="animate-fadein space-y-5">
       <header className="flex items-end justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold">All Recipes 📖</h1>
+          <h1 className="text-3xl font-extrabold">All Recipes</h1>
           <p className="text-warm-soft">Everything in your collection.</p>
         </div>
         <select
@@ -87,13 +88,13 @@ export default function AllRecipes() {
       <div className="fixed bottom-24 right-5 z-40 sm:bottom-8 sm:right-8">
         {showAdd && (
           <div className="absolute bottom-16 right-0 w-52 animate-fadein space-y-1 rounded-2xl bg-white p-2 shadow-card-hover">
-            <button className="w-full rounded-xl px-4 py-3 text-left font-bold hover:bg-eggshell"
+            <button className="flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left font-bold hover:bg-eggshell"
               onClick={() => handleAdd('import')}>
-              📥 Import Recipe
+              <LinkIcon className="h-5 w-5 text-zinc-800" /> Import Recipe
             </button>
-            <button className="w-full rounded-xl px-4 py-3 text-left font-bold hover:bg-eggshell"
+            <button className="flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left font-bold hover:bg-eggshell"
               onClick={() => handleAdd('scratch')}>
-              ✏️ Create from Scratch
+              <EditIcon className="h-5 w-5 text-zinc-800" /> Create from Scratch
             </button>
           </div>
         )}

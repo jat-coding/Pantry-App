@@ -1,9 +1,22 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.0.0'
+export const APP_VERSION = '1.1.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.1.0',
+    date: '2026-06-08',
+    changes: [
+      'New monochrome (greyish-black) icon set across the app — including a redesigned pantry-shelf tab icon — and emojis removed from tab headers.',
+      'Pantry view toggle moved to its own section above the categories.',
+      'Added a "Sauces & Dressings" category.',
+      'Recipes can now be deleted from the recipe page.',
+      'More reliable URL import (reads JSON-LD + full page), plus a new Video import tab.',
+      'Recipe photos can be chosen from your camera roll.',
+      'The "Add to Pantry?" prompt now uses the pantry icon.',
+    ],
+  },
   {
     version: '1.0.0',
     date: '2026-06-08',

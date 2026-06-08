@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext.jsx'
+import { PantryIcon } from '../components/icons.jsx'
 
 export default function Auth() {
   const { signup, login, browseAsGuest } = useAuth()
@@ -31,8 +32,8 @@ export default function Auth() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-6 py-10">
       <div className="mb-8 text-center">
-        <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-peach text-3xl shadow-card">
-          🫙
+        <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-peach text-zinc-800 shadow-card">
+          <PantryIcon className="h-9 w-9" />
         </div>
         <h1 className="text-3xl font-extrabold">Pantry</h1>
         <p className="mt-1 text-warm-soft">Collect the recipes you love.</p>

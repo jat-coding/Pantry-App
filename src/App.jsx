@@ -11,12 +11,13 @@ import GroceryList from './pages/GroceryList.jsx'
 import Friends from './pages/Friends.jsx'
 import Profile from './pages/Profile.jsx'
 import InviteAccept from './pages/InviteAccept.jsx'
+import { PantryIcon } from './components/icons.jsx'
 
 function Splash() {
   return (
     <div className="flex min-h-screen items-center justify-center">
       <div className="animate-pulse text-center">
-        <div className="mb-2 text-5xl">🫙</div>
+        <div className="mb-2 flex justify-center text-zinc-800"><PantryIcon className="h-12 w-12" /></div>
         <p className="font-bold text-warm-soft">Loading Pantry…</p>
       </div>
     </div>

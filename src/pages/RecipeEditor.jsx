@@ -3,6 +3,32 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import { useToast } from '../components/Toast.jsx'
 import { CATEGORIES } from '../lib/categories.js'
+import { PantryIcon, CameraIcon } from '../components/icons.jsx'
+
+// Downscale a chosen photo to a compact JPEG data URL so it fits in Firestore
+// (no Storage bucket yet). Keeps the longest edge <= 1000px.
+function fileToScaledDataUrl(file, maxEdge = 1000, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = reject
+    reader.onload = () => {
+      const img = new Image()
+      img.onerror = reject
+      img.onload = () => {
+        const scale = Math.min(1, maxEdge / Math.max(img.width, img.height))
+        const w = Math.round(img.width * scale)
+        const h = Math.round(img.height * scale)
+        const canvas = document.createElement('canvas')
+        canvas.width = w
+        canvas.height = h
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+        resolve(canvas.toDataURL('image/jpeg', quality))
+      }
+      img.src = reader.result
+    }
+    reader.readAsDataURL(file)
+  })
+}
 
 const DRAFT_KEY = 'pantry-draft-new'
 
@@ -66,6 +92,16 @@ export default function RecipeEditor() {
   }, [dirty])
 
   function set(field, value) { setForm((f) => ({ ...f, [field]: value })) }
+
+  async function handlePhotoFile(file) {
+    if (!file) return
+    try {
+      const dataUrl = await fileToScaledDataUrl(file)
+      set('imageUrl', dataUrl)
+    } catch {
+      toast('Could not load that photo')
+    }
+  }
 
   function setIngredient(i, key, value) {
     setForm((f) => {
@@ -139,14 +175,27 @@ export default function RecipeEditor() {
           placeholder="Grandma's lasagna" />
       </Field>
 
-      <Field label="Photo URL">
-        <input className="input" value={form.imageUrl} onChange={(e) => set('imageUrl', e.target.value)}
-          placeholder="https://…" />
-        {/* NOTE: Firebase Storage upload would plug in here later — replace this URL
-            input with a file picker that uploads to Storage and sets imageUrl. */}
+      <Field label="Photo">
+        {/* Choose from the camera roll (or take a photo on mobile). The image is
+            downscaled to a compact data URL stored on the recipe. */}
+        <label className="btn-ghost w-full cursor-pointer">
+          <CameraIcon className="h-5 w-5 text-zinc-800" />
+          {form.imageUrl ? 'Change photo' : 'Choose from camera roll'}
+          <input type="file" accept="image/*" className="hidden"
+            onChange={(e) => handlePhotoFile(e.target.files?.[0])} />
+        </label>
+        <input className="input mt-2" value={form.imageUrl.startsWith('data:') ? '' : form.imageUrl}
+          onChange={(e) => set('imageUrl', e.target.value)}
+          placeholder="…or paste an image URL" />
         {form.imageUrl && (
-          <img src={form.imageUrl} alt="preview" className="mt-2 h-40 w-full rounded-2xl object-cover"
-            onError={(e) => { e.currentTarget.style.display = 'none' }} />
+          <div className="relative mt-2">
+            <img src={form.imageUrl} alt="preview" className="h-40 w-full rounded-2xl object-cover"
+              onError={(e) => { e.currentTarget.style.display = 'none' }} />
+            <button type="button" onClick={() => set('imageUrl', '')}
+              className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-xs font-bold text-warm shadow-card">
+              Remove
+            </button>
+          </div>
         )}
       </Field>
 
@@ -211,7 +260,7 @@ export default function RecipeEditor() {
 
       {/* Public/private */}
       <label className="flex items-center justify-between rounded-2xl bg-white p-4 shadow-card">
-        <span className="font-bold">{form.isPublic ? '🌍 Public' : '🔒 Private'}
+        <span className="font-bold">{form.isPublic ? 'Public' : 'Private'}
           <span className="ml-1 text-xs font-normal text-warm-soft">
             {form.isPublic ? 'visible to friends' : 'only you can see this'}
           </span>
@@ -230,7 +279,7 @@ export default function RecipeEditor() {
       {savedId && (
         <AddToPantryPrompt
           inPantry={isInPantry(savedId)}
-          onYes={async () => { await togglePantry(savedId); toast('Added to Pantry 🫙'); navigate(`/recipe/${savedId}`) }}
+          onYes={async () => { await togglePantry(savedId); toast('Added to Pantry'); navigate(`/recipe/${savedId}`) }}
           onNo={() => navigate(`/recipe/${savedId}`)}
         />
       )}
@@ -267,7 +316,7 @@ export function AddToPantryPrompt({ onYes, onNo }) {
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-warm/40 p-6" onClick={onNo}>
       <div className="card w-full max-w-xs space-y-4 p-6 text-center" onClick={(e) => e.stopPropagation()}>
-        <div className="text-4xl">🫙</div>
+        <div className="flex justify-center text-zinc-800"><PantryIcon className="h-12 w-12" /></div>
         <h3 className="text-lg font-extrabold">Add to My Pantry?</h3>
         <p className="text-sm text-warm-soft">Keep this recipe in your favorites for quick access.</p>
         <div className="flex gap-3">

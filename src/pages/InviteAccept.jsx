@@ -51,7 +51,7 @@ export default function InviteAccept() {
   return (
     <div className="animate-fadein mx-auto max-w-md">
       <div className="card mt-8 flex flex-col items-center gap-3 px-6 py-12 text-center">
-        <div className="text-5xl">{m.emoji}</div>
+        <div className="text-5xl grayscale">{m.emoji}</div>
         <h1 className="text-xl font-extrabold">{m.title}</h1>
         {m.body && <p className="text-sm text-warm-soft">{m.body}</p>}
         <div className="mt-3 flex w-full max-w-xs flex-col gap-2">

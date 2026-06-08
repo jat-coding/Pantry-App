@@ -4,7 +4,7 @@ import { useData } from '../contexts/DataContext.jsx'
 import RecipeCard from '../components/RecipeCard.jsx'
 import { CategoryFilter, SearchBar, matchesQuery } from '../components/Filters.jsx'
 import { GridSkeleton } from '../components/Skeleton.jsx'
-import { GridIcon, ListIcon } from '../components/icons.jsx'
+import { GridIcon, ListIcon, PantryIcon } from '../components/icons.jsx'
 
 const VIEW_KEY = 'pantry-view'
 
@@ -45,12 +45,13 @@ export default function Pantry() {
 
       <SearchBar value={query} onChange={setQuery} />
 
-      <div className="flex items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <CategoryFilter selected={category} onSelect={setCategory} />
-        </div>
+      {/* View toggle — its own small section right above the categories */}
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-bold text-warm-soft">View</span>
         <ViewToggle view={view} onChange={setViewPersist} />
       </div>
+
+      <CategoryFilter selected={category} onSelect={setCategory} />
 
       {loadingRecipes ? (
         <GridSkeleton />
@@ -134,7 +135,7 @@ function RecipeListView({ recipes, onOpen }) {
 function EmptyState({ onBrowse }) {
   return (
     <div className="card flex flex-col items-center gap-3 px-6 py-16 text-center">
-      <PantryIconLarge />
+      <PantryIcon className="h-16 w-16 text-zinc-800" />
       <h2 className="text-xl font-extrabold">Your pantry is empty</h2>
       <p className="max-w-xs text-warm-soft">
         Start collecting recipes you love — tap the heart on any recipe to keep it here.
@@ -143,20 +144,5 @@ function EmptyState({ onBrowse }) {
         Browse all recipes
       </button>
     </div>
-  )
-}
-
-function PantryIconLarge() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-16 w-16 text-peach-dark" fill="none"
-      stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 9.5h18" />
-      <path d="M3 17.5h18" />
-      <rect x="5.8" y="5" width="3.2" height="4.5" rx="0.8" />
-      <rect x="10.4" y="5" width="3.2" height="4.5" rx="0.8" />
-      <rect x="15" y="5" width="3.2" height="4.5" rx="0.8" />
-      <rect x="8" y="13" width="3.2" height="4.5" rx="0.8" />
-      <rect x="12.8" y="13" width="3.2" height="4.5" rx="0.8" />
-    </svg>
   )
 }

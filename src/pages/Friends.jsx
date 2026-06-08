@@ -4,6 +4,7 @@ import { useData } from '../contexts/DataContext.jsx'
 import { useToast } from '../components/Toast.jsx'
 import RecipeCard from '../components/RecipeCard.jsx'
 import { AddToPantryPrompt } from './RecipeEditor.jsx'
+import { FriendsIcon } from '../components/icons.jsx'
 import * as fs from '../lib/firestore.js'
 
 export default function Friends() {
@@ -68,7 +69,7 @@ export default function Friends() {
   async function shareInvite() {
     if (navigator.share) {
       try {
-        await navigator.share({ title: 'Add me on Pantry', text: 'Be my friend on Pantry 🫙', url: inviteLink })
+        await navigator.share({ title: 'Add me on Pantry', text: 'Be my friend on Pantry', url: inviteLink })
       } catch {
         // user cancelled the share sheet — ignore
       }
@@ -166,7 +167,7 @@ export default function Friends() {
 
       {pocketPrompt && (
         <AddToPantryPrompt
-          onYes={async () => { await togglePantry(pocketPrompt); toast('Added to Pantry 🫙'); setPocketPrompt(null) }}
+          onYes={async () => { await togglePantry(pocketPrompt); toast('Added to Pantry'); setPocketPrompt(null) }}
           onNo={() => setPocketPrompt(null)}
         />
       )}
@@ -224,7 +225,7 @@ function Avatar({ user, big }) {
 function Gate() {
   return (
     <div className="card mt-10 px-6 py-16 text-center">
-      <div className="mb-2 text-5xl">👥</div>
+      <div className="mb-2 flex justify-center text-zinc-800"><FriendsIcon className="h-12 w-12" /></div>
       <p className="font-bold">Friends are for members</p>
       <p className="text-sm text-warm-soft">Log in to find friends and pocket their recipes.</p>
     </div>

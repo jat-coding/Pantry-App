@@ -36,7 +36,7 @@ export default function Profile() {
     if (!recipes.length) return toast('No recipes to export yet')
     try {
       await exportRecipesToExcel(recipes, 'pantry-recipes.xlsx')
-      toast('Exported your recipes 📊')
+      toast('Exported your recipes')
     } catch {
       toast('Export failed')
     }

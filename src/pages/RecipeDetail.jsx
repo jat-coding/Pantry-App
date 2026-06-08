@@ -4,7 +4,8 @@ import { useData } from '../contexts/DataContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useToast } from '../components/Toast.jsx'
 import { formatIngredient, formatQty } from '../lib/scaling.js'
-import { aisleFor, CATEGORY_EMOJI } from '../lib/categories.js'
+import { aisleFor } from '../lib/categories.js'
+import { MealIcon, EditIcon, TrashIcon, HeartIcon } from '../components/icons.jsx'
 
 function timeLabel(t) {
   if (!t || !t.value) return '—'
@@ -15,7 +16,7 @@ export default function RecipeDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { recipes, getRecipe, isInPantry, togglePantry, addGroceryItems, canWrite } = useData()
+  const { recipes, getRecipe, isInPantry, togglePantry, addGroceryItems, deleteRecipe, canWrite } = useData()
   const toast = useToast()
 
   const [recipe, setRecipe] = useState(() => recipes.find((r) => r.id === id) || null)
@@ -109,6 +110,17 @@ export default function RecipeDetail() {
     })
   }
 
+  async function handleDelete() {
+    if (!window.confirm('Delete this recipe? This cannot be undone.')) return
+    try {
+      await deleteRecipe(recipe.id)
+      toast('Recipe deleted')
+      navigate('/recipes')
+    } catch {
+      toast('Could not delete recipe')
+    }
+  }
+
   async function handleAddToGrocery() {
     if (!canWrite) return toast('Log in to use the grocery list')
     const items = scaledIngredients
@@ -122,7 +134,7 @@ export default function RecipeDetail() {
       }))
     try {
       await addGroceryItems(items)
-      toast('Added to grocery list 🛒')
+      toast('Added to grocery list')
     } catch {
       toast('Could not add to grocery list')
     }
@@ -135,8 +147,8 @@ export default function RecipeDetail() {
         {recipe.imageUrl ? (
           <img src={recipe.imageUrl} alt={recipe.title} className="h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-peach/40 text-7xl">
-            {CATEGORY_EMOJI[recipe.category] || '🍽️'}
+          <div className="flex h-full w-full items-center justify-center bg-peach/40 text-zinc-800/70">
+            <MealIcon className="h-20 w-20" />
           </div>
         )}
         <button
@@ -146,17 +158,24 @@ export default function RecipeDetail() {
         >←</button>
         <div className="absolute right-3 top-3 flex gap-2">
           {isOwner && (
-            <button
-              onClick={() => navigate(`/recipe/${recipe.id}/edit`)}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 shadow-card backdrop-blur"
-              aria-label="Edit recipe"
-            >✏️</button>
+            <>
+              <button
+                onClick={() => navigate(`/recipe/${recipe.id}/edit`)}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-zinc-800 shadow-card backdrop-blur"
+                aria-label="Edit recipe"
+              ><EditIcon className="h-5 w-5" /></button>
+              <button
+                onClick={handleDelete}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-red-600 shadow-card backdrop-blur"
+                aria-label="Delete recipe"
+              ><TrashIcon className="h-5 w-5" /></button>
+            </>
           )}
           <button
             onClick={() => (canWrite ? togglePantry(recipe.id) : toast('Log in to save recipes'))}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-xl shadow-card backdrop-blur active:scale-90"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-zinc-800 shadow-card backdrop-blur active:scale-90"
             aria-label="Toggle pantry"
-          >{inPantry ? '❤️' : '🤍'}</button>
+          ><HeartIcon filled={inPantry} className="h-5 w-5" /></button>
         </div>
       </div>
 
@@ -177,7 +196,7 @@ export default function RecipeDetail() {
 
       {/* Cook mode toggle */}
       <label className="mb-5 flex items-center justify-between rounded-2xl bg-white p-4 shadow-card">
-        <span className="font-bold">👨‍🍳 Cook Mode <span className="text-xs font-normal text-warm-soft">(keeps screen awake)</span></span>
+        <span className="font-bold">Cook Mode <span className="text-xs font-normal text-warm-soft">(keeps screen awake)</span></span>
         <input type="checkbox" className="peer sr-only" checked={cookMode}
           onChange={(e) => { setCookMode(e.target.checked); setActiveStep(0) }} />
         <span className="relative h-7 w-12 rounded-full bg-warm/20 transition peer-checked:bg-peach-dark
@@ -237,7 +256,7 @@ export default function RecipeDetail() {
         </ul>
 
         <button onClick={handleAddToGrocery} className="btn-ghost mt-3 w-full">
-          🛒 Add to Grocery List
+          Add to Grocery List
         </button>
       </section>
 

@@ -1,52 +1,86 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../components/Toast.jsx'
-import { hasApiKey, normalizeRecipeImage, normalizeRecipeText } from '../lib/anthropic.js'
+import { normalizeRecipeImage, normalizeRecipeText } from '../lib/anthropic.js'
 import { extractRecipeFromHtml } from '../lib/jsonld.js'
+import { LinkIcon, VideoIcon, EditIcon, CameraIcon } from '../components/icons.jsx'
 
 const DRAFT_KEY = 'pantry-draft-new'
 
 const TABS = [
-  { id: 'url', label: '🔗 URL' },
-  { id: 'text', label: '📝 Paste' },
-  { id: 'photo', label: '📷 Photo' },
+  { id: 'url', label: 'URL', Icon: LinkIcon },
+  { id: 'video', label: 'Video', Icon: VideoIcon },
+  { id: 'text', label: 'Paste', Icon: EditIcon },
+  { id: 'photo', label: 'Photo', Icon: CameraIcon },
 ]
+
+// A parsed recipe must have at least a title and one ingredient to be useful.
+function isUsable(r) {
+  return !!(r && r.title && String(r.title).trim() && Array.isArray(r.ingredients) && r.ingredients.length)
+}
+
+// Build a rich text payload from a fetched page for Claude: JSON-LD blocks +
+// og/meta description + visible text. Recipe sites usually embed the full
+// recipe in ld+json even when the page is JS-rendered.
+function pageToText(html) {
+  const ld = [...html.matchAll(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi)]
+    .map((m) => m[1]).join('\n')
+  const metas = [...html.matchAll(/<meta[^>]+content=["']([^"']+)["'][^>]*>/gi)]
+    .map((m) => m[1]).filter((c) => c && c.length > 30).join('\n')
+  const visible = html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return `${metas}\n\n${ld}\n\n${visible}`.slice(0, 24000)
+}
 
 export default function ImportModal({ onClose }) {
   const navigate = useNavigate()
   const toast = useToast()
   const [tab, setTab] = useState('url')
   const [url, setUrl] = useState('')
+  const [videoUrl, setVideoUrl] = useState('')
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
 
-  // On success, stash the parsed recipe as the editor draft and open the
-  // editor as an editable preview before the user commits the save.
   function handoffToEditor(recipe) {
     localStorage.setItem(DRAFT_KEY, JSON.stringify(recipe))
     onClose()
     navigate('/new')
-    toast('Review your imported recipe ✨')
+    toast('Review your imported recipe')
   }
 
-  async function importUrl() {
-    if (!url.trim()) return
+  // Fetch a page through our proxy and turn it into a recipe. For non-video
+  // pages we try fast structured (JSON-LD) extraction first, then fall back to
+  // letting Claude read the whole page.
+  async function importFromUrl(rawUrl, { video } = {}) {
+    const target = rawUrl.trim()
+    if (!target) return
     setBusy(true); setError(''); setStatus('Fetching page…')
     try {
-      const res = await fetch(`/recipe-proxy?url=${encodeURIComponent(url.trim())}`)
+      const res = await fetch(`/api/recipe-proxy?url=${encodeURIComponent(target)}`)
+      if (!res.ok) throw new Error('Could not open that link.')
       const html = await res.text()
-      setStatus('Reading recipe…')
-      let recipe = extractRecipeFromHtml(html)
-      if (!recipe || !recipe.ingredients?.length) {
-        // Fallback: let Claude read the page text.
-        if (!hasApiKey()) throw new Error('No structured recipe found and no API key for fallback.')
-        setStatus('Asking Claude to parse…')
-        const stripped = html.replace(/<script[\s\S]*?<\/script>/gi, ' ')
-          .replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ')
-          .replace(/\s+/g, ' ').slice(0, 12000)
-        recipe = await normalizeRecipeText(stripped)
+
+      let recipe = null
+      if (!video) {
+        setStatus('Reading recipe…')
+        recipe = extractRecipeFromHtml(html)
+      }
+      if (!isUsable(recipe)) {
+        setStatus('Asking Claude to read the page…')
+        recipe = await normalizeRecipeText(pageToText(html))
+      }
+      if (!isUsable(recipe)) {
+        throw new Error(
+          video
+            ? "Couldn't find a recipe in that video's description."
+            : "Couldn't read a recipe from that page. Try the Paste tab instead.",
+        )
       }
       handoffToEditor(recipe)
     } catch (err) {
@@ -61,6 +95,7 @@ export default function ImportModal({ onClose }) {
     setBusy(true); setError(''); setStatus('Asking Claude to parse…')
     try {
       const recipe = await normalizeRecipeText(text.trim())
+      if (!isUsable(recipe)) throw new Error("Couldn't find a recipe in that text.")
       handoffToEditor(recipe)
     } catch (err) {
       setError(err.message || 'Could not parse recipe')
@@ -76,6 +111,7 @@ export default function ImportModal({ onClose }) {
       const base64 = await fileToBase64(file)
       setStatus('Asking Claude to read the recipe…')
       const recipe = await normalizeRecipeImage(base64, file.type || 'image/jpeg')
+      if (!isUsable(recipe)) throw new Error("Couldn't read a recipe from that photo.")
       handoffToEditor(recipe)
     } catch (err) {
       setError(err.message || 'Could not read photo')
@@ -96,19 +132,36 @@ export default function ImportModal({ onClose }) {
         <div className="mb-4 flex rounded-2xl bg-white p-1">
           {TABS.map((t) => (
             <button key={t.id} onClick={() => { setTab(t.id); setError('') }}
-              className={`flex-1 rounded-xl py-2 text-sm font-bold transition ${
+              className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2 text-sm font-bold transition ${
                 tab === t.id ? 'bg-peach text-warm' : 'text-warm-soft'
-              }`}>{t.label}</button>
+              }`}>
+              <t.Icon className="h-4 w-4" />
+              {t.label}
+            </button>
           ))}
         </div>
 
         {tab === 'url' && (
           <div className="space-y-3">
-            <p className="text-sm text-warm-soft">Paste a link from AllRecipes, NYT Cooking, Food Network, and more.</p>
+            <p className="text-sm text-warm-soft">Paste a link from AllRecipes, NYT Cooking, Traeger, and more.</p>
             <input className="input" placeholder="https://…" value={url}
               onChange={(e) => setUrl(e.target.value)} />
-            <button className="btn-peach w-full" disabled={busy} onClick={importUrl}>
+            <button className="btn-peach w-full" disabled={busy} onClick={() => importFromUrl(url)}>
               {busy ? status || 'Working…' : 'Import from URL'}
+            </button>
+          </div>
+        )}
+
+        {tab === 'video' && (
+          <div className="space-y-3">
+            <p className="text-sm text-warm-soft">
+              Paste a cooking video link (YouTube, TikTok, Instagram…). Claude reads the
+              video's description to build the recipe — works best when the recipe is written there.
+            </p>
+            <input className="input" placeholder="https://youtube.com/…" value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)} />
+            <button className="btn-peach w-full" disabled={busy} onClick={() => importFromUrl(videoUrl, { video: true })}>
+              {busy ? status || 'Working…' : 'Import from Video'}
             </button>
           </div>
         )}
@@ -126,11 +179,11 @@ export default function ImportModal({ onClose }) {
 
         {tab === 'photo' && (
           <div className="space-y-3">
-            <p className="text-sm text-warm-soft">Snap a cookbook page, recipe card, or handwritten note.</p>
+            <p className="text-sm text-warm-soft">Snap a cookbook page, recipe card, or pick one from your camera roll.</p>
             <label className="flex min-h-[8rem] cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-warm/25 bg-white text-warm-soft">
-              <span className="text-3xl">📷</span>
+              <CameraIcon className="h-8 w-8 text-zinc-800" />
               <span className="font-bold">{busy ? status || 'Working…' : 'Choose a photo'}</span>
-              <input type="file" accept="image/png,image/jpeg" className="hidden" disabled={busy}
+              <input type="file" accept="image/*" className="hidden" disabled={busy}
                 onChange={(e) => importPhoto(e.target.files?.[0])} />
             </label>
           </div>

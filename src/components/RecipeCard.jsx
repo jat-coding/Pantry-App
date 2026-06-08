@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import { useToast } from './Toast.jsx'
-import { CATEGORY_EMOJI } from '../lib/categories.js'
+import { MealIcon } from './icons.jsx'
 
 function totalTime(recipe) {
   const toMin = (t) => (t ? (t.unit === 'hr' ? t.value * 60 : t.value) : 0)
@@ -44,7 +44,7 @@ export default function RecipeCard({ recipe, showPocket = false, onPocket }) {
     setTimeout(() => setPopping(false), 350)
     try {
       await togglePantry(recipe.id)
-      toast(inPantry ? 'Removed from Pantry' : 'Added to Pantry 🫙')
+      toast(inPantry ? 'Removed from Pantry' : 'Added to Pantry')
     } catch {
       toast('Could not update Pantry')
     }
@@ -65,8 +65,8 @@ export default function RecipeCard({ recipe, showPocket = false, onPocket }) {
             onError={(e) => { e.currentTarget.style.display = 'none' }}
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-5xl">
-            {CATEGORY_EMOJI[recipe.category] || '🍽️'}
+          <div className="flex h-full w-full items-center justify-center text-zinc-800/70">
+            <MealIcon className="h-12 w-12" />
           </div>
         )}
 
@@ -85,7 +85,7 @@ export default function RecipeCard({ recipe, showPocket = false, onPocket }) {
       <div className="flex flex-1 flex-col gap-2 p-4">
         <div className="flex items-center gap-2">
           <span className="pill-peach">{recipe.category}</span>
-          {time && <span className="text-xs font-semibold text-warm-soft">⏱ {time}</span>}
+          {time && <span className="text-xs font-semibold text-warm-soft">{time}</span>}
         </div>
         <h3 className="font-extrabold leading-tight">{recipe.title}</h3>
         <p className="mt-auto text-xs text-warm-soft">

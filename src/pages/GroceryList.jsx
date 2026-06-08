@@ -4,6 +4,7 @@ import { useToast } from '../components/Toast.jsx'
 import { AISLE_ORDER, aisleFor } from '../lib/categories.js'
 import { formatQty } from '../lib/scaling.js'
 import RecipeCard from '../components/RecipeCard.jsx'
+import { GroceryIcon } from '../components/icons.jsx'
 
 export default function GroceryList() {
   const { grocery, recipes, addGroceryItems, setGroceryChecked, deleteGroceryItem, clearGrocery, canWrite } = useData()
@@ -26,13 +27,13 @@ export default function GroceryList() {
     if (!newItem.trim() || !canWrite) return
     await addGroceryItems([{ name: newItem.trim(), category: aisleFor(newItem) }])
     setNewItem('')
-    toast('Added to grocery list 🛒')
+    toast('Added to grocery list')
   }
 
   return (
     <div className="animate-fadein space-y-5">
       <header>
-        <h1 className="text-3xl font-extrabold">Grocery List 🛒</h1>
+        <h1 className="text-3xl font-extrabold">Grocery List</h1>
         <p className="text-warm-soft">Everything you need for your next cook.</p>
       </header>
 
@@ -60,7 +61,7 @@ export default function GroceryList() {
 
           {combined.length === 0 ? (
             <div className="card px-6 py-16 text-center">
-              <div className="mb-2 text-5xl">🛒</div>
+              <div className="mb-2 flex justify-center text-zinc-800"><GroceryIcon className="h-12 w-12" /></div>
               <p className="font-bold">Your list is empty</p>
               <p className="text-sm text-warm-soft">Add items, or tap “Add to Grocery List” on any recipe.</p>
             </div>
