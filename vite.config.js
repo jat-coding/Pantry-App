@@ -77,5 +77,20 @@ export default defineConfig(({ mode }) => {
         },
       }),
     ],
+    build: {
+      // Split large, rarely-changing vendor libs into their own cached chunks so
+      // the app code stays small and the 500 kB chunk warning goes away.
+      chunkSizeWarningLimit: 900,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('firebase') || id.includes('@firebase')) return 'firebase'
+              if (id.includes('react')) return 'react-vendor'
+            }
+          },
+        },
+      },
+    },
   }
 })
