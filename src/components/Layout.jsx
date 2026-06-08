@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
+import {
+  GroceryIcon, RecipesIcon, PantryIcon, FriendsIcon, ProfileIcon,
+} from './icons.jsx'
 
+// Order matters: Grocery sits far left, Pantry is centered (middle of 5).
 const TABS = [
-  { to: '/', label: 'My Pantry', icon: '🫙', end: true },
-  { to: '/recipes', label: 'All Recipes', icon: '📖' },
-  { to: '/grocery', label: 'Grocery List', icon: '🛒' },
-  { to: '/friends', label: 'Friends', icon: '👥' },
-  { to: '/profile', label: 'Profile', icon: '👤' },
+  { to: '/grocery', label: 'Grocery', Icon: GroceryIcon },
+  { to: '/recipes', label: 'Recipes', Icon: RecipesIcon },
+  { to: '/', label: 'Pantry', Icon: PantryIcon, end: true },
+  { to: '/friends', label: 'Friends', Icon: FriendsIcon },
+  { to: '/profile', label: 'Profile', Icon: ProfileIcon },
 ]
 
 function OfflineBanner() {
@@ -36,7 +40,7 @@ export default function Layout() {
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-warm/10 bg-white/60 px-4 py-6 backdrop-blur sm:flex">
         <div className="mb-8 flex items-center gap-2 px-2">
-          <span className="text-2xl">🫙</span>
+          <PantryIcon className="h-7 w-7 text-warm" />
           <span className="text-xl font-extrabold">Pantry</span>
         </div>
         <nav className="flex flex-col gap-1">
@@ -51,37 +55,38 @@ export default function Layout() {
                 }`
               }
             >
-              <span className="text-xl">{t.icon}</span>
-              {t.label}
+              <t.Icon className="h-6 w-6" />
+              {t.label === 'Pantry' ? 'My Pantry' : t.label === 'Recipes' ? 'All Recipes' : t.label === 'Grocery' ? 'Grocery List' : t.label}
             </NavLink>
           ))}
         </nav>
       </aside>
 
-      {/* Main content */}
+      {/* Main content — top padding clears the Dynamic Island / status bar,
+          bottom padding clears the fixed tab bar + home indicator. */}
       <div className="flex min-w-0 flex-1 flex-col">
         <OfflineBanner />
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-28 pt-5 sm:px-8 sm:pb-10">
+        <main className="mx-auto w-full max-w-5xl flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-[calc(env(safe-area-inset-bottom)+6.5rem)] sm:px-8 sm:pt-5 sm:pb-10">
           <Outlet />
         </main>
       </div>
 
       {/* Mobile bottom tab bar */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-warm/10 bg-white/95 backdrop-blur sm:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-warm/10 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden">
         {TABS.map((t) => (
           <NavLink
             key={t.to}
             to={t.to}
             end={t.end}
             className={({ isActive }) =>
-              `flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-bold transition ${
+              `flex flex-1 flex-col items-center gap-0.5 pb-1.5 pt-2 text-[10px] font-bold transition ${
                 isActive ? 'text-warm' : 'text-warm-soft/70'
               }`
             }
           >
             {({ isActive }) => (
               <>
-                <span className={`text-xl ${isActive ? 'scale-110' : ''} transition`}>{t.icon}</span>
+                <t.Icon className={`h-6 w-6 transition ${isActive ? 'scale-110' : ''}`} />
                 {t.label}
               </>
             )}

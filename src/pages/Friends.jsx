@@ -57,13 +57,50 @@ export default function Friends() {
   }
 
   const friendIds = new Set(profile?.friendIds || [])
+  const inviteLink = `${window.location.origin}/invite/${user.uid}`
+
+  function copyInvite() {
+    navigator.clipboard?.writeText(inviteLink)
+      .then(() => toast('Invite link copied!'))
+      .catch(() => toast('Could not copy — long-press the link to copy'))
+  }
+
+  async function shareInvite() {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Add me on Pantry', text: 'Be my friend on Pantry 🫙', url: inviteLink })
+      } catch {
+        // user cancelled the share sheet — ignore
+      }
+    } else {
+      copyInvite()
+    }
+  }
 
   return (
     <div className="animate-fadein space-y-6">
       <header>
-        <h1 className="text-3xl font-extrabold">Friends 👥</h1>
+        <h1 className="text-3xl font-extrabold">Friends</h1>
         <p className="text-warm-soft">Find friends and pocket their recipes.</p>
       </header>
+
+      {/* Invite link */}
+      <div className="card p-5">
+        <h2 className="text-lg font-extrabold">Invite a friend</h2>
+        <p className="mb-3 text-sm text-warm-soft">
+          Share this link. When your friend opens it while logged in, you'll be added to each other's friends.
+        </p>
+        <input
+          className="input mb-2 text-sm"
+          value={inviteLink}
+          readOnly
+          onFocus={(e) => e.target.select()}
+        />
+        <div className="flex gap-2">
+          <button className="btn-peach flex-1" onClick={shareInvite}>Share</button>
+          <button className="btn-ghost flex-1" onClick={copyInvite}>Copy link</button>
+        </div>
+      </div>
 
       {/* Search */}
       <div className="flex gap-2">

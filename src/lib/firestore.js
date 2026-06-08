@@ -207,6 +207,20 @@ export async function getUsersByIds(ids = []) {
   return out
 }
 
+export async function getUserById(id) {
+  const snap = await getDoc(doc(db, 'users', id))
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null
+}
+
+// Accept a friend-invite link: add each user to the other's friend list.
+// The cross-write to the inviter's doc relies on the firestore rule that lets a
+// signed-in user add (only) themselves to another user's friendIds.
+export async function acceptInvite(myUid, inviterId) {
+  if (!myUid || !inviterId || myUid === inviterId) return
+  await updateDoc(doc(db, 'users', myUid), { friendIds: arrayUnion(inviterId) })
+  await updateDoc(doc(db, 'users', inviterId), { friendIds: arrayUnion(myUid) })
+}
+
 export async function removeFriend(myUid, friendId) {
   await updateDoc(doc(db, 'users', myUid), { friendIds: arrayRemove(friendId) })
   await updateDoc(doc(db, 'users', friendId), { friendIds: arrayRemove(myUid) })

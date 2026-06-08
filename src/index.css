@@ -5,6 +5,9 @@
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
+    /* Don't let iOS bump up font sizes; reduce accidental double-tap zoom. */
+    -webkit-text-size-adjust: 100%;
+    touch-action: manipulation;
   }
   body {
     @apply bg-eggshell text-warm font-sans antialiased;

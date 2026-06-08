@@ -10,6 +10,7 @@ import RecipeEditor from './pages/RecipeEditor.jsx'
 import GroceryList from './pages/GroceryList.jsx'
 import Friends from './pages/Friends.jsx'
 import Profile from './pages/Profile.jsx'
+import InviteAccept from './pages/InviteAccept.jsx'
 
 function Splash() {
   return (
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/new" element={<RecipeEditor />} />
           <Route path="/grocery" element={<GroceryList />} />
           <Route path="/friends" element={<Friends />} />
+          <Route path="/invite/:inviterId" element={<InviteAccept />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="*" element={<Pantry />} />
         </Route>

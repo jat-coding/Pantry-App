@@ -15,10 +15,11 @@ function totalTime(recipe) {
 }
 
 function Heart({ filled }) {
+  // Symmetric heart (mirrored around the vertical center line).
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
       <path
-        d="M12 21s-7.5-4.6-10-9.2C.4 8.4 2 5 5.3 5c2 0 3.3 1.1 4.2 2.3C10.4 6.1 11.7 5 13.7 5 17 5 18.6 8.4 17 11.8 14.5 16.4 12 21 12 21z"
+        d="M12 20.3l-1.36-1.24C5.9 14.75 3 12.12 3 8.86 3 6.27 5.04 4.25 7.62 4.25c1.46 0 2.86.68 3.78 1.76L12 6.62l.6-.61c.92-1.08 2.32-1.76 3.78-1.76C18.96 4.25 21 6.27 21 8.86c0 3.26-2.9 5.89-7.64 10.2L12 20.3z"
         fill={filled ? '#FFCBA4' : 'none'}
         stroke={filled ? '#F2A977' : '#2C2416'}
         strokeWidth="1.8"

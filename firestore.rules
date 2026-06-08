@@ -7,11 +7,21 @@ service cloud.firestore {
     function myFriends() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.friendIds;
     }
+    // Allow a signed-in user to add (only) themselves to another user's friend
+    // list, touching no other field. Powers friend-invite links and mutual
+    // accept of friend requests.
+    function addsSelfToFriends() {
+      return signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['friendIds'])
+        && request.auth.uid in request.resource.data.friendIds;
+    }
 
-    // Users can read any profile (needed for friend search) but only edit their own.
+    // Users can read any profile (needed for friend search) but only edit their
+    // own — except the constrained friendIds self-add above.
     match /users/{userId} {
       allow read: if signedIn();
-      allow create, update, delete: if isSelf(userId);
+      allow create, delete: if isSelf(userId);
+      allow update: if isSelf(userId) || addsSelfToFriends();
 
       // Grocery list is private to its owner.
       match /grocery/{itemId} {
