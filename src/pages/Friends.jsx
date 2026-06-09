@@ -3,7 +3,6 @@ import { useAuth } from '../contexts/AuthContext.jsx'
 import { useData } from '../contexts/DataContext.jsx'
 import { useToast } from '../components/Toast.jsx'
 import RecipeCard from '../components/RecipeCard.jsx'
-import { AddToPantryPrompt } from './RecipeEditor.jsx'
 import { FriendsIcon } from '../components/icons.jsx'
 import * as fs from '../lib/firestore.js'
 
@@ -17,7 +16,6 @@ export default function Friends() {
   const [requests, setRequests] = useState([])
   const [friends, setFriends] = useState([])
   const [viewing, setViewing] = useState(null) // friend being viewed
-  const [pocketPrompt, setPocketPrompt] = useState(null) // newly pocketed recipe id
 
   // Live incoming friend requests.
   useEffect(() => {
@@ -51,10 +49,14 @@ export default function Friends() {
     toast(accept ? `You and ${req.fromDisplayName} are now friends` : 'Request declined')
   }
 
-  async function handlePocket(recipe) {
-    const newId = await pocketRecipe(recipe)
-    toast('Recipe pocketed!')
-    setPocketPrompt(newId)
+  async function handleCopyToPantry(recipe) {
+    try {
+      const newId = await pocketRecipe(recipe)
+      await togglePantry(newId)
+      toast('Copied to your Pantry')
+    } catch {
+      toast('Could not copy recipe')
+    }
   }
 
   const friendIds = new Set(profile?.friendIds || [])
@@ -161,15 +163,8 @@ export default function Friends() {
       </section>
 
       {viewing && (
-        <FriendProfile friend={viewing} onClose={() => setViewing(null)} onPocket={handlePocket}
+        <FriendProfile friend={viewing} onClose={() => setViewing(null)} onPocket={handleCopyToPantry}
           onRemove={async () => { await fs.removeFriend(user.uid, viewing.id); setViewing(null); toast('Friend removed') }} />
-      )}
-
-      {pocketPrompt && (
-        <AddToPantryPrompt
-          onYes={async () => { await togglePantry(pocketPrompt); toast('Added to Pantry'); setPocketPrompt(null) }}
-          onNo={() => setPocketPrompt(null)}
-        />
       )}
     </div>
   )
@@ -177,7 +172,7 @@ export default function Friends() {
 
 function FriendProfile({ friend, onClose, onPocket, onRemove }) {
   const [recipes, setRecipes] = useState(null)
-  useEffect(() => { fs.getPublicRecipesOf(friend.id).then(setRecipes) }, [friend.id])
+  useEffect(() => { fs.getFriendRecipes(friend.id).then(setRecipes).catch(() => setRecipes([])) }, [friend.id])
 
   return (
     <div className="fixed inset-0 z-[70] overflow-y-auto bg-eggshell">
@@ -194,15 +189,15 @@ function FriendProfile({ friend, onClose, onPocket, onRemove }) {
             {friend.bio && <p className="text-warm-soft">{friend.bio}</p>}
           </div>
         </div>
-        <h2 className="mb-3 text-lg font-extrabold">Public Recipes</h2>
+        <h2 className="mb-3 text-lg font-extrabold">{friend.displayName}'s Pantry</h2>
         {recipes == null ? (
           <p className="text-warm-soft">Loading…</p>
         ) : recipes.length === 0 ? (
-          <p className="text-warm-soft">No public recipes yet.</p>
+          <p className="text-warm-soft">No recipes to show yet.</p>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {recipes.map((r) => (
-              <RecipeCard key={r.id} recipe={r} showPocket onPocket={onPocket} />
+              <RecipeCard key={r.id} recipe={r} showPocket pocketLabel="Copy to Pantry" onPocket={onPocket} />
             ))}
           </div>
         )}

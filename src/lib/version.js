@@ -1,9 +1,19 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.2.0'
+export const APP_VERSION = '1.3.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.3.0',
+    date: '2026-06-09',
+    changes: [
+      'Fixed: importing a recipe by pasted text or photo no longer fails to a blank screen.',
+      'Ingredient units are now abbreviated (tbsp, tsp, oz…) so long names no longer overlap.',
+      'Grocery list now merges duplicate ingredients, even across different unit spellings.',
+      "A friend's profile now shows their full pantry with a one-tap “Copy to Pantry”.",
+    ],
+  },
   {
     version: '1.2.0',
     date: '2026-06-08',

@@ -188,7 +188,7 @@ export default function RecipeEditor() {
           <input type="file" accept="image/*" className="hidden"
             onChange={(e) => handlePhotoFile(e.target.files?.[0])} />
         </label>
-        <input className="input mt-2" value={form.imageUrl.startsWith('data:') ? '' : form.imageUrl}
+        <input className="input mt-2" value={(form.imageUrl || '').startsWith('data:') ? '' : (form.imageUrl || '')}
           onChange={(e) => set('imageUrl', e.target.value)}
           placeholder="…or paste an image URL" />
         {form.imageUrl && (

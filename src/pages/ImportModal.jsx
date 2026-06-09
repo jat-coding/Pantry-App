@@ -48,7 +48,10 @@ export default function ImportModal({ onClose }) {
   const [error, setError] = useState('')
 
   function handoffToEditor(recipe) {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(recipe))
+    // Claude may return imageUrl: null for text/photo imports — coerce to '' so
+    // the editor (which treats imageUrl as a string) never crashes.
+    const safe = { ...recipe, imageUrl: recipe.imageUrl || '' }
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(safe))
     onClose()
     navigate('/new')
     toast('Review your imported recipe')

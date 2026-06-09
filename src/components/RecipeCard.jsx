@@ -29,7 +29,7 @@ function Heart({ filled }) {
   )
 }
 
-export default function RecipeCard({ recipe, showPocket = false, onPocket }) {
+export default function RecipeCard({ recipe, showPocket = false, onPocket, pocketLabel = 'Pocket' }) {
   const navigate = useNavigate()
   const { isInPantry, togglePantry, canWrite } = useData()
   const toast = useToast()
@@ -100,7 +100,7 @@ export default function RecipeCard({ recipe, showPocket = false, onPocket }) {
             role="button"
             className="btn-peach mt-1 w-full py-2 text-sm"
           >
-            Pocket
+            {pocketLabel}
           </span>
         )}
       </div>

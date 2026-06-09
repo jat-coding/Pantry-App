@@ -64,7 +64,8 @@ const RECIPE_SCHEMA = {
 
 const INSTRUCTIONS =
   'Parse this recipe into the required structured fields. If a field is unknown ' +
-  'use a sensible default (0, "", or null). qty must be a number (use 0 if none).'
+  'use a sensible default (0, "", or null). qty must be a number (use 0 if none). ' +
+  'Use short/abbreviated units where possible (tbsp, tsp, cup, oz, lb, g, kg, ml, L).'
 
 function getClient() {
   const apiKey = process.env.ANTHROPIC_API_KEY

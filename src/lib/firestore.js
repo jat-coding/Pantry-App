@@ -232,3 +232,11 @@ export async function getPublicRecipesOf(authorId) {
   const snap = await getDocs(q)
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
 }
+
+// All of a friend's recipes (their pantry/collection). Security rules let you
+// read recipes authored by someone in your friend list, public or not.
+export async function getFriendRecipes(authorId) {
+  const q = query(recipesCol, where('authorId', '==', authorId))
+  const snap = await getDocs(q)
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+}

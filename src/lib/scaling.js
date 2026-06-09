@@ -31,6 +31,25 @@ function normUnit(unit) {
   return (unit || '').trim().toLowerCase()
 }
 
+// Short display forms so long unit names don't overlap the ingredient name.
+const UNIT_ABBR = {
+  tablespoon: 'tbsp', tablespoons: 'tbsp', tbsp: 'tbsp',
+  teaspoon: 'tsp', teaspoons: 'tsp', tsp: 'tsp',
+  cup: 'cup', cups: 'cup',
+  ounce: 'oz', ounces: 'oz', oz: 'oz', 'fl oz': 'fl oz',
+  pound: 'lb', pounds: 'lb', lb: 'lb', lbs: 'lb',
+  gram: 'g', grams: 'g', g: 'g', kilogram: 'kg', kilograms: 'kg', kg: 'kg',
+  milliliter: 'ml', milliliters: 'ml', ml: 'ml',
+  liter: 'L', liters: 'L', litre: 'L', litres: 'L', l: 'L',
+  pint: 'pt', pints: 'pt', quart: 'qt', quarts: 'qt', gallon: 'gal', gallons: 'gal',
+  package: 'pkg', packages: 'pkg',
+}
+
+export function abbreviateUnit(unit) {
+  const u = (unit || '').trim()
+  return UNIT_ABBR[u.toLowerCase()] || u
+}
+
 // Compute the scale factor from one edited ingredient.
 export function factorFromEdit(originalQty, newQty) {
   const o = Number(originalQty)

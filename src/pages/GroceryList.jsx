@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react'
 import { useData } from '../contexts/DataContext.jsx'
 import { useToast } from '../components/Toast.jsx'
 import { AISLE_ORDER, aisleFor } from '../lib/categories.js'
-import { formatQty } from '../lib/scaling.js'
+import { formatQty, abbreviateUnit } from '../lib/scaling.js'
 import RecipeCard from '../components/RecipeCard.jsx'
-import { GroceryIcon } from '../components/icons.jsx'
+import { GroceryIcon, TrashIcon } from '../components/icons.jsx'
 
 export default function GroceryList() {
   const { grocery, recipes, addGroceryItems, setGroceryChecked, deleteGroceryItem, clearGrocery, canWrite } = useData()
@@ -81,12 +81,12 @@ export default function GroceryList() {
                         >{item.checked ? '✓' : ''}</button>
                         <div className={`flex-1 ${item.checked ? 'text-warm-soft line-through' : ''}`}>
                           <span className="font-bold">
-                            {item.qty != null && `${formatQty(item.qty)} `}{item.unit && `${item.unit} `}{item.name}
+                            {item.qty != null && `${formatQty(item.qty)} `}{item.unit && `${abbreviateUnit(item.unit)} `}{item.name}
                           </span>
                           {item.fromRecipe && <span className="ml-1 text-xs text-warm-soft">· {item.fromRecipe}</span>}
                         </div>
                         <button onClick={() => item.ids.forEach(deleteGroceryItem)}
-                          className="px-2 text-warm-soft hover:text-red-600" aria-label="Delete">🗑</button>
+                          className="px-2 text-warm-soft hover:text-red-600" aria-label="Delete"><TrashIcon className="h-5 w-5" /></button>
                       </li>
                     ))}
                   </ul>
@@ -114,7 +114,11 @@ export default function GroceryList() {
 function combineItems(items) {
   const map = new Map()
   for (const it of items) {
-    const key = `${(it.name || '').toLowerCase()}|${(it.unit || '').toLowerCase()}`
+    // Normalize name (case/whitespace) and unit (spelling) so "2 Tablespoon"
+    // and "1 tbsp" of the same thing merge into one line.
+    const name = (it.name || '').toLowerCase().trim().replace(/\s+/g, ' ')
+    const unit = abbreviateUnit(it.unit).toLowerCase()
+    const key = `${name}|${unit}`
     if (map.has(key)) {
       const ex = map.get(key)
       ex.qty = ex.qty != null && it.qty != null ? ex.qty + it.qty : ex.qty ?? it.qty

@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useToast } from '../components/Toast.jsx'
-import { formatIngredient, formatQty } from '../lib/scaling.js'
+import { formatIngredient, formatQty, abbreviateUnit } from '../lib/scaling.js'
 import { aisleFor, CATEGORY_EMOJI } from '../lib/categories.js'
 import { EditIcon, TrashIcon, HeartIcon } from '../components/icons.jsx'
 import { AddToPantryPrompt } from './RecipeEditor.jsx'
@@ -247,11 +247,11 @@ export default function RecipeDetail() {
                     className="w-16 shrink-0 rounded-lg border border-warm/15 bg-eggshell px-2 py-1 text-center text-sm font-bold outline-none focus:border-peach-dark"
                   />
                 )}
-                <span className="w-12 shrink-0 text-sm text-warm-soft">{ing.unit}</span>
-                <span className={`flex-1 ${isChecked ? 'text-warm-soft line-through' : ''}`}>
+                <span className="w-14 shrink-0 truncate text-sm text-warm-soft">{abbreviateUnit(ing.unit)}</span>
+                <span className={`min-w-0 flex-1 ${isChecked ? 'text-warm-soft line-through' : ''}`}>
                   {ing.name}
                   {pretty.qtyLabel && (
-                    <span className="ml-1 text-xs text-warm-soft">({pretty.qtyLabel} {pretty.unit})</span>
+                    <span className="ml-1 text-xs text-warm-soft">({pretty.qtyLabel} {abbreviateUnit(pretty.unit)})</span>
                   )}
                 </span>
               </li>
