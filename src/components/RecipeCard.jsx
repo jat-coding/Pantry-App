@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import { useToast } from './Toast.jsx'
-import { MealIcon } from './icons.jsx'
+import { CATEGORY_EMOJI } from '../lib/categories.js'
 
 function totalTime(recipe) {
   const toMin = (t) => (t ? (t.unit === 'hr' ? t.value * 60 : t.value) : 0)
@@ -65,8 +65,8 @@ export default function RecipeCard({ recipe, showPocket = false, onPocket }) {
             onError={(e) => { e.currentTarget.style.display = 'none' }}
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-zinc-800/70">
-            <MealIcon className="h-12 w-12" />
+          <div className="flex h-full w-full items-center justify-center text-5xl">
+            {CATEGORY_EMOJI[recipe.category] || '🍽️'}
           </div>
         )}
 

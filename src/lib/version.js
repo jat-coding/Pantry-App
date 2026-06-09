@@ -1,9 +1,19 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.1.0'
+export const APP_VERSION = '1.2.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.2.0',
+    date: '2026-06-08',
+    changes: [
+      'Simpler pantry cupboard icon, and a matching new app icon on your home screen.',
+      'Category emojis are back on recipe cards and detail pages.',
+      'Fixed: creating a recipe now leaves the editor and prevents accidental duplicates.',
+      'Fixed: deleting a recipe now returns you to the main page.',
+    ],
+  },
   {
     version: '1.1.0',
     date: '2026-06-08',

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useToast } from '../components/Toast.jsx'
 import { formatIngredient, formatQty } from '../lib/scaling.js'
-import { aisleFor } from '../lib/categories.js'
-import { MealIcon, EditIcon, TrashIcon, HeartIcon } from '../components/icons.jsx'
+import { aisleFor, CATEGORY_EMOJI } from '../lib/categories.js'
+import { EditIcon, TrashIcon, HeartIcon } from '../components/icons.jsx'
+import { AddToPantryPrompt } from './RecipeEditor.jsx'
 
 function timeLabel(t) {
   if (!t || !t.value) return '—'
@@ -15,9 +16,12 @@ function timeLabel(t) {
 export default function RecipeDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuth()
   const { recipes, getRecipe, isInPantry, togglePantry, addGroceryItems, deleteRecipe, canWrite } = useData()
   const toast = useToast()
+  // Set when navigated here right after creating a recipe.
+  const [showPantryPrompt, setShowPantryPrompt] = useState(!!location.state?.promptPantry)
 
   const [recipe, setRecipe] = useState(() => recipes.find((r) => r.id === id) || null)
   const [loading, setLoading] = useState(!recipe)
@@ -115,7 +119,7 @@ export default function RecipeDetail() {
     try {
       await deleteRecipe(recipe.id)
       toast('Recipe deleted')
-      navigate('/recipes')
+      navigate('/', { replace: true })
     } catch {
       toast('Could not delete recipe')
     }
@@ -147,8 +151,8 @@ export default function RecipeDetail() {
         {recipe.imageUrl ? (
           <img src={recipe.imageUrl} alt={recipe.title} className="h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-peach/40 text-zinc-800/70">
-            <MealIcon className="h-20 w-20" />
+          <div className="flex h-full w-full items-center justify-center bg-peach/40 text-7xl">
+            {CATEGORY_EMOJI[recipe.category] || '🍽️'}
           </div>
         )}
         <button
@@ -301,6 +305,13 @@ export default function RecipeDetail() {
             className="btn-peach flex-1 disabled:opacity-40"
           >Next →</button>
         </div>
+      )}
+
+      {showPantryPrompt && !inPantry && (
+        <AddToPantryPrompt
+          onYes={async () => { await togglePantry(recipe.id); toast('Added to Pantry'); setShowPantryPrompt(false) }}
+          onNo={() => setShowPantryPrompt(false)}
+        />
       )}
     </div>
   )

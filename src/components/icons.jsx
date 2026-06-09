@@ -30,22 +30,12 @@ export function RecipesIcon({ className = 'h-6 w-6' }) {
 }
 
 export function PantryIcon({ className = 'h-6 w-6' }) {
-  // Pantry cabinet: outer frame with shelves and jars/cans on each shelf.
+  // Simple pantry cupboard: cabinet with two doors and handles.
   return (
     <svg viewBox="0 0 24 24" className={className} {...base} aria-hidden="true">
-      <rect x="4" y="3" width="16" height="18" rx="2" />
-      <path d="M4 9h16M4 15h16" />
-      {/* top shelf */}
-      <rect x="6.4" y="4.6" width="2.6" height="3.6" rx="0.7" />
-      <rect x="10.1" y="4.6" width="2.4" height="3.6" rx="0.7" />
-      <rect x="13.6" y="4.6" width="3.6" height="3.6" rx="0.7" />
-      {/* middle shelf */}
-      <rect x="6.4" y="10.6" width="3.6" height="3.6" rx="0.7" />
-      <rect x="11.1" y="10.6" width="2.4" height="3.6" rx="0.7" />
-      <rect x="14.6" y="10.6" width="2.6" height="3.6" rx="0.7" />
-      {/* bottom shelf */}
-      <rect x="7" y="16.6" width="4" height="3.6" rx="0.7" />
-      <rect x="12.5" y="16.6" width="4" height="3.6" rx="0.7" />
+      <rect x="5" y="3" width="14" height="18" rx="2" />
+      <path d="M12 3.5v17" />
+      <path d="M9.7 9.5v3M14.3 9.5v3" />
     </svg>
   )
 }

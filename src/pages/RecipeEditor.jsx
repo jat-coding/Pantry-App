@@ -50,13 +50,13 @@ export default function RecipeEditor() {
   const { id } = useParams()
   const isEdit = !!id
   const navigate = useNavigate()
-  const { recipes, getRecipe, createRecipe, updateRecipe, togglePantry, isInPantry } = useData()
+  const { recipes, getRecipe, createRecipe, updateRecipe } = useData()
   const toast = useToast()
 
   const [form, setForm] = useState(blankRecipe)
   const [dirty, setDirty] = useState(false)
   const [loaded, setLoaded] = useState(!isEdit)
-  const [savedId, setSavedId] = useState(null) // triggers "Add to Pantry?" prompt
+  const [saving, setSaving] = useState(false)
   const initial = useRef(true)
 
   // Load existing recipe (edit) or restore draft (new).
@@ -129,6 +129,7 @@ export default function RecipeEditor() {
   }
 
   async function handleSave() {
+    if (saving) return // guard against double-taps creating duplicates
     if (!form.title.trim()) return toast('Please add a recipe name')
     const clean = {
       ...form,
@@ -138,20 +139,23 @@ export default function RecipeEditor() {
         .map((i) => ({ qty: i.qty === '' ? '' : Number(i.qty), unit: i.unit.trim(), name: i.name.trim() })),
       instructions: form.instructions.map((s) => s.trim()).filter(Boolean),
     }
+    setSaving(true)
+    setDirty(false) // clear the unsaved-changes guard before navigating
     try {
       if (isEdit) {
         await updateRecipe(id, clean)
-        setDirty(false)
-        toast('Recipe saved ✓')
+        toast('Recipe saved')
         navigate(`/recipe/${id}`)
       } else {
         const newId = await createRecipe(clean)
         localStorage.removeItem(DRAFT_KEY)
-        setDirty(false)
-        setSavedId(newId)
+        // Leave the editor and open the new recipe, prompting to add to pantry.
+        navigate(`/recipe/${newId}`, { state: { promptPantry: true } })
       }
-    } catch (err) {
+    } catch {
       toast('Could not save recipe')
+      setDirty(true)
+      setSaving(false)
     }
   }
 
@@ -272,17 +276,11 @@ export default function RecipeEditor() {
       </label>
 
       <div className="flex gap-3">
-        <button onClick={handleCancel} className="btn-ghost flex-1">Cancel</button>
-        <button onClick={handleSave} className="btn-peach flex-1">Save Recipe</button>
+        <button onClick={handleCancel} className="btn-ghost flex-1" disabled={saving}>Cancel</button>
+        <button onClick={handleSave} className="btn-peach flex-1 disabled:opacity-60" disabled={saving}>
+          {saving ? 'Saving…' : 'Save Recipe'}
+        </button>
       </div>
-
-      {savedId && (
-        <AddToPantryPrompt
-          inPantry={isInPantry(savedId)}
-          onYes={async () => { await togglePantry(savedId); toast('Added to Pantry'); navigate(`/recipe/${savedId}`) }}
-          onNo={() => navigate(`/recipe/${savedId}`)}
-        />
-      )}
     </div>
   )
 }

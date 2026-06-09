@@ -7,7 +7,7 @@ export const CATEGORY_EMOJI = {
   Dessert: '🍪',
   Snacks: '🥨',
   Drinks: '🥤',
-  'Sauces & Dressings': '🫙',
+  'Sauces & Dressings': '🥫',
 }
 
 // Best-effort grocery aisle grouping by ingredient keyword.
