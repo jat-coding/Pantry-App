@@ -32,6 +32,7 @@ export default function RecipeDetail() {
   const [cookMode, setCookMode] = useState(false)
   const [activeStep, setActiveStep] = useState(0)
   const wakeRef = useRef(null)
+  const stepRefs = useRef([])
 
   useEffect(() => {
     let alive = true
@@ -50,6 +51,13 @@ export default function RecipeDetail() {
     const live = recipes.find((r) => r.id === id)
     if (live) setRecipe(live)
   }, [recipes, id])
+
+  // Center the active step on screen as you move through Cook Mode.
+  useEffect(() => {
+    if (!cookMode) return
+    const el = stepRefs.current[activeStep]
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [activeStep, cookMode])
 
   // ----- Wake Lock for Cook Mode -----
   useEffect(() => {
@@ -265,7 +273,7 @@ export default function RecipeDetail() {
       </section>
 
       {/* Instructions */}
-      <section className={cookMode ? 'pb-24' : ''}>
+      <section className={cookMode ? 'pb-48' : ''}>
         <h2 className="mb-2 text-xl font-extrabold">Instructions</h2>
         <ol className="space-y-3">
           {recipe.instructions.map((step, i) => {
@@ -273,6 +281,7 @@ export default function RecipeDetail() {
             return (
               <li
                 key={i}
+                ref={(el) => (stepRefs.current[i] = el)}
                 onClick={() => cookMode && setActiveStep(i)}
                 className={`flex gap-3 rounded-2xl p-4 transition ${
                   active ? 'bg-peach text-warm shadow-card-hover' : 'bg-white shadow-card'
@@ -288,9 +297,10 @@ export default function RecipeDetail() {
         </ol>
       </section>
 
-      {/* Cook-mode step controls pinned to bottom */}
+      {/* Cook-mode step controls — sit just above the mobile tab bar (and at the
+          bottom on desktop, where there's a sidebar instead of a tab bar). */}
       {cookMode && (
-        <div className="fixed inset-x-0 bottom-0 z-50 flex items-center gap-3 border-t border-warm/10 bg-white/95 p-3 backdrop-blur sm:left-60">
+        <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+3.75rem)] z-50 flex items-center gap-3 border-t border-warm/10 bg-white/95 p-3 backdrop-blur sm:bottom-0 sm:left-60">
           <button
             onClick={() => setActiveStep((s) => Math.max(0, s - 1))}
             disabled={activeStep === 0}
