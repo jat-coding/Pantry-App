@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.3.2'
+export const APP_VERSION = '1.3.3'
 
 export const CHANGELOG = [
+  {
+    version: '1.3.3',
+    date: '2026-06-11',
+    changes: [
+      'Cook Mode now has an Exit button pinned to the top of the screen.',
+    ],
+  },
   {
     version: '1.3.2',
     date: '2026-06-11',

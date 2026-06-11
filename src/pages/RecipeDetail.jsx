@@ -154,6 +154,18 @@ export default function RecipeDetail() {
 
   return (
     <div className={`animate-fadein ${cookMode ? 'text-[1.06rem]' : ''}`}>
+      {/* Cook-mode exit bar pinned to the top (clears the Dynamic Island / status bar). */}
+      {cookMode && (
+        <div className="fixed inset-x-0 top-0 z-50 flex items-center justify-between border-b border-warm/10 bg-white/95 px-4 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] backdrop-blur sm:left-60">
+          <span className="font-extrabold">Cook Mode</span>
+          <button
+            onClick={() => { setCookMode(false); setActiveStep(0) }}
+            className="flex items-center gap-1 rounded-full bg-eggshell px-3 py-1.5 text-sm font-bold text-warm shadow-card active:scale-95"
+            aria-label="Exit Cook Mode"
+          >Exit ✕</button>
+        </div>
+      )}
+
       {/* Hero */}
       <div className="relative -mx-4 -mt-5 mb-4 h-56 overflow-hidden sm:-mx-8 sm:rounded-b-3xl">
         {recipe.imageUrl ? (
