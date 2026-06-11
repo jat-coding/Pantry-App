@@ -102,11 +102,61 @@ export async function parseRecipe({ mode, text, base64, mediaType }) {
     output_config: { format: { type: 'json_schema', schema: RECIPE_SCHEMA } },
   })
 
-  const json = res.content
+  const raw = res.content
     .filter((b) => b.type === 'text')
     .map((b) => b.text)
     .join('')
-  return JSON.parse(json)
+  return coerceRecipe(extractJson(raw))
+}
+
+// Pull a JSON object out of the model's text even if structured output wasn't
+// honored and it wrapped the JSON in prose or a ```json fence.
+function extractJson(text) {
+  const s = String(text || '').trim()
+  try {
+    return JSON.parse(s)
+  } catch {
+    // fall through to brace-scan
+  }
+  const start = s.indexOf('{')
+  const end = s.lastIndexOf('}')
+  if (start !== -1 && end > start) {
+    try {
+      return JSON.parse(s.slice(start, end + 1))
+    } catch {
+      // give up — return an empty object; coerceRecipe fills safe defaults
+    }
+  }
+  return {}
+}
+
+// Guarantee the recipe shape the client expects, so the editor can never crash
+// on a null/missing field. Mirrors src/lib/recipeShape.js.
+function coerceRecipe(r) {
+  const o = r && typeof r === 'object' ? r : {}
+  const time = (t, d) => ({
+    value: Number.isFinite(Number(t?.value)) ? Number(t.value) : d,
+    unit: t?.unit === 'hr' ? 'hr' : 'min',
+  })
+  const ingredients = Array.isArray(o.ingredients)
+    ? o.ingredients.map((i) => ({
+        qty: Number.isFinite(Number(i?.qty)) ? Number(i.qty) : 0,
+        unit: typeof i?.unit === 'string' ? i.unit : '',
+        name: typeof i?.name === 'string' ? i.name : String(i?.name ?? ''),
+      })).filter((i) => i.name.trim())
+    : []
+  return {
+    title: typeof o.title === 'string' ? o.title : '',
+    category: o.category || 'Dinner',
+    prepTime: time(o.prepTime, 0),
+    cookTime: time(o.cookTime, 0),
+    servings: Number.isFinite(Number(o.servings)) ? Number(o.servings) : 1,
+    ingredients,
+    instructions: Array.isArray(o.instructions)
+      ? o.instructions.map((s) => (typeof s === 'string' ? s : String(s ?? ''))).filter(Boolean)
+      : [],
+    imageUrl: typeof o.imageUrl === 'string' ? o.imageUrl : '',
+  }
 }
 
 // Fetch an external recipe page server-side (avoids browser CORS).

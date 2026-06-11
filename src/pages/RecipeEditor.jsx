@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import { useToast } from '../components/Toast.jsx'
 import { CATEGORIES } from '../lib/categories.js'
+import { sanitizeRecipe } from '../lib/recipeShape.js'
 import { PantryIcon, CameraIcon } from '../components/icons.jsx'
 
 // Downscale a chosen photo to a compact JPEG data URL so it fits in Firestore
@@ -64,14 +65,14 @@ export default function RecipeEditor() {
     if (isEdit) {
       const live = recipes.find((r) => r.id === id)
       const apply = (r) => {
-        if (r) setForm({ ...blankRecipe(), ...r })
+        if (r) setForm(sanitizeRecipe({ ...blankRecipe(), ...r }))
         setLoaded(true)
       }
       live ? apply(live) : getRecipe(id).then(apply)
     } else {
       const saved = localStorage.getItem(DRAFT_KEY)
       if (saved) {
-        try { setForm({ ...blankRecipe(), ...JSON.parse(saved) }) } catch {}
+        try { setForm(sanitizeRecipe({ ...blankRecipe(), ...JSON.parse(saved) })) } catch {}
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

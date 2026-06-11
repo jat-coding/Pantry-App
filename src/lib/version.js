@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.3.0'
+export const APP_VERSION = '1.3.1'
 
 export const CHANGELOG = [
+  {
+    version: '1.3.1',
+    date: '2026-06-10',
+    changes: [
+      'Fixed for real: importing by pasted text or photo no longer ever blanks the screen — every imported recipe is normalized to a safe shape before it opens in the editor.',
+    ],
+  },
   {
     version: '1.3.0',
     date: '2026-06-09',

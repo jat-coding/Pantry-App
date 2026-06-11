@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useToast } from '../components/Toast.jsx'
 import { normalizeRecipeImage, normalizeRecipeText } from '../lib/anthropic.js'
 import { extractRecipeFromHtml } from '../lib/jsonld.js'
+import { sanitizeRecipe } from '../lib/recipeShape.js'
 import { LinkIcon, VideoIcon, EditIcon, CameraIcon } from '../components/icons.jsx'
 
 const DRAFT_KEY = 'pantry-draft-new'
@@ -48,9 +49,10 @@ export default function ImportModal({ onClose }) {
   const [error, setError] = useState('')
 
   function handoffToEditor(recipe) {
-    // Claude may return imageUrl: null for text/photo imports — coerce to '' so
-    // the editor (which treats imageUrl as a string) never crashes.
-    const safe = { ...recipe, imageUrl: recipe.imageUrl || '' }
+    // Importers (Claude paste/photo, JSON-LD, video) can return missing/null
+    // fields or wrong types. Normalize to the exact shape the editor expects so
+    // it never crashes to a blank screen on render.
+    const safe = sanitizeRecipe(recipe)
     localStorage.setItem(DRAFT_KEY, JSON.stringify(safe))
     onClose()
     navigate('/new')
