@@ -4,6 +4,9 @@
 
 import { parseRecipe } from './_lib/recipe.js'
 
+// Claude vision/parse can take longer than the 10s default. Allow up to 60s.
+export const config = { maxDuration: 60 }
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' })

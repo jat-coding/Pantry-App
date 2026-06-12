@@ -1,9 +1,19 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.3.3'
+export const APP_VERSION = '1.4.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.4.0',
+    date: '2026-06-12',
+    changes: [
+      'Share a recipe link (Instagram, TikTok, YouTube…) straight into Pantry — it opens the importer and parses it for you.',
+      'Imports now clearly tell you when a recipe couldn’t be built (and why) instead of failing silently or hanging.',
+      'Imports can no longer create half-empty recipes — a recipe needs a title, ingredients, and steps to be saved.',
+      'Every import step now times out, so the app never gets stuck on “Working…”.',
+    ],
+  },
   {
     version: '1.3.3',
     date: '2026-06-11',

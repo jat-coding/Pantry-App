@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../components/Toast.jsx'
 import { normalizeRecipeImage, normalizeRecipeText } from '../lib/anthropic.js'
@@ -15,9 +15,20 @@ const TABS = [
   { id: 'photo', label: 'Photo', Icon: CameraIcon },
 ]
 
-// A parsed recipe must have at least a title and one ingredient to be useful.
-function isUsable(r) {
-  return !!(r && r.title && String(r.title).trim() && Array.isArray(r.ingredients) && r.ingredients.length)
+// Links where the recipe lives in a post/video description rather than a recipe
+// page (Instagram, TikTok, YouTube, Facebook). These go through the video path.
+function isVideoLink(url) {
+  return /(instagram\.com|tiktok\.com|youtube\.com|youtu\.be|facebook\.com|fb\.watch)/i.test(url || '')
+}
+
+// A recipe is only worth saving if it has a title, ingredients AND steps.
+// Returns a human reason when something's missing so the user knows why, and we
+// never create a half-empty recipe.
+function unusableReason(r) {
+  if (!r || !r.title || !String(r.title).trim()) return 'no recipe title was found'
+  if (!Array.isArray(r.ingredients) || !r.ingredients.length) return 'no ingredients were found'
+  if (!Array.isArray(r.instructions) || !r.instructions.length) return 'no steps/instructions were found'
+  return null
 }
 
 // Build a rich text payload from a fetched page for Claude: JSON-LD blocks +
@@ -37,7 +48,7 @@ function pageToText(html) {
   return `${metas}\n\n${ld}\n\n${visible}`.slice(0, 24000)
 }
 
-export default function ImportModal({ onClose }) {
+export default function ImportModal({ onClose, initialUrl = '' }) {
   const navigate = useNavigate()
   const toast = useToast()
   const [tab, setTab] = useState('url')
@@ -47,6 +58,26 @@ export default function ImportModal({ onClose }) {
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
+  const autoRan = useRef(false)
+
+  // When opened from a shared link (iOS Shortcut / Android share target), prefill
+  // the right tab and start the import automatically.
+  useEffect(() => {
+    if (!initialUrl || autoRan.current) return
+    autoRan.current = true
+    const video = isVideoLink(initialUrl)
+    if (video) { setTab('video'); setVideoUrl(initialUrl) }
+    else { setTab('url'); setUrl(initialUrl) }
+    importFromUrl(initialUrl, { video })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialUrl])
+
+  // Show a failure as both an inline message (persists) and a toast (notifies),
+  // so the user always knows the import didn't work and isn't left waiting.
+  function fail(message) {
+    setError(message)
+    toast('Import failed — see details')
+  }
 
   function handoffToEditor(recipe) {
     // Importers (Claude paste/photo, JSON-LD, video) can return missing/null
@@ -63,12 +94,12 @@ export default function ImportModal({ onClose }) {
   // pages we try fast structured (JSON-LD) extraction first, then fall back to
   // letting Claude read the whole page.
   async function importFromUrl(rawUrl, { video } = {}) {
-    const target = rawUrl.trim()
+    const target = (rawUrl || '').trim()
     if (!target) return
     setBusy(true); setError(''); setStatus('Fetching page…')
     try {
-      const res = await fetch(`/api/recipe-proxy?url=${encodeURIComponent(target)}`)
-      if (!res.ok) throw new Error('Could not open that link.')
+      const res = await fetchWithTimeout(`/api/recipe-proxy?url=${encodeURIComponent(target)}`, 25000)
+      if (!res.ok) throw new Error('Could not open that link. Check the URL and that the post is public.')
       const html = await res.text()
 
       let recipe = null
@@ -76,20 +107,21 @@ export default function ImportModal({ onClose }) {
         setStatus('Reading recipe…')
         recipe = extractRecipeFromHtml(html)
       }
-      if (!isUsable(recipe)) {
+      if (unusableReason(recipe)) {
         setStatus('Asking Claude to read the page…')
         recipe = await normalizeRecipeText(pageToText(html))
       }
-      if (!isUsable(recipe)) {
+      const reason = unusableReason(recipe)
+      if (reason) {
         throw new Error(
           video
-            ? "Couldn't find a recipe in that video's description."
-            : "Couldn't read a recipe from that page. Try the Paste tab instead.",
+            ? `Couldn't build a complete recipe — ${reason}. The post may not have the full recipe written in its caption (recipes shown only in the video can't be read).`
+            : `Couldn't build a complete recipe — ${reason}. Try the Paste tab with the full recipe text.`,
         )
       }
       handoffToEditor(recipe)
     } catch (err) {
-      setError(err.message || 'Import failed')
+      fail(err.message || 'Import failed')
     } finally {
       setBusy(false); setStatus('')
     }
@@ -100,10 +132,11 @@ export default function ImportModal({ onClose }) {
     setBusy(true); setError(''); setStatus('Asking Claude to parse…')
     try {
       const recipe = await normalizeRecipeText(text.trim())
-      if (!isUsable(recipe)) throw new Error("Couldn't find a recipe in that text.")
+      const reason = unusableReason(recipe)
+      if (reason) throw new Error(`Couldn't build a complete recipe — ${reason}. Add the missing details and try again.`)
       handoffToEditor(recipe)
     } catch (err) {
-      setError(err.message || 'Could not parse recipe')
+      fail(err.message || 'Could not parse recipe')
     } finally {
       setBusy(false); setStatus('')
     }
@@ -116,10 +149,11 @@ export default function ImportModal({ onClose }) {
       const base64 = await fileToBase64(file)
       setStatus('Asking Claude to read the recipe…')
       const recipe = await normalizeRecipeImage(base64, file.type || 'image/jpeg')
-      if (!isUsable(recipe)) throw new Error("Couldn't read a recipe from that photo.")
+      const reason = unusableReason(recipe)
+      if (reason) throw new Error(`Couldn't build a complete recipe — ${reason}. Make sure the whole recipe is visible and in focus.`)
       handoffToEditor(recipe)
     } catch (err) {
-      setError(err.message || 'Could not read photo')
+      fail(err.message || 'Could not read photo')
     } finally {
       setBusy(false); setStatus('')
     }
@@ -198,6 +232,20 @@ export default function ImportModal({ onClose }) {
       </div>
     </div>
   )
+}
+
+// fetch with an abort timeout so the proxy step can't hang the import forever.
+async function fetchWithTimeout(url, ms) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), ms)
+  try {
+    return await fetch(url, { signal: controller.signal })
+  } catch (err) {
+    if (err?.name === 'AbortError') throw new Error('That link took too long to load.')
+    throw new Error('Network error — check your connection and try again.')
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 function fileToBase64(file) {

@@ -4,11 +4,23 @@
 // Anthropic API key server-side. No key is ever exposed to the browser.
 
 async function callParse(payload) {
-  const res = await fetch('/api/parse', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
+  // Hard timeout so a stuck request can never leave the UI spinning forever.
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 65000)
+  let res
+  try {
+    res = await fetch('/api/parse', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    })
+  } catch (err) {
+    if (err?.name === 'AbortError') throw new Error('That took too long — please try again.')
+    throw new Error('Network error — check your connection and try again.')
+  } finally {
+    clearTimeout(timer)
+  }
   if (!res.ok) {
     let msg = `Parse failed (${res.status})`
     try {

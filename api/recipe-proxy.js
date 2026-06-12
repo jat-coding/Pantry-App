@@ -4,6 +4,8 @@
 
 import { fetchPage } from './_lib/recipe.js'
 
+export const config = { maxDuration: 30 }
+
 export default async function handler(req, res) {
   const url = req.query?.url
   if (!url) {

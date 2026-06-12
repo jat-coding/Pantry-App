@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import RecipeCard from '../components/RecipeCard.jsx'
 import { CategoryFilter, SearchBar, matchesQuery } from '../components/Filters.jsx'
@@ -23,11 +23,27 @@ export default function AllRecipes() {
   const { recipes, loadingRecipes, canWrite } = useData()
   const navigate = useNavigate()
   const toast = useToast()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('All')
   const [sort, setSort] = useState('newest')
   const [showAdd, setShowAdd] = useState(false)
   const [showImport, setShowImport] = useState(false)
+  const [sharedUrl, setSharedUrl] = useState('')
+
+  // Opened via a shared link, e.g. /recipes?import=<url> from the iOS Shortcut
+  // or Android share target. Open the importer prefilled, then strip the param
+  // so a refresh doesn't re-import.
+  useEffect(() => {
+    const shared = searchParams.get('import')
+    if (!shared) return
+    if (!canWrite) { toast('Log in to import a recipe'); }
+    setSharedUrl(shared)
+    setShowImport(true)
+    searchParams.delete('import')
+    setSearchParams(searchParams, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const filtered = useMemo(() => {
     const list = recipes.filter(
@@ -107,7 +123,12 @@ export default function AllRecipes() {
         </button>
       </div>
 
-      {showImport && <ImportModal onClose={() => setShowImport(false)} />}
+      {showImport && (
+        <ImportModal
+          initialUrl={sharedUrl}
+          onClose={() => { setShowImport(false); setSharedUrl('') }}
+        />
+      )}
     </div>
   )
 }

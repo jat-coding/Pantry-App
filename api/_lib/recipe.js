@@ -159,9 +159,33 @@ function coerceRecipe(r) {
   }
 }
 
-// Fetch an external recipe page server-side (avoids browser CORS).
+// Instagram / Facebook only return the post caption (in og:description) to a
+// recognized crawler UA; a normal browser UA gets a login wall. Other sites get
+// a realistic browser UA.
+function userAgentFor(url) {
+  if (/(^|\.)(instagram\.com|facebook\.com|fb\.watch|fb\.com)/i.test(url)) {
+    return 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'
+  }
+  return 'Mozilla/5.0 (compatible; PantryBot/1.0; +https://pantry-app-nu-nine.vercel.app)'
+}
+
+// Fetch an external recipe page server-side (avoids browser CORS). Times out so
+// a slow/hanging host can't wedge the import.
 export async function fetchPage(url) {
   if (!url) throw new Error('Missing url')
-  const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 PantryBot' } })
-  return r.text()
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 15000)
+  try {
+    const r = await fetch(url, {
+      headers: { 'User-Agent': userAgentFor(url), 'Accept-Language': 'en-US,en;q=0.9' },
+      redirect: 'follow',
+      signal: controller.signal,
+    })
+    return await r.text()
+  } catch (err) {
+    if (err?.name === 'AbortError') throw new Error('That link took too long to load.')
+    throw err
+  } finally {
+    clearTimeout(timer)
+  }
 }
