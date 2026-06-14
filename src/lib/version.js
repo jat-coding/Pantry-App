@@ -1,9 +1,19 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.5.0'
+export const APP_VERSION = '1.6.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.6.0',
+    date: '2026-06-14',
+    changes: [
+      'A warm visual refresh: a new cookbook-style heading font (Fraunces), refined colors, and more polish throughout.',
+      'A distinct action color so the main button on each screen clearly stands out.',
+      'Category placeholders are now tasteful food icons instead of emoji.',
+      'Accessibility upgrades: clear keyboard focus, bigger tap targets, and reduced-motion support.',
+    ],
+  },
   {
     version: '1.5.0',
     date: '2026-06-14',

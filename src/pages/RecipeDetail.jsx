@@ -4,8 +4,8 @@ import { useData } from '../contexts/DataContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useToast } from '../components/Toast.jsx'
 import { formatIngredient, formatQty, abbreviateUnit } from '../lib/scaling.js'
-import { aisleFor, CATEGORY_EMOJI, getCategories, primaryCategory } from '../lib/categories.js'
-import { EditIcon, TrashIcon, HeartIcon } from '../components/icons.jsx'
+import { aisleFor, getCategories, primaryCategory } from '../lib/categories.js'
+import { EditIcon, TrashIcon, HeartIcon, CategoryIcon } from '../components/icons.jsx'
 import { AddToPantryPrompt } from './RecipeEditor.jsx'
 
 function timeLabel(t) {
@@ -171,13 +171,13 @@ export default function RecipeDetail() {
         {recipe.imageUrl ? (
           <img src={recipe.imageUrl} alt={recipe.title} className="h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-peach/40 text-7xl">
-            {CATEGORY_EMOJI[primaryCategory(recipe)] || '🍽️'}
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-peach/50 to-surface-2 text-peach-dark">
+            <CategoryIcon category={primaryCategory(recipe)} className="h-24 w-24" />
           </div>
         )}
         <button
           onClick={() => navigate(-1)}
-          className="absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 shadow-card backdrop-blur"
+          className="absolute left-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-card backdrop-blur"
           aria-label="Back"
         >←</button>
         <div className="absolute right-3 top-3 flex gap-2">
@@ -185,12 +185,12 @@ export default function RecipeDetail() {
             <>
               <button
                 onClick={() => navigate(`/recipe/${recipe.id}/edit`)}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-zinc-800 shadow-card backdrop-blur"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-zinc-800 shadow-card backdrop-blur"
                 aria-label="Edit recipe"
               ><EditIcon className="h-5 w-5" /></button>
               <button
                 onClick={handleDelete}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-red-600 shadow-card backdrop-blur"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-red-600 shadow-card backdrop-blur"
                 aria-label="Delete recipe"
               ><TrashIcon className="h-5 w-5" /></button>
             </>

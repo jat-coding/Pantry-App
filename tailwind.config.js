@@ -5,13 +5,21 @@ export default {
     extend: {
       colors: {
         eggshell: '#F0EAD6',
+        'surface-2': '#FAF4E8',
         peach: '#FFCBA4',
         'peach-dark': '#F2A977',
+        // Reserved for the primary action only (white text passes AA).
+        cta: '#BE531F',
+        'cta-dark': '#9C4019',
+        // Positive / "in pantry" accent.
+        herb: '#5E7C4F',
+        'herb-dark': '#4C6740',
         warm: '#2C2416',
         'warm-soft': '#6B5E4A',
       },
       fontFamily: {
         sans: ['Nunito', 'system-ui', 'sans-serif'],
+        display: ['Fraunces', 'Georgia', 'serif'],
       },
       borderRadius: {
         '2xl': '1rem',

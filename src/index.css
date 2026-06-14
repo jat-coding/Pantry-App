@@ -9,13 +9,26 @@
     -webkit-text-size-adjust: 100%;
     touch-action: manipulation;
   }
-  /* Tighten big headings a touch for a more polished hierarchy. */
-  h1, h2, h3 {
-    letter-spacing: -0.015em;
+  /* Display serif for headings — the editorial-cookbook voice. */
+  h1, h2 {
+    @apply font-display;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
   }
   ::selection {
     background-color: #FFCBA4;
     color: #2C2416;
+  }
+  /* Accessible, on-brand keyboard focus on every interactive element. */
+  a:focus-visible,
+  button:focus-visible,
+  [role='button']:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid #BE531F;
+    outline-offset: 2px;
+    border-radius: 0.5rem;
   }
   body {
     @apply bg-eggshell text-warm font-sans antialiased;
@@ -35,10 +48,12 @@
   .pill-peach {
     @apply pill bg-peach text-warm;
   }
+  /* Primary action. Terracotta CTA reserved for the one main action per screen,
+     so it always reads as "tap here". (Class name kept for call-site stability.) */
   .btn-peach {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-peach px-5 py-3
-           font-bold text-warm shadow-card transition active:scale-95
-           hover:bg-peach-dark disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-cta px-5 py-3
+           font-bold text-white shadow-card transition active:scale-95
+           hover:bg-cta-dark disabled:opacity-50;
     min-height: 44px;
   }
   .btn-ghost {
@@ -59,3 +74,13 @@
 /* Hide scrollbars on horizontal filter rows but keep scrollability */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Respect users who prefer less motion. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

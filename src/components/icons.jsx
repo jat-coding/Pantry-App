@@ -146,6 +146,64 @@ export function LinkIcon({ className = 'h-5 w-5' }) {
   )
 }
 
+// Per-category food icons used as the no-photo placeholder (replaces emoji).
+const CATEGORY_PATHS = {
+  Breakfast: (
+    <>
+      <ellipse cx="12" cy="12" rx="8" ry="6" />
+      <circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none" />
+    </>
+  ),
+  Lunch: (
+    <>
+      <path d="M3 17 12 5l9 12z" />
+      <path d="M6.6 13h10.8" />
+    </>
+  ),
+  Dinner: (
+    <>
+      <circle cx="12" cy="12" r="7.5" />
+      <circle cx="12" cy="12" r="3.2" />
+    </>
+  ),
+  Dessert: (
+    <>
+      <path d="M6 11h12l-1.4 8H7.4z" />
+      <path d="M6 11c0-3 2.7-5 6-5s6 2 6 5" />
+    </>
+  ),
+  Snacks: (
+    <>
+      <path d="M12 7c-1.2-1.6-3.4-2-5-.7-2 1.6-1.7 5.4.4 8.3C8.5 16.3 10 18 12 18s3.5-1.7 4.6-3.4c2.1-2.9 2.4-6.7.4-8.3-1.6-1.3-3.8-.9-5 .7z" />
+      <path d="M12 7V4.4" />
+    </>
+  ),
+  Drinks: (
+    <>
+      <path d="M7 8h10l-1 11a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1z" />
+      <path d="M13 8l2-4" />
+    </>
+  ),
+  'Sauces & Dressings': (
+    <>
+      <path d="M10 3h4v3l1.5 2v11a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1V8L10 6z" />
+      <path d="M9.6 12h4.8" />
+    </>
+  ),
+}
+
+export function CategoryIcon({ category, className = 'h-6 w-6' }) {
+  const paths = CATEGORY_PATHS[category] || (
+    // Default: fork + knife.
+    <path d="M7 3v7a2 2 0 0 0 2 2v9M9 3v5M5 3v5a2 2 0 0 0 2 2M17 3c-1.7 0-3 2-3 4.5S15.3 12 17 12v9" />
+  )
+  return (
+    <svg viewBox="0 0 24 24" className={className} {...base} aria-hidden="true">
+      {paths}
+    </svg>
+  )
+}
+
 export function HeartIcon({ filled, className = 'h-5 w-5' }) {
   // Symmetric heart; filled uses the warm peach accent.
   return (

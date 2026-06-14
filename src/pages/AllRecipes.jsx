@@ -120,7 +120,7 @@ export default function AllRecipes() {
         )}
         <button
           onClick={() => setShowAdd((s) => !s)}
-          className="flex h-14 w-14 items-center justify-center rounded-full bg-peach text-3xl text-warm shadow-card-hover transition active:scale-90 hover:bg-peach-dark"
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-cta text-3xl text-white shadow-card-hover transition active:scale-90 hover:bg-cta-dark"
           aria-label="Add recipe"
         >
           {showAdd ? '×' : '+'}
