@@ -17,9 +17,13 @@ const RECIPE_SCHEMA = {
   additionalProperties: false,
   properties: {
     title: { type: 'string' },
-    category: {
-      type: 'string',
-      enum: ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snacks', 'Drinks', 'Sauces & Dressings'],
+    categories: {
+      type: 'array',
+      minItems: 1,
+      items: {
+        type: 'string',
+        enum: ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snacks', 'Drinks', 'Sauces & Dressings'],
+      },
     },
     prepTime: {
       type: 'object',
@@ -57,7 +61,7 @@ const RECIPE_SCHEMA = {
     imageUrl: { anyOf: [{ type: 'string' }, { type: 'null' }] },
   },
   required: [
-    'title', 'category', 'prepTime', 'cookTime',
+    'title', 'categories', 'prepTime', 'cookTime',
     'servings', 'ingredients', 'instructions', 'imageUrl',
   ],
 }
@@ -65,7 +69,9 @@ const RECIPE_SCHEMA = {
 const INSTRUCTIONS =
   'Parse this recipe into the required structured fields. If a field is unknown ' +
   'use a sensible default (0, "", or null). qty must be a number (use 0 if none). ' +
-  'Use short/abbreviated units where possible (tbsp, tsp, cup, oz, lb, g, kg, ml, L).'
+  'Use short/abbreviated units where possible (tbsp, tsp, cup, oz, lb, g, kg, ml, L). ' +
+  'For categories, choose every type that fits (e.g. a granola bar could be both ' +
+  'Snacks and Breakfast); include at least one.'
 
 function getClient() {
   const apiKey = process.env.ANTHROPIC_API_KEY
@@ -145,9 +151,14 @@ function coerceRecipe(r) {
         name: typeof i?.name === 'string' ? i.name : String(i?.name ?? ''),
       })).filter((i) => i.name.trim())
     : []
+  const allowed = ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snacks', 'Drinks', 'Sauces & Dressings']
+  const cats = [...new Set([...(Array.isArray(o.categories) ? o.categories : []), o.category])]
+    .filter((c) => allowed.includes(c))
+  const categories = cats.length ? cats : ['Dinner']
   return {
     title: typeof o.title === 'string' ? o.title : '',
-    category: o.category || 'Dinner',
+    categories,
+    category: categories[0],
     prepTime: time(o.prepTime, 0),
     cookTime: time(o.cookTime, 0),
     servings: Number.isFinite(Number(o.servings)) ? Number(o.servings) : 1,

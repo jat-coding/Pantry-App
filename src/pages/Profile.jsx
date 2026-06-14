@@ -4,8 +4,9 @@ import { useData } from '../contexts/DataContext.jsx'
 import { useToast } from '../components/Toast.jsx'
 import { updateProfileDoc } from '../lib/firestore.js'
 import { exportRecipesToExcel } from '../lib/exportExcel.js'
+import { uploadImage } from '../lib/storage.js'
 import { APP_VERSION, CHANGELOG } from '../lib/version.js'
-import { ProfileIcon } from '../components/icons.jsx'
+import { ProfileIcon, CameraIcon } from '../components/icons.jsx'
 
 export default function Profile() {
   const { user, profile, guest, logout } = useAuth()
@@ -14,6 +15,20 @@ export default function Profile() {
   const [editing, setEditing] = useState(false)
   const [bio, setBio] = useState(profile?.bio || '')
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatarUrl || '')
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+
+  async function handleAvatarFile(file) {
+    if (!file) return
+    setUploadingAvatar(true)
+    try {
+      const url = await uploadImage(file, `avatars/${user.uid}`)
+      setAvatarUrl(url)
+    } catch {
+      toast('Could not load that photo')
+    } finally {
+      setUploadingAvatar(false)
+    }
+  }
 
   if (guest || !user) {
     return (
@@ -62,7 +77,14 @@ export default function Profile() {
 
         {editing ? (
           <div className="w-full max-w-sm space-y-2 text-left">
-            <input className="input" placeholder="Avatar image URL" value={avatarUrl}
+            <label className="btn-ghost w-full cursor-pointer">
+              <CameraIcon className="h-5 w-5 text-zinc-800" />
+              {uploadingAvatar ? 'Uploading…' : avatarUrl ? 'Change photo' : 'Choose from camera roll'}
+              <input type="file" accept="image/*" className="hidden" disabled={uploadingAvatar}
+                onChange={(e) => handleAvatarFile(e.target.files?.[0])} />
+            </label>
+            <input className="input" placeholder="…or paste an avatar image URL"
+              value={avatarUrl.startsWith('data:') ? '' : avatarUrl}
               onChange={(e) => setAvatarUrl(e.target.value)} />
             <textarea className="input" placeholder="Short bio" value={bio}
               onChange={(e) => setBio(e.target.value)} />

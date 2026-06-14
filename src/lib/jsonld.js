@@ -66,12 +66,15 @@ export function parseIngredientLine(line) {
   return { qty, unit, name: name || line.trim() }
 }
 
-function mapCategory(c) {
+function mapCategories(c) {
   const allowed = ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snacks', 'Drinks', 'Sauces & Dressings']
-  const raw = asArray(c)[0]
-  if (!raw) return 'Dinner'
-  const hit = allowed.find((a) => raw.toLowerCase().includes(a.toLowerCase()))
-  return hit || 'Dinner'
+  const hits = new Set()
+  for (const raw of asArray(c)) {
+    if (typeof raw !== 'string') continue
+    const lc = raw.toLowerCase()
+    for (const a of allowed) if (lc.includes(a.toLowerCase())) hits.add(a)
+  }
+  return hits.size ? [...hits] : ['Dinner']
 }
 
 export function extractRecipeFromHtml(html) {
@@ -99,9 +102,11 @@ export function extractRecipeFromHtml(html) {
   const yieldVal = asArray(recipeNode.recipeYield)[0]
   const servings = parseInt(String(yieldVal).match(/\d+/)?.[0] || '4', 10)
 
+  const categories = mapCategories(recipeNode.recipeCategory)
   return {
     title: recipeNode.name || 'Imported recipe',
-    category: mapCategory(recipeNode.recipeCategory),
+    categories,
+    category: categories[0],
     imageUrl: typeof imageUrl === 'string' ? imageUrl : '',
     prepTime: parseDuration(recipeNode.prepTime),
     cookTime: parseDuration(recipeNode.cookTime),

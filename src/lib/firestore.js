@@ -25,16 +25,16 @@ const recipesCol = collection(db, 'recipes')
 
 export function listenMyRecipes(uid, cb) {
   // All Recipes = everything this user owns (created or pocketed).
-  const q = query(recipesCol, where('authorId', '==', uid), orderBy('createdAt', 'desc'))
-  return onSnapshot(
-    q,
-    (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
-    // Index-not-ready / offline fall back to an unordered read.
-    () => {
-      const q2 = query(recipesCol, where('authorId', '==', uid))
-      onSnapshot(q2, (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))))
-    },
-  )
+  const ordered = query(recipesCol, where('authorId', '==', uid), orderBy('createdAt', 'desc'))
+  const unordered = query(recipesCol, where('authorId', '==', uid))
+  const emit = (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+
+  // Track the active subscription so the fallback is also cleaned up.
+  let activeUnsub = onSnapshot(ordered, emit, () => {
+    // Index-not-ready / offline → swap to an unordered read.
+    activeUnsub = onSnapshot(unordered, emit)
+  })
+  return () => { if (activeUnsub) activeUnsub() }
 }
 
 export async function getRecipe(id) {
@@ -43,9 +43,13 @@ export async function getRecipe(id) {
 }
 
 export async function createRecipe(data, user, extra = {}) {
+  const categories = (Array.isArray(data.categories) && data.categories.length)
+    ? data.categories
+    : [data.category || 'Dinner']
   const ref = await addDoc(recipesCol, {
     title: data.title || 'Untitled',
-    category: data.category || 'Dinner',
+    category: categories[0],
+    categories,
     ingredients: data.ingredients || [],
     instructions: data.instructions || [],
     prepTime: data.prepTime || { value: 0, unit: 'min' },
@@ -159,11 +163,12 @@ export function updateProfileDoc(uid, data) {
 const usersCol = collection(db, 'users')
 const requestsCol = collection(db, 'friendRequests')
 
-// Search users by display name (case-sensitive prefix via Firestore range).
+// Search users by display name, case-insensitive prefix via a lowercased field.
 export async function searchUsers(term, excludeUid) {
-  if (!term.trim()) return []
-  const end = term + ''
-  const q = query(usersCol, where('displayName', '>=', term), where('displayName', '<=', end))
+  const t = term.trim().toLowerCase()
+  if (!t) return []
+  const end = t +''
+  const q = query(usersCol, where('displayNameLower', '>=', t), where('displayNameLower', '<=', end))
   const snap = await getDocs(q)
   return snap.docs
     .map((d) => ({ id: d.id, ...d.data() }))

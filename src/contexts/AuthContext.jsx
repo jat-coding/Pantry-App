@@ -6,7 +6,7 @@ import {
   signOut,
   updateProfile,
 } from 'firebase/auth'
-import { doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore'
+import { doc, onSnapshot, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
 import { auth, db } from '../firebase.js'
 
 const AuthContext = createContext(null)
@@ -29,8 +29,16 @@ export function AuthProvider({ children }) {
         unsubProfile = onSnapshot(
           doc(db, 'users', u.uid),
           (snap) => {
-            setProfile(snap.exists() ? { id: u.uid, ...snap.data() } : null)
+            const data = snap.exists() ? { id: u.uid, ...snap.data() } : null
+            setProfile(data)
             setLoading(false)
+            // Backfill the lowercase name for case-insensitive friend search on
+            // accounts created before that field existed.
+            if (data?.displayName && !data.displayNameLower) {
+              updateDoc(doc(db, 'users', u.uid), {
+                displayNameLower: data.displayName.toLowerCase(),
+              }).catch(() => {})
+            }
           },
           () => setLoading(false),
         )
@@ -51,6 +59,7 @@ export function AuthProvider({ children }) {
     // Create the users/{uid} profile document.
     await setDoc(doc(db, 'users', cred.user.uid), {
       displayName,
+      displayNameLower: (displayName || '').toLowerCase(),
       avatarUrl: '',
       bio: '',
       friendIds: [],

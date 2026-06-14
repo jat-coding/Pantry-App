@@ -1,35 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
+import { useAuth } from '../contexts/AuthContext.jsx'
 import { useToast } from '../components/Toast.jsx'
 import { CATEGORIES } from '../lib/categories.js'
 import { sanitizeRecipe } from '../lib/recipeShape.js'
+import { uploadImage } from '../lib/storage.js'
 import { PantryIcon, CameraIcon } from '../components/icons.jsx'
-
-// Downscale a chosen photo to a compact JPEG data URL so it fits in Firestore
-// (no Storage bucket yet). Keeps the longest edge <= 1000px.
-function fileToScaledDataUrl(file, maxEdge = 1000, quality = 0.82) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onerror = reject
-    reader.onload = () => {
-      const img = new Image()
-      img.onerror = reject
-      img.onload = () => {
-        const scale = Math.min(1, maxEdge / Math.max(img.width, img.height))
-        const w = Math.round(img.width * scale)
-        const h = Math.round(img.height * scale)
-        const canvas = document.createElement('canvas')
-        canvas.width = w
-        canvas.height = h
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h)
-        resolve(canvas.toDataURL('image/jpeg', quality))
-      }
-      img.src = reader.result
-    }
-    reader.readAsDataURL(file)
-  })
-}
 
 const DRAFT_KEY = 'pantry-draft-new'
 
@@ -38,6 +15,7 @@ function blankRecipe() {
     title: '',
     imageUrl: '',
     category: 'Dinner',
+    categories: ['Dinner'],
     prepTime: { value: 10, unit: 'min' },
     cookTime: { value: 20, unit: 'min' },
     servings: 4,
@@ -52,12 +30,14 @@ export default function RecipeEditor() {
   const isEdit = !!id
   const navigate = useNavigate()
   const { recipes, getRecipe, createRecipe, updateRecipe } = useData()
+  const { user } = useAuth()
   const toast = useToast()
 
   const [form, setForm] = useState(blankRecipe)
   const [dirty, setDirty] = useState(false)
   const [loaded, setLoaded] = useState(!isEdit)
   const [saving, setSaving] = useState(false)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const initial = useRef(true)
 
   // Load existing recipe (edit) or restore draft (new).
@@ -94,20 +74,38 @@ export default function RecipeEditor() {
 
   function set(field, value) { setForm((f) => ({ ...f, [field]: value })) }
 
+  // Toggle a category on/off; never allow zero selected (keep at least one).
+  function toggleCategory(c) {
+    setForm((f) => {
+      const current = Array.isArray(f.categories) && f.categories.length
+        ? f.categories
+        : (f.category ? [f.category] : [])
+      const has = current.includes(c)
+      const next = has ? current.filter((x) => x !== c) : [...current, c]
+      const categories = next.length ? next : current
+      return { ...f, categories, category: categories[0] }
+    })
+  }
+
   async function handlePhotoFile(file) {
     if (!file) return
+    setUploadingPhoto(true)
     try {
-      const dataUrl = await fileToScaledDataUrl(file)
-      set('imageUrl', dataUrl)
+      // Uploads to Firebase Storage when available; otherwise falls back to a
+      // size-capped inline data URL so saving still works.
+      const url = await uploadImage(file, `recipes/${user?.uid || 'anon'}`)
+      set('imageUrl', url)
     } catch {
       toast('Could not load that photo')
+    } finally {
+      setUploadingPhoto(false)
     }
   }
 
   function setIngredient(i, key, value) {
     setForm((f) => {
       const ingredients = f.ingredients.map((ing, idx) =>
-        idx === i ? { ...ing, [key]: key === 'qty' ? value : value } : ing)
+        idx === i ? { ...ing, [key]: value } : ing)
       return { ...f, ingredients }
     })
   }
@@ -132,8 +130,13 @@ export default function RecipeEditor() {
   async function handleSave() {
     if (saving) return // guard against double-taps creating duplicates
     if (!form.title.trim()) return toast('Please add a recipe name')
+    const categories = (Array.isArray(form.categories) && form.categories.length)
+      ? form.categories
+      : [form.category || 'Dinner']
     const clean = {
       ...form,
+      categories,
+      category: categories[0], // keep a primary for back-compat / sorting
       servings: Number(form.servings) || 1,
       ingredients: form.ingredients
         .filter((i) => i.name.trim())
@@ -185,8 +188,8 @@ export default function RecipeEditor() {
             downscaled to a compact data URL stored on the recipe. */}
         <label className="btn-ghost w-full cursor-pointer">
           <CameraIcon className="h-5 w-5 text-zinc-800" />
-          {form.imageUrl ? 'Change photo' : 'Choose from camera roll'}
-          <input type="file" accept="image/*" className="hidden"
+          {uploadingPhoto ? 'Uploading…' : form.imageUrl ? 'Change photo' : 'Choose from camera roll'}
+          <input type="file" accept="image/*" className="hidden" disabled={uploadingPhoto}
             onChange={(e) => handlePhotoFile(e.target.files?.[0])} />
         </label>
         <input className="input mt-2" value={(form.imageUrl || '').startsWith('data:') ? '' : (form.imageUrl || '')}
@@ -204,14 +207,19 @@ export default function RecipeEditor() {
         )}
       </Field>
 
-      <Field label="Category">
+      <Field label="Categories">
+        <p className="mb-2 text-xs text-warm-soft">Pick one or more — e.g. a dish can be both Snacks and Lunch.</p>
         <div className="flex flex-wrap gap-2">
-          {CATEGORIES.map((c) => (
-            <button key={c} onClick={() => set('category', c)}
-              className={`rounded-full px-4 py-2 text-sm font-bold transition ${
-                form.category === c ? 'bg-peach text-warm shadow-card' : 'bg-white text-warm-soft'
-              }`}>{c}</button>
-          ))}
+          {CATEGORIES.map((c) => {
+            const active = (form.categories || [form.category]).includes(c)
+            return (
+              <button key={c} type="button" onClick={() => toggleCategory(c)}
+                aria-pressed={active}
+                className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                  active ? 'bg-peach text-warm shadow-card' : 'bg-white text-warm-soft'
+                }`}>{active ? '✓ ' : ''}{c}</button>
+            )
+          })}
         </div>
       </Field>
 

@@ -25,6 +25,6 @@ export const db = initializeFirestore(app, {
   }),
 })
 
-// NOTE: Firebase Storage and Analytics are intentionally skipped.
-// When image upload is added later, initialize getStorage(app) here and
-// wire it into the Recipe Editor's photo field (see RecipeEditor.jsx).
+// Firebase Storage is initialized lazily in src/lib/storage.js (uploadImage),
+// which falls back to an inline data URL if the bucket/rules aren't set up yet.
+// Analytics is intentionally skipped.

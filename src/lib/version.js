@@ -1,9 +1,22 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.4.0'
+export const APP_VERSION = '1.5.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.5.0',
+    date: '2026-06-14',
+    changes: [
+      'Recipes can now belong to several categories at once (e.g. Snacks and Lunch).',
+      'Filter by multiple categories at once on Pantry and All Recipes, and sort your Pantry by newest, A–Z, or cook time.',
+      'Recipe photos and profile avatars can be uploaded from your camera roll (stored in the cloud, with a safe fallback).',
+      'Friend search is now case-insensitive.',
+      'Add a quantity and unit when adding grocery items by hand.',
+      '“What Can I Make?” now also suggests your friends’ recipes, with one-tap Copy to Pantry.',
+      'More resilient: a friendly recovery screen instead of a blank page if anything ever crashes, plus tighter image handling and visual polish.',
+    ],
+  },
   {
     version: '1.4.0',
     date: '2026-06-12',

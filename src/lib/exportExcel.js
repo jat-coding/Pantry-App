@@ -1,6 +1,8 @@
 // Export the user's recipes to a clean, well-spaced .xlsx workbook.
 // xlsx is imported dynamically so its ~300KB only loads when the user exports.
 
+import { getCategories } from './categories.js'
+
 function fmtTime(t) {
   return t && t.value ? `${t.value} ${t.unit}` : ''
 }
@@ -25,7 +27,7 @@ export async function exportRecipesToExcel(recipes, filename = 'pantry-recipes.x
 
   const rows = (recipes || []).map((r) => ({
     Title: r.title || 'Untitled',
-    Category: r.category || '',
+    Category: getCategories(r).join(', ') || r.category || '',
     Servings: r.servings ?? '',
     'Prep Time': fmtTime(r.prepTime),
     'Cook Time': fmtTime(r.cookTime),

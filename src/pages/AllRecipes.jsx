@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import RecipeCard from '../components/RecipeCard.jsx'
-import { CategoryFilter, SearchBar, matchesQuery } from '../components/Filters.jsx'
+import { CategoryFilter, SearchBar, matchesQuery, matchesCategories } from '../components/Filters.jsx'
 import { GridSkeleton } from '../components/Skeleton.jsx'
 import ImportModal from './ImportModal.jsx'
 import { useToast } from '../components/Toast.jsx'
@@ -25,7 +25,7 @@ export default function AllRecipes() {
   const toast = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
   const [query, setQuery] = useState('')
-  const [category, setCategory] = useState('All')
+  const [cats, setCats] = useState([])
   const [sort, setSort] = useState('newest')
   const [showAdd, setShowAdd] = useState(false)
   const [showImport, setShowImport] = useState(false)
@@ -47,14 +47,18 @@ export default function AllRecipes() {
 
   const filtered = useMemo(() => {
     const list = recipes.filter(
-      (r) => (category === 'All' || r.category === category) && matchesQuery(r, query),
+      (r) => matchesCategories(r, cats) && matchesQuery(r, query),
     )
     const sorted = [...list]
-    if (sort === 'az') sorted.sort((a, b) => a.title.localeCompare(b.title))
+    if (sort === 'az') sorted.sort((a, b) => (a.title || '').localeCompare(b.title || ''))
     else if (sort === 'time') sorted.sort((a, b) => totalMin(a) - totalMin(b))
     else sorted.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
     return sorted
-  }, [recipes, query, category, sort])
+  }, [recipes, query, cats, sort])
+
+  function toggleCat(c) {
+    setCats((s) => (s.includes(c) ? s.filter((x) => x !== c) : [...s, c]))
+  }
 
   function handleAdd(kind) {
     setShowAdd(false)
@@ -84,7 +88,7 @@ export default function AllRecipes() {
       </header>
 
       <SearchBar value={query} onChange={setQuery} />
-      <CategoryFilter selected={category} onSelect={setCategory} />
+      <CategoryFilter selected={cats} onToggle={toggleCat} onClear={() => setCats([])} />
 
       {loadingRecipes ? (
         <GridSkeleton />

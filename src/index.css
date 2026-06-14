@@ -9,6 +9,14 @@
     -webkit-text-size-adjust: 100%;
     touch-action: manipulation;
   }
+  /* Tighten big headings a touch for a more polished hierarchy. */
+  h1, h2, h3 {
+    letter-spacing: -0.015em;
+  }
+  ::selection {
+    background-color: #FFCBA4;
+    color: #2C2416;
+  }
   body {
     @apply bg-eggshell text-warm font-sans antialiased;
     /* Warm subtle texture on the eggshell background */
@@ -44,7 +52,7 @@
            focus:ring-2 focus:ring-peach/50;
   }
   .card {
-    @apply rounded-2xl bg-white shadow-card;
+    @apply rounded-2xl border border-warm/5 bg-white shadow-card transition-shadow;
   }
 }
 

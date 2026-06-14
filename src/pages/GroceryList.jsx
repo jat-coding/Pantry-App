@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useData } from '../contexts/DataContext.jsx'
+import { useAuth } from '../contexts/AuthContext.jsx'
 import { useToast } from '../components/Toast.jsx'
 import { AISLE_ORDER, aisleFor } from '../lib/categories.js'
 import { formatQty, abbreviateUnit } from '../lib/scaling.js'
+import * as fs from '../lib/firestore.js'
 import RecipeCard from '../components/RecipeCard.jsx'
 import { GroceryIcon, TrashIcon } from '../components/icons.jsx'
 
@@ -11,6 +13,8 @@ export default function GroceryList() {
   const toast = useToast()
   const [mode, setMode] = useState('list') // 'list' | 'find'
   const [newItem, setNewItem] = useState('')
+  const [newQty, setNewQty] = useState('')
+  const [newUnit, setNewUnit] = useState('')
 
   // Combine duplicate items (same name+unit) by summing quantities.
   const combined = useMemo(() => combineItems(grocery), [grocery])
@@ -25,8 +29,14 @@ export default function GroceryList() {
 
   async function addManual() {
     if (!newItem.trim() || !canWrite) return
-    await addGroceryItems([{ name: newItem.trim(), category: aisleFor(newItem) }])
-    setNewItem('')
+    const q = newQty.trim() === '' ? null : Number(newQty)
+    await addGroceryItems([{
+      name: newItem.trim(),
+      qty: Number.isFinite(q) ? q : null,
+      unit: newUnit.trim(),
+      category: aisleFor(newItem),
+    }])
+    setNewItem(''); setNewQty(''); setNewUnit('')
     toast('Added to grocery list')
   }
 
@@ -52,11 +62,19 @@ export default function GroceryList() {
         <WhatCanIMake recipes={recipes} />
       ) : (
         <>
-          <div className="flex gap-2">
-            <input className="input" placeholder="Add an item…" value={newItem}
-              onChange={(e) => setNewItem(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addManual()} />
-            <button className="btn-peach px-5" onClick={addManual}>Add</button>
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <input className="input w-16 px-2 text-center" placeholder="Qty" value={newQty}
+                onChange={(e) => setNewQty(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addManual()} />
+              <input className="input w-20 px-2" placeholder="unit" value={newUnit}
+                onChange={(e) => setNewUnit(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addManual()} />
+              <input className="input flex-1" placeholder="Add an item…" value={newItem}
+                onChange={(e) => setNewItem(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addManual()} />
+            </div>
+            <button className="btn-peach w-full" onClick={addManual}>Add to list</button>
           </div>
 
           {combined.length === 0 ? (
@@ -132,11 +150,44 @@ function combineItems(items) {
   return [...map.values()]
 }
 
-// Reverse recipe search — Layer 1 (own library).
+// Rank recipes by how many of the given ingredients they use.
+function rankByPantry(recipes, pills) {
+  return recipes
+    .map((r) => {
+      const names = (r.ingredients || []).map((i) => (i.name || '').toLowerCase())
+      const have = pills.filter((p) => names.some((n) => n.includes(p)))
+      const missing = names.length - have.length
+      return { recipe: r, have: have.length, total: names.length, missing }
+    })
+    .filter((x) => x.have > 0)
+    .sort((a, b) => b.have - a.have || a.missing - b.missing)
+}
+
+// Reverse recipe search — Layer 1 (own library) + Layer 2 (friends' recipes).
 function WhatCanIMake({ recipes }) {
+  const { profile } = useAuth()
+  const { pocketRecipe, togglePantry } = useData()
+  const toast = useToast()
   const [pills, setPills] = useState([])
   const [draft, setDraft] = useState('')
   const [results, setResults] = useState(null)
+  const [friendResults, setFriendResults] = useState(null)
+  const [friendRecipes, setFriendRecipes] = useState([])
+
+  // Load friends' recipes once so we can suggest dishes you could pocket.
+  useEffect(() => {
+    let alive = true
+    const ids = profile?.friendIds || []
+    if (!ids.length) { setFriendRecipes([]); return }
+    ;(async () => {
+      const all = []
+      for (const id of ids) {
+        try { all.push(...(await fs.getFriendRecipes(id))) } catch { /* ignore one friend */ }
+      }
+      if (alive) setFriendRecipes(all)
+    })()
+    return () => { alive = false }
+  }, [profile?.friendIds])
 
   function addPill() {
     const v = draft.trim().toLowerCase()
@@ -146,16 +197,18 @@ function WhatCanIMake({ recipes }) {
 
   function findRecipes() {
     if (!pills.length) return
-    const ranked = recipes
-      .map((r) => {
-        const names = (r.ingredients || []).map((i) => (i.name || '').toLowerCase())
-        const have = pills.filter((p) => names.some((n) => n.includes(p)))
-        const missing = names.length - have.length
-        return { recipe: r, have: have.length, total: names.length, missing }
-      })
-      .filter((x) => x.have > 0)
-      .sort((a, b) => b.have - a.have || a.missing - b.missing)
-    setResults(ranked)
+    setResults(rankByPantry(recipes, pills))
+    setFriendResults(rankByPantry(friendRecipes, pills))
+  }
+
+  async function copyToPantry(recipe) {
+    try {
+      const newId = await pocketRecipe(recipe)
+      await togglePantry(newId)
+      toast('Copied to your Pantry')
+    } catch {
+      toast('Could not copy recipe')
+    }
   }
 
   return (
@@ -180,22 +233,37 @@ function WhatCanIMake({ recipes }) {
       <button className="btn-peach w-full" onClick={findRecipes} disabled={!pills.length}>Find Recipes</button>
 
       {results && (
-        results.length === 0 ? (
-          <p className="py-8 text-center text-warm-soft">No matches in your library yet.</p>
-        ) : (
-          <div className="space-y-4">
-            {results.map(({ recipe, have, total }) => (
-              <div key={recipe.id}>
-                <p className="mb-1 text-sm font-bold text-warm-soft">
-                  You have {have}/{total} ingredients ({Math.round((have / total) * 100)}%)
-                </p>
-                <RecipeCard recipe={recipe} />
-              </div>
-            ))}
-            {/* Layer 2 (friends' public recipes) plugs in here — query friends'
-                public recipes and show a "Pocket this recipe" action on matches. */}
-          </div>
-        )
+        <div className="space-y-6">
+          <section className="space-y-4">
+            <h3 className="text-sm font-extrabold uppercase tracking-wide text-warm-soft">From your library</h3>
+            {results.length === 0 ? (
+              <p className="py-4 text-center text-warm-soft">No matches in your library yet.</p>
+            ) : (
+              results.map(({ recipe, have, total }) => (
+                <div key={recipe.id}>
+                  <p className="mb-1 text-sm font-bold text-warm-soft">
+                    You have {have}/{total} ingredients ({Math.round((have / total) * 100)}%)
+                  </p>
+                  <RecipeCard recipe={recipe} />
+                </div>
+              ))
+            )}
+          </section>
+
+          {friendResults && friendResults.length > 0 && (
+            <section className="space-y-4">
+              <h3 className="text-sm font-extrabold uppercase tracking-wide text-warm-soft">From your friends</h3>
+              {friendResults.map(({ recipe, have, total }) => (
+                <div key={recipe.id}>
+                  <p className="mb-1 text-sm font-bold text-warm-soft">
+                    You have {have}/{total} ingredients ({Math.round((have / total) * 100)}%)
+                  </p>
+                  <RecipeCard recipe={recipe} showPocket pocketLabel="Copy to Pantry" onPocket={copyToPantry} />
+                </div>
+              ))}
+            </section>
+          )}
+        </div>
       )}
     </div>
   )

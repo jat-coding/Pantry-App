@@ -24,9 +24,19 @@ function asIngredient(ing) {
   }
 }
 
+// Build a clean, deduped list of valid categories from either the new array or
+// a legacy single `category`. Always returns at least one.
+function asCategories(r) {
+  const fromArray = Array.isArray(r.categories) ? r.categories : []
+  const candidates = [...fromArray, r.category].filter((c) => CATEGORIES.includes(c))
+  const unique = [...new Set(candidates)]
+  return unique.length ? unique : ['Dinner']
+}
+
 export function sanitizeRecipe(raw) {
   const r = raw && typeof raw === 'object' ? raw : {}
-  const category = CATEGORIES.includes(r.category) ? r.category : 'Dinner'
+  const categories = asCategories(r)
+  const category = categories[0]
   const ingredients = Array.isArray(r.ingredients) ? r.ingredients.map(asIngredient) : []
   const instructions = Array.isArray(r.instructions)
     ? r.instructions.map((s) => (typeof s === 'string' ? s : String(s ?? ''))).filter(Boolean)
@@ -37,6 +47,7 @@ export function sanitizeRecipe(raw) {
     title: typeof r.title === 'string' ? r.title : '',
     imageUrl: typeof r.imageUrl === 'string' ? r.imageUrl : '',
     category,
+    categories,
     prepTime: asTime(r.prepTime, 0),
     cookTime: asTime(r.cookTime, 0),
     servings: Number.isFinite(Number(r.servings)) && Number(r.servings) > 0 ? Number(r.servings) : 1,

@@ -1,4 +1,4 @@
-import { CATEGORIES } from '../lib/categories.js'
+import { CATEGORIES, getCategories } from '../lib/categories.js'
 import { SearchIcon } from './icons.jsx'
 
 export function SearchBar({ value, onChange, placeholder = 'Search recipes or ingredients…' }) {
@@ -26,26 +26,31 @@ export function SearchBar({ value, onChange, placeholder = 'Search recipes or in
   )
 }
 
-export function CategoryFilter({ selected, onSelect }) {
-  const items = ['All', ...CATEGORIES]
+// Multi-select category filter. `selected` is an array; empty means "All".
+export function CategoryFilter({ selected = [], onToggle, onClear }) {
+  const cls = (active) =>
+    `whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold transition active:scale-95 ${
+      active ? 'bg-peach text-warm shadow-card' : 'bg-white text-warm-soft hover:bg-eggshell'
+    }`
   return (
     <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 py-1">
-      {items.map((c) => {
-        const active = selected === c
+      <button onClick={onClear} className={cls(selected.length === 0)}>All</button>
+      {CATEGORIES.map((c) => {
+        const active = selected.includes(c)
         return (
-          <button
-            key={c}
-            onClick={() => onSelect(c)}
-            className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold transition active:scale-95 ${
-              active ? 'bg-peach text-warm shadow-card' : 'bg-white text-warm-soft hover:bg-eggshell'
-            }`}
-          >
-            {c}
+          <button key={c} onClick={() => onToggle(c)} className={cls(active)}>
+            {active ? '✓ ' : ''}{c}
           </button>
         )
       })}
     </div>
   )
+}
+
+// True if a recipe matches the selected categories (empty selection = all).
+export function matchesCategories(recipe, selected = []) {
+  if (!selected.length) return true
+  return getCategories(recipe).some((c) => selected.includes(c))
 }
 
 // Shared filtering helper: matches recipe by name OR ingredient name.

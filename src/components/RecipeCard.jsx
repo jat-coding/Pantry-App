@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import { useToast } from './Toast.jsx'
-import { CATEGORY_EMOJI } from '../lib/categories.js'
+import { CATEGORY_EMOJI, getCategories, primaryCategory } from '../lib/categories.js'
 
 function totalTime(recipe) {
   const toMin = (t) => (t ? (t.unit === 'hr' ? t.value * 60 : t.value) : 0)
@@ -36,6 +36,7 @@ export default function RecipeCard({ recipe, showPocket = false, onPocket, pocke
   const inPantry = isInPantry(recipe.id)
   const [popping, setPopping] = useState(false)
   const time = totalTime(recipe)
+  const cats = getCategories(recipe)
 
   async function handleHeart(e) {
     e.stopPropagation()
@@ -66,7 +67,7 @@ export default function RecipeCard({ recipe, showPocket = false, onPocket, pocke
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-5xl">
-            {CATEGORY_EMOJI[recipe.category] || '🍽️'}
+            {CATEGORY_EMOJI[primaryCategory(recipe)] || '🍽️'}
           </div>
         )}
 
@@ -83,8 +84,8 @@ export default function RecipeCard({ recipe, showPocket = false, onPocket, pocke
       </div>
 
       <div className="flex flex-1 flex-col gap-2 p-4">
-        <div className="flex items-center gap-2">
-          <span className="pill-peach">{recipe.category}</span>
+        <div className="flex flex-wrap items-center gap-2">
+          {cats.map((c) => <span key={c} className="pill-peach">{c}</span>)}
           {time && <span className="text-xs font-semibold text-warm-soft">{time}</span>}
         </div>
         <h3 className="font-extrabold leading-tight">{recipe.title}</h3>

@@ -2,15 +2,22 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import RecipeCard from '../components/RecipeCard.jsx'
-import { CategoryFilter, SearchBar, matchesQuery } from '../components/Filters.jsx'
+import { CategoryFilter, SearchBar, matchesQuery, matchesCategories } from '../components/Filters.jsx'
+import { getCategories } from '../lib/categories.js'
 import { GridSkeleton } from '../components/Skeleton.jsx'
 import { GridIcon, ListIcon, PantryIcon } from '../components/icons.jsx'
 
 const VIEW_KEY = 'pantry-view'
 
-function totalTime(recipe) {
+const SORTS = { newest: 'Newest', az: 'A–Z', time: 'Cook time' }
+
+function totalMin(r) {
   const toMin = (t) => (t ? (t.unit === 'hr' ? t.value * 60 : t.value) : 0)
-  const mins = toMin(recipe.prepTime) + toMin(recipe.cookTime)
+  return toMin(r.prepTime) + toMin(r.cookTime)
+}
+
+function totalTime(recipe) {
+  const mins = totalMin(recipe)
   if (!mins) return null
   if (mins < 60) return `${mins} min`
   const h = Math.floor(mins / 60)
@@ -22,7 +29,8 @@ export default function Pantry() {
   const { pantryRecipes, loadingRecipes } = useData()
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
-  const [category, setCategory] = useState('All')
+  const [cats, setCats] = useState([])
+  const [sort, setSort] = useState('newest')
   const [view, setView] = useState(() => localStorage.getItem(VIEW_KEY) || 'grid')
 
   function setViewPersist(v) {
@@ -30,11 +38,20 @@ export default function Pantry() {
     localStorage.setItem(VIEW_KEY, v)
   }
 
+  function toggleCat(c) {
+    setCats((s) => (s.includes(c) ? s.filter((x) => x !== c) : [...s, c]))
+  }
+
   const filtered = useMemo(() => {
-    return pantryRecipes.filter(
-      (r) => (category === 'All' || r.category === category) && matchesQuery(r, query),
+    const list = pantryRecipes.filter(
+      (r) => matchesCategories(r, cats) && matchesQuery(r, query),
     )
-  }, [pantryRecipes, query, category])
+    const sorted = [...list]
+    if (sort === 'az') sorted.sort((a, b) => (a.title || '').localeCompare(b.title || ''))
+    else if (sort === 'time') sorted.sort((a, b) => totalMin(a) - totalMin(b))
+    else sorted.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+    return sorted
+  }, [pantryRecipes, query, cats, sort])
 
   return (
     <div className="animate-fadein space-y-5">
@@ -45,13 +62,21 @@ export default function Pantry() {
 
       <SearchBar value={query} onChange={setQuery} />
 
-      {/* View toggle — its own small section right above the categories */}
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-bold text-warm-soft">View</span>
+      {/* View toggle + sort — its own small section right above the categories */}
+      <div className="flex items-center justify-between gap-3">
         <ViewToggle view={view} onChange={setViewPersist} />
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value)}
+          className="rounded-2xl border border-warm/15 bg-white px-3 py-2 text-sm font-bold outline-none"
+        >
+          {Object.entries(SORTS).map(([k, v]) => (
+            <option key={k} value={k}>Sort: {v}</option>
+          ))}
+        </select>
       </div>
 
-      <CategoryFilter selected={category} onSelect={setCategory} />
+      <CategoryFilter selected={cats} onToggle={toggleCat} onClear={() => setCats([])} />
 
       {loadingRecipes ? (
         <GridSkeleton />
@@ -120,8 +145,8 @@ function RecipeListView({ recipes, onOpen }) {
                 <span className="w-20 text-right text-xs font-semibold text-warm-soft">
                   {time || '—'}
                 </span>
-                <span className="w-24 text-right">
-                  <span className="pill-peach">{r.category}</span>
+                <span className="flex w-24 flex-wrap justify-end gap-1">
+                  {getCategories(r).map((c) => <span key={c} className="pill-peach">{c}</span>)}
                 </span>
               </button>
             </li>

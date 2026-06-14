@@ -4,7 +4,7 @@ import { useData } from '../contexts/DataContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useToast } from '../components/Toast.jsx'
 import { formatIngredient, formatQty, abbreviateUnit } from '../lib/scaling.js'
-import { aisleFor, CATEGORY_EMOJI } from '../lib/categories.js'
+import { aisleFor, CATEGORY_EMOJI, getCategories, primaryCategory } from '../lib/categories.js'
 import { EditIcon, TrashIcon, HeartIcon } from '../components/icons.jsx'
 import { AddToPantryPrompt } from './RecipeEditor.jsx'
 
@@ -172,7 +172,7 @@ export default function RecipeDetail() {
           <img src={recipe.imageUrl} alt={recipe.title} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-peach/40 text-7xl">
-            {CATEGORY_EMOJI[recipe.category] || '🍽️'}
+            {CATEGORY_EMOJI[primaryCategory(recipe)] || '🍽️'}
           </div>
         )}
         <button
@@ -204,7 +204,9 @@ export default function RecipeDetail() {
       </div>
 
       <div className="mb-4">
-        <span className="pill-peach">{recipe.category}</span>
+        <div className="flex flex-wrap gap-2">
+          {getCategories(recipe).map((c) => <span key={c} className="pill-peach">{c}</span>)}
+        </div>
         <h1 className="mt-2 text-2xl font-extrabold leading-tight">{recipe.title}</h1>
         <p className="text-sm text-warm-soft">
           {recipe.pocketedFromName ? `Pocketed from ${recipe.pocketedFromName}` : `by ${recipe.authorName}`}
