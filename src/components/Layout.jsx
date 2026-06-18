@@ -1,20 +1,22 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate, useSearchParams } from 'react-router-dom'
+import { useData } from '../contexts/DataContext.jsx'
+import { useToast } from './Toast.jsx'
+import ImportModal from '../pages/ImportModal.jsx'
 import {
-  GroceryIcon, RecipesIcon, PantryIcon, FriendsIcon, ProfileIcon,
+  GroceryIcon, RecipesIcon, PantryIcon, FriendsIcon, ProfileIcon, PlusIcon, LinkIcon, EditIcon,
 } from './icons.jsx'
 
-// Order matters: Grocery sits far left, Pantry is centered (middle of 5).
+// Bottom-bar order: Grocery, Recipes, [+ add], Pantry, Friends.
+// Profile is reached from the top-right of the Friends screen.
 const TABS = [
   { to: '/grocery', label: 'Grocery', Icon: GroceryIcon },
   { to: '/recipes', label: 'Recipes', Icon: RecipesIcon },
   { to: '/', label: 'Pantry', Icon: PantryIcon, end: true },
   { to: '/friends', label: 'Friends', Icon: FriendsIcon },
-  { to: '/profile', label: 'Profile', Icon: ProfileIcon },
 ]
 
 function OfflineBanner() {
-  // Subtle "You're offline" banner driven by the browser's online state.
   const [offline, setOffline] = useState(!navigator.onLine)
   useEffect(() => {
     const on = () => setOffline(false)
@@ -35,16 +37,61 @@ function OfflineBanner() {
 }
 
 export default function Layout() {
+  const navigate = useNavigate()
+  const { canWrite } = useData()
+  const toast = useToast()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [showAddMenu, setShowAddMenu] = useState(false)
+  const [showImport, setShowImport] = useState(false)
+  const [sharedUrl, setSharedUrl] = useState('')
+
+  // Opened via a shared link, e.g. /recipes?import=<url> (iOS Shortcut / Android
+  // share target). Open the importer prefilled, then strip the param.
+  useEffect(() => {
+    const shared = searchParams.get('import')
+    if (!shared) return
+    if (!canWrite) toast('Log in to import a recipe')
+    setSharedUrl(shared)
+    setShowImport(true)
+    searchParams.delete('import')
+    setSearchParams(searchParams, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function guardWrite() {
+    if (!canWrite) { toast('Log in to add recipes'); return false }
+    return true
+  }
+  function createFromScratch() {
+    setShowAddMenu(false)
+    if (guardWrite()) navigate('/new')
+  }
+  function openImport() {
+    setShowAddMenu(false)
+    if (guardWrite()) { setSharedUrl(''); setShowImport(true) }
+  }
+
+  const navItem = (isActive) =>
+    `flex w-14 flex-col items-center gap-0.5 text-[10px] font-bold transition ${
+      isActive ? 'text-warm' : 'text-warm-soft/70'
+    }`
+
   return (
     <div className="min-h-screen sm:flex">
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-warm/10 bg-white/60 px-4 py-6 backdrop-blur sm:flex">
-        <div className="mb-8 flex items-center gap-2 px-2">
+        <div className="mb-6 flex items-center gap-2 px-2">
           <PantryIcon className="h-7 w-7 text-zinc-800" />
-          <span className="text-xl font-extrabold">Pantry</span>
+          <span className="font-display text-xl font-bold">Pantry</span>
         </div>
+        <button onClick={createFromScratch} className="btn-peach mb-2 w-full">
+          <PlusIcon className="h-5 w-5" /> New Recipe
+        </button>
+        <button onClick={openImport} className="btn-ghost mb-4 w-full">
+          <LinkIcon className="h-5 w-5 text-zinc-800" /> Import
+        </button>
         <nav className="flex flex-col gap-1">
-          {TABS.map((t) => (
+          {[...TABS, { to: '/profile', label: 'Profile', Icon: ProfileIcon }].map((t) => (
             <NavLink
               key={t.to}
               to={t.to}
@@ -62,37 +109,70 @@ export default function Layout() {
         </nav>
       </aside>
 
-      {/* Main content — top padding clears the Dynamic Island / status bar,
-          bottom padding clears the fixed tab bar + home indicator. */}
+      {/* Main content */}
       <div className="flex min-w-0 flex-1 flex-col">
         <OfflineBanner />
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-[calc(env(safe-area-inset-bottom)+6.5rem)] sm:px-8 sm:pt-5 sm:pb-10">
+        <main className="mx-auto w-full max-w-5xl flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-[calc(env(safe-area-inset-bottom)+7rem)] sm:px-8 sm:pt-5 sm:pb-10">
           <Outlet />
         </main>
       </div>
 
-      {/* Mobile bottom tab bar */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-warm/10 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden">
-        {TABS.map((t) => (
-          <NavLink
-            key={t.to}
-            to={t.to}
-            end={t.end}
-            className={({ isActive }) =>
-              `flex flex-1 flex-col items-center gap-0.5 pb-1.5 pt-2 text-[10px] font-bold transition ${
-                isActive ? 'text-warm' : 'text-warm-soft/70'
-              }`
-            }
+      {/* Mobile add menu (popover above the center +) */}
+      {showAddMenu && (
+        <div className="fixed inset-0 z-40 sm:hidden" onClick={() => setShowAddMenu(false)}>
+          <div
+            className="absolute bottom-[calc(env(safe-area-inset-bottom)+6rem)] left-1/2 w-56 -translate-x-1/2 animate-fadein space-y-1 rounded-2xl bg-white p-2 shadow-card-hover"
+            onClick={(e) => e.stopPropagation()}
           >
-            {({ isActive }) => (
-              <>
-                <t.Icon className={`h-6 w-6 text-zinc-800 transition ${isActive ? 'scale-110' : 'opacity-50'}`} />
-                {t.label}
-              </>
-            )}
-          </NavLink>
-        ))}
+            <button className="flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left font-bold hover:bg-eggshell" onClick={openImport}>
+              <LinkIcon className="h-5 w-5 text-zinc-800" /> Import a recipe
+            </button>
+            <button className="flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left font-bold hover:bg-eggshell" onClick={createFromScratch}>
+              <EditIcon className="h-5 w-5 text-zinc-800" /> Create from scratch
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile floating "bubble" tab bar */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] sm:hidden">
+        <div className="flex items-center gap-1 rounded-full border border-warm/10 bg-white/95 px-3 py-2 shadow-card-hover backdrop-blur">
+          {TABS.slice(0, 2).map((t) => (
+            <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => navItem(isActive)}>
+              {({ isActive }) => (
+                <>
+                  <t.Icon className={`h-6 w-6 text-zinc-800 transition ${isActive ? 'scale-110' : 'opacity-50'}`} />
+                  {t.label}
+                </>
+              )}
+            </NavLink>
+          ))}
+
+          {/* Raised center add button */}
+          <button
+            onClick={() => setShowAddMenu((s) => !s)}
+            aria-label="Add a recipe"
+            className={`-mt-8 flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-cta text-white shadow-card-hover ring-4 ring-eggshell transition active:scale-90 hover:bg-cta-dark ${showAddMenu ? 'rotate-45' : ''}`}
+          >
+            <PlusIcon className="h-8 w-8" />
+          </button>
+
+          {TABS.slice(2).map((t) => (
+            <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => navItem(isActive)}>
+              {({ isActive }) => (
+                <>
+                  <t.Icon className={`h-6 w-6 text-zinc-800 transition ${isActive ? 'scale-110' : 'opacity-50'}`} />
+                  {t.label}
+                </>
+              )}
+            </NavLink>
+          ))}
+        </div>
       </nav>
+
+      {showImport && (
+        <ImportModal initialUrl={sharedUrl} onClose={() => { setShowImport(false); setSharedUrl('') }} />
+      )}
     </div>
   )
 }

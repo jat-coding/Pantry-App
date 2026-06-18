@@ -176,7 +176,7 @@ export default function RecipeDetail() {
           </div>
         )}
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate(location.state?.from || '/recipes')}
           className="absolute left-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-card backdrop-blur"
           aria-label="Back"
         >←</button>
@@ -314,7 +314,7 @@ export default function RecipeDetail() {
       {/* Cook-mode step controls — sit just above the mobile tab bar (and at the
           bottom on desktop, where there's a sidebar instead of a tab bar). */}
       {cookMode && (
-        <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+3.75rem)] z-50 flex items-center gap-3 border-t border-warm/10 bg-white/95 p-3 backdrop-blur sm:bottom-0 sm:left-60">
+        <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+6.5rem)] z-50 flex items-center gap-3 border-t border-warm/10 bg-white/95 p-3 backdrop-blur sm:bottom-0 sm:left-60">
           <button
             onClick={() => setActiveStep((s) => Math.max(0, s - 1))}
             disabled={activeStep === 0}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import { useToast } from './Toast.jsx'
 import { getCategories, primaryCategory } from '../lib/categories.js'
@@ -32,6 +32,7 @@ function Heart({ filled }) {
 
 export default function RecipeCard({ recipe, showPocket = false, onPocket, pocketLabel = 'Pocket' }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const { isInPantry, togglePantry, canWrite } = useData()
   const toast = useToast()
   const inPantry = isInPantry(recipe.id)
@@ -54,7 +55,7 @@ export default function RecipeCard({ recipe, showPocket = false, onPocket, pocke
 
   return (
     <button
-      onClick={() => navigate(`/recipe/${recipe.id}`)}
+      onClick={() => navigate(`/recipe/${recipe.id}`, { state: { from: location.pathname } })}
       className="card group flex flex-col overflow-hidden text-left transition hover:shadow-card-hover sm:hover:-translate-y-1"
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-peach/40 to-surface-2">

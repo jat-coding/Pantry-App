@@ -50,6 +50,35 @@ export function abbreviateUnit(unit) {
   return UNIT_ABBR[u.toLowerCase()] || u
 }
 
+// Unicode fraction glyphs people paste or type.
+const GLYPH_FRACTIONS = {
+  '½': 0.5, '⅓': 1 / 3, '⅔': 2 / 3, '¼': 0.25, '¾': 0.75,
+  '⅛': 0.125, '⅜': 0.375, '⅝': 0.625, '⅞': 0.875, '⅕': 0.2, '⅖': 0.4,
+}
+
+// Parse a quantity a user typed into a number, accepting fractions:
+// "1/2" -> 0.5, "1 1/2" -> 1.5, "½" -> 0.5, "1 ½" -> 1.5, "0.75" -> 0.75.
+// Returns '' for blank/unparseable so callers can keep "no quantity".
+export function parseQty(input) {
+  if (typeof input === 'number') return input
+  let s = String(input ?? '').trim()
+  if (s === '') return ''
+  // Replace any glyph fractions with their decimal, spaced from a leading whole.
+  for (const [g, v] of Object.entries(GLYPH_FRACTIONS)) {
+    if (s.includes(g)) s = s.replace(g, ` ${v}`).trim()
+  }
+  // "1 1/2" (mixed) or "1 0.5" (whole + glyph-derived decimal)
+  const mixed = s.match(/^(\d+)\s+(\d+)\/(\d+)$/)
+  if (mixed) return Number(mixed[1]) + Number(mixed[2]) / Number(mixed[3])
+  const wholePlus = s.match(/^(\d+)\s+(\d*\.?\d+)$/)
+  if (wholePlus) return Number(wholePlus[1]) + Number(wholePlus[2])
+  // plain fraction "3/4"
+  const frac = s.match(/^(\d+)\/(\d+)$/)
+  if (frac) return Number(frac[1]) / Number(frac[2])
+  const n = Number(s)
+  return Number.isFinite(n) ? n : ''
+}
+
 // Compute the scale factor from one edited ingredient.
 export function factorFromEdit(originalQty, newQty) {
   const o = Number(originalQty)

@@ -4,6 +4,7 @@ import { useData } from '../contexts/DataContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useToast } from '../components/Toast.jsx'
 import { CATEGORIES } from '../lib/categories.js'
+import { parseQty } from '../lib/scaling.js'
 import { sanitizeRecipe } from '../lib/recipeShape.js'
 import { uploadImage } from '../lib/storage.js'
 import { PantryIcon, CameraIcon } from '../components/icons.jsx'
@@ -138,9 +139,11 @@ export default function RecipeEditor() {
       categories,
       category: categories[0], // keep a primary for back-compat / sorting
       servings: Number(form.servings) || 1,
+      prepTime: { value: Number(form.prepTime?.value) || 0, unit: form.prepTime?.unit || 'min' },
+      cookTime: { value: Number(form.cookTime?.value) || 0, unit: form.cookTime?.unit || 'min' },
       ingredients: form.ingredients
         .filter((i) => i.name.trim())
-        .map((i) => ({ qty: i.qty === '' ? '' : Number(i.qty), unit: i.unit.trim(), name: i.name.trim() })),
+        .map((i) => ({ qty: parseQty(i.qty), unit: i.unit.trim(), name: i.name.trim() })),
       instructions: form.instructions.map((s) => s.trim()).filter(Boolean),
     }
     setSaving(true)
@@ -151,10 +154,11 @@ export default function RecipeEditor() {
         toast('Recipe saved')
         navigate(`/recipe/${id}`)
       } else {
-        const newId = await createRecipe(clean)
+        await createRecipe(clean)
         localStorage.removeItem(DRAFT_KEY)
-        // Leave the editor and open the new recipe, prompting to add to pantry.
-        navigate(`/recipe/${newId}`, { state: { promptPantry: true } })
+        toast('Recipe added to your library')
+        // Leave the editor and return to the library.
+        navigate('/recipes', { replace: true })
       }
     } catch {
       toast('Could not save recipe')
@@ -307,8 +311,10 @@ function TimeField({ label, t, onChange }) {
   return (
     <Field label={label}>
       <div className="flex gap-1">
-        <input type="number" min="0" className="input w-full px-2" value={t.value}
-          onChange={(e) => onChange({ ...t, value: Number(e.target.value) })} />
+        <input type="number" min="0" inputMode="numeric" className="input w-full px-2"
+          value={t.value ?? ''}
+          placeholder="0"
+          onChange={(e) => onChange({ ...t, value: e.target.value === '' ? '' : Number(e.target.value) })} />
         <select className="rounded-2xl border border-warm/15 bg-white px-1 text-sm font-bold"
           value={t.unit} onChange={(e) => onChange({ ...t, unit: e.target.value })}>
           <option value="min">min</option>

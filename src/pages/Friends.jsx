@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useData } from '../contexts/DataContext.jsx'
 import { useToast } from '../components/Toast.jsx'
 import RecipeCard from '../components/RecipeCard.jsx'
-import { FriendsIcon } from '../components/icons.jsx'
+import { FriendsIcon, ProfileIcon } from '../components/icons.jsx'
 import * as fs from '../lib/firestore.js'
 
 export default function Friends() {
   const { user, profile, guest } = useAuth()
   const { pocketRecipe, togglePantry } = useData()
   const toast = useToast()
+  const navigate = useNavigate()
 
   const [term, setTerm] = useState('')
   const [results, setResults] = useState(null)
@@ -82,9 +84,20 @@ export default function Friends() {
 
   return (
     <div className="animate-fadein space-y-6">
-      <header>
-        <h1 className="text-3xl font-extrabold">Friends</h1>
-        <p className="text-warm-soft">Find friends and pocket their recipes.</p>
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-extrabold">Friends</h1>
+          <p className="text-warm-soft">Find friends and pocket their recipes.</p>
+        </div>
+        <button
+          onClick={() => navigate('/profile')}
+          aria-label="Your profile"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-zinc-800 shadow-card transition active:scale-90 hover:bg-eggshell"
+        >
+          {profile?.avatarUrl
+            ? <img src={profile.avatarUrl} alt="" className="h-full w-full rounded-full object-cover" />
+            : <ProfileIcon className="h-6 w-6" />}
+        </button>
       </header>
 
       {/* Invite link */}
@@ -218,11 +231,13 @@ function Avatar({ user, big }) {
 }
 
 function Gate() {
+  const { logout } = useAuth()
   return (
     <div className="card mt-10 px-6 py-16 text-center">
       <div className="mb-2 flex justify-center text-zinc-800"><FriendsIcon className="h-12 w-12" /></div>
       <p className="font-bold">Friends are for members</p>
-      <p className="text-sm text-warm-soft">Log in to find friends and pocket their recipes.</p>
+      <p className="mb-4 text-sm text-warm-soft">Log in to find friends and pocket their recipes.</p>
+      <button className="btn-peach" onClick={logout}>Go to login</button>
     </div>
   )
 }

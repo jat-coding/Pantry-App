@@ -1,9 +1,23 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.6.0'
+export const APP_VERSION = '1.7.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.7.0',
+    date: '2026-06-18',
+    changes: [
+      'New floating toolbar with a big + in the middle — add a recipe from any screen.',
+      'First-time tour of the app, plus a “?” button on your Pantry to see it again anytime.',
+      'Ingredient quantities now accept fractions (½, 1/2, 1 1/2).',
+      'Prep and cook time fields can be cleared and retyped freely.',
+      'Saving a brand-new recipe now takes you back to your library.',
+      'The back arrow on a recipe returns you to where you opened it from.',
+      'List view now shows a thumbnail next to each recipe.',
+      'Your Profile is now reached from the top-right of the Friends screen.',
+    ],
+  },
   {
     version: '1.6.0',
     date: '2026-06-14',
