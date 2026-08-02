@@ -1,9 +1,17 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.8.0'
+export const APP_VERSION = '1.9.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.9.0',
+    date: '2026-08-02',
+    changes: [
+      'Import a recipe straight from a PDF or Word document — the Photo tab is now “File” and takes photos, PDFs, and .docx files.',
+      'Scanned and photographed PDFs work too, not just digital ones.',
+    ],
+  },
   {
     version: '1.8.0',
     date: '2026-08-02',

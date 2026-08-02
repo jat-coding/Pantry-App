@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../components/Toast.jsx'
-import { normalizeRecipeImage, normalizeRecipeText } from '../lib/anthropic.js'
+import { normalizeRecipeImage, normalizeRecipePdf, normalizeRecipeText } from '../lib/anthropic.js'
 import { extractRecipeFromHtml } from '../lib/jsonld.js'
+import { docxToText } from '../lib/docx.js'
 import { sanitizeRecipe } from '../lib/recipeShape.js'
 import { LinkIcon, VideoIcon, EditIcon, CameraIcon } from '../components/icons.jsx'
 
@@ -12,8 +13,28 @@ const TABS = [
   { id: 'url', label: 'URL', Icon: LinkIcon },
   { id: 'video', label: 'Video', Icon: VideoIcon },
   { id: 'text', label: 'Paste', Icon: EditIcon },
-  { id: 'photo', label: 'Photo', Icon: CameraIcon },
+  { id: 'file', label: 'File', Icon: CameraIcon },
 ]
+
+// What the File tab accepts. Word (.doc) and Pages files aren't readable — they
+// are matched only so we can say so instead of failing with a vague error.
+const FILE_ACCEPT = 'image/*,application/pdf,.pdf,.docx'
+
+// Vercel caps a serverless request body at ~4.5 MB, and base64 adds ~33%, so a
+// PDF has to stay meaningfully under that. Photos are downscaled before upload
+// and never come close.
+const MAX_PDF_BYTES = 3 * 1024 * 1024
+
+function fileKind(file) {
+  const name = (file?.name || '').toLowerCase()
+  const type = file?.type || ''
+  if (type === 'application/pdf' || name.endsWith('.pdf')) return 'pdf'
+  if (name.endsWith('.docx')) return 'docx'
+  if (type.startsWith('image/')) return 'image'
+  if (name.endsWith('.doc')) return 'legacy-doc'
+  if (name.endsWith('.pages')) return 'pages'
+  return 'unknown'
+}
 
 // Links where the recipe lives in a post/video description rather than a recipe
 // page (Instagram, TikTok, YouTube, Facebook). These go through the video path.
@@ -142,18 +163,51 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
     }
   }
 
-  async function importPhoto(file) {
+  // One picker for photos, PDFs, and Word docs — each goes to the importer that
+  // can actually read it.
+  async function importFile(file) {
     if (!file) return
-    setBusy(true); setError(''); setStatus('Reading photo…')
+    const kind = fileKind(file)
+    setBusy(true); setError('')
     try {
-      const base64 = await fileToBase64(file)
-      setStatus('Asking Claude to read the recipe…')
-      const recipe = await normalizeRecipeImage(base64, file.type || 'image/jpeg')
+      let recipe
+      if (kind === 'pdf') {
+        if (file.size > MAX_PDF_BYTES) {
+          throw new Error('That PDF is too large (max 3 MB). Try exporting just the recipe pages.')
+        }
+        setStatus('Reading PDF…')
+        const base64 = await fileToBase64(file)
+        setStatus('Asking Claude to read the recipe…')
+        recipe = await normalizeRecipePdf(base64)
+      } else if (kind === 'docx') {
+        setStatus('Reading document…')
+        const text = await docxToText(file)
+        setStatus('Asking Claude to read the recipe…')
+        recipe = await normalizeRecipeText(text)
+      } else if (kind === 'image') {
+        setStatus('Reading photo…')
+        const base64 = await fileToBase64(file)
+        setStatus('Asking Claude to read the recipe…')
+        recipe = await normalizeRecipeImage(base64, file.type || 'image/jpeg')
+      } else if (kind === 'legacy-doc') {
+        throw new Error('Older .doc files aren’t supported. Open it in Word and save as .docx.')
+      } else if (kind === 'pages') {
+        throw new Error('Pages files aren’t supported. Export it as a PDF or Word document first.')
+      } else {
+        throw new Error('Unsupported file. Choose a photo, PDF, or Word (.docx) document.')
+      }
+
       const reason = unusableReason(recipe)
-      if (reason) throw new Error(`Couldn't build a complete recipe — ${reason}. Make sure the whole recipe is visible and in focus.`)
+      if (reason) {
+        throw new Error(
+          kind === 'image'
+            ? `Couldn't build a complete recipe — ${reason}. Make sure the whole recipe is visible and in focus.`
+            : `Couldn't build a complete recipe — ${reason}. Check the file contains the full recipe.`,
+        )
+      }
       handoffToEditor(recipe)
     } catch (err) {
-      fail(err.message || 'Could not read photo')
+      fail(err.message || 'Could not read that file')
     } finally {
       setBusy(false); setStatus('')
     }
@@ -216,14 +270,17 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
           </div>
         )}
 
-        {tab === 'photo' && (
+        {tab === 'file' && (
           <div className="space-y-3">
-            <p className="text-sm text-warm-soft">Snap a cookbook page, recipe card, or pick one from your camera roll.</p>
+            <p className="text-sm text-warm-soft">
+              Snap a cookbook page or recipe card, or pick a photo, PDF, or Word document from your device.
+            </p>
             <label className="flex min-h-[8rem] cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-warm/25 bg-white text-warm-soft">
               <CameraIcon className="h-8 w-8 text-zinc-800" />
-              <span className="font-bold">{busy ? status || 'Working…' : 'Choose a photo'}</span>
-              <input type="file" accept="image/*" className="hidden" disabled={busy}
-                onChange={(e) => importPhoto(e.target.files?.[0])} />
+              <span className="font-bold">{busy ? status || 'Working…' : 'Choose a file'}</span>
+              <span className="text-xs">Photo, PDF, or .docx</span>
+              <input type="file" accept={FILE_ACCEPT} className="hidden" disabled={busy}
+                onChange={(e) => importFile(e.target.files?.[0])} />
             </label>
           </div>
         )}

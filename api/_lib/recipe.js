@@ -94,11 +94,23 @@ function getClient() {
 
 // mode: 'text'  → { text }
 // mode: 'image' → { base64, mediaType }
+// mode: 'pdf'   → { base64 }
 export async function parseRecipe({ mode, text, base64, mediaType }) {
   const client = getClient()
 
   let content
-  if (mode === 'image') {
+  if (mode === 'pdf') {
+    if (!base64) throw new Error('Missing PDF data.')
+    // Claude reads the PDF directly — both its text layer and the page images,
+    // so scanned cookbook pages work as well as digital ones.
+    content = [
+      {
+        type: 'document',
+        source: { type: 'base64', media_type: 'application/pdf', data: base64 },
+      },
+      { type: 'text', text: `${INSTRUCTIONS}\n\nExtract the recipe from this document. If it contains several recipes, extract the first complete one.` },
+    ]
+  } else if (mode === 'image') {
     if (!base64) throw new Error('Missing image data.')
     content = [
       {

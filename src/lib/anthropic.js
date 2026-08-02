@@ -50,3 +50,9 @@ export function normalizeRecipeText(rawText) {
 export function normalizeRecipeImage(base64, mediaType = 'image/jpeg') {
   return callParse({ mode: 'image', base64, mediaType })
 }
+
+// Extract a recipe from a PDF (base64, no data: prefix). Claude reads the file
+// itself, so both digital and scanned/photographed pages work.
+export function normalizeRecipePdf(base64) {
+  return callParse({ mode: 'pdf', base64 })
+}

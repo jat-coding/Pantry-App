@@ -3,7 +3,7 @@ import { GroceryIcon, RecipesIcon, PantryIcon, FriendsIcon, LinkIcon, MealIcon, 
 const STEPS = [
   { Icon: PantryIcon, title: 'Your Pantry', body: 'Tap the heart on any recipe to save it to My Pantry — your home for the recipes you love.' },
   { Icon: PlusIcon, title: 'Add a recipe', body: 'Tap the big + in the middle of the bottom bar (on any screen) to create one from scratch or import.' },
-  { Icon: LinkIcon, title: 'Import from anywhere', body: 'Paste a recipe link or text, snap a photo, or share an Instagram/TikTok post — Pantry turns it into a recipe. (Works when the recipe is written in the caption.)' },
+  { Icon: LinkIcon, title: 'Import from anywhere', body: 'Paste a recipe link or text, snap a photo, open a PDF or Word doc, or share an Instagram/TikTok post — Pantry turns it into a recipe. (Works when the recipe is written in the caption.)' },
   { Icon: GroceryIcon, title: 'Grocery list', body: 'Send a recipe’s ingredients to your grocery list, or use “What Can I Make?” to cook with what you already have.' },
   { Icon: FriendsIcon, title: 'Friends', body: 'Add friends to browse their pantry and copy their recipes into yours.' },
   { Icon: MealIcon, title: 'Cook Mode', body: 'Open a recipe and switch on Cook Mode for big, step-by-step instructions that keep your screen awake.' },
