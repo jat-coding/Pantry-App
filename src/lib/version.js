@@ -1,9 +1,18 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.9.0'
+export const APP_VERSION = '1.9.1'
 
 export const CHANGELOG = [
+  {
+    version: '1.9.1',
+    date: '2026-08-02',
+    changes: [
+      'Fixed: adding a photo to a recipe could hang on “Uploading…” and never finish, most often on Android. Photos now open using far less memory, every step gives up rather than hanging, and you get a clear reason if one can’t be used.',
+      'Portrait photos taken on a phone no longer appear sideways.',
+      'The starter recipes in a new account are now credited to Pantry rather than to you.',
+    ],
+  },
   {
     version: '1.9.0',
     date: '2026-08-02',

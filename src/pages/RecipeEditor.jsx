@@ -96,8 +96,10 @@ export default function RecipeEditor() {
       // size-capped inline data URL so saving still works.
       const url = await uploadImage(file, `recipes/${user?.uid || 'anon'}`)
       set('imageUrl', url)
-    } catch {
-      toast('Could not load that photo')
+    } catch (err) {
+      // Surface the specific reason (too large, timed out, unreadable) — a
+      // generic message leaves people retrying the same photo forever.
+      toast(err?.message || 'Could not load that photo')
     } finally {
       setUploadingPhoto(false)
     }

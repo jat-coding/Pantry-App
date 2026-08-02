@@ -23,8 +23,10 @@ export default function Profile() {
     try {
       const url = await uploadImage(file, `avatars/${user.uid}`)
       setAvatarUrl(url)
-    } catch {
-      toast('Could not load that photo')
+    } catch (err) {
+      // Surface the specific reason (too large, timed out, unreadable) — a
+      // generic message leaves people retrying the same photo forever.
+      toast(err?.message || 'Could not load that photo')
     } finally {
       setUploadingAvatar(false)
     }

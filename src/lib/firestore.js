@@ -84,6 +84,13 @@ export async function pocketRecipe(recipe, user) {
 }
 
 // Seed starter recipes the first time a user signs in with an empty library.
+//
+// These are credited to Pantry, not the user — they didn't write them, and
+// showing "by <name>" on a recipe someone never created is misleading once it
+// reaches a friend's feed. Ownership (`authorId`) still has to be the user:
+// the library query filters on it and the security rules gate every write on
+// it, so they keep full control to edit or delete their starter recipes.
+// Matches what guests already see (see guestSeed in DataContext).
 export async function seedIfEmpty(user) {
   const existing = await getDocs(query(recipesCol, where('authorId', '==', user.uid)))
   if (!existing.empty) return
@@ -93,7 +100,7 @@ export async function seedIfEmpty(user) {
     batch.set(ref, {
       ...r,
       authorId: user.uid,
-      authorName: user.displayName || 'Me',
+      authorName: 'Pantry',
       createdAt: serverTimestamp(),
     })
   }
