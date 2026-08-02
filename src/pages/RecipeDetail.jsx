@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useToast } from '../components/Toast.jsx'
-import { formatIngredient, formatQty, abbreviateUnit } from '../lib/scaling.js'
+import { formatIngredient, formatQty, abbreviateUnit, compatibleUnits, convertQty, parseQty } from '../lib/scaling.js'
 import { aisleFor, getCategories, primaryCategory } from '../lib/categories.js'
 import { EditIcon, TrashIcon, HeartIcon, CategoryIcon } from '../components/icons.jsx'
 import { AddToPantryPrompt } from './RecipeEditor.jsx'
@@ -28,6 +28,12 @@ export default function RecipeDetail() {
 
   // Scaling + cook-mode state
   const [factor, setFactor] = useState(1)
+  // Reader-chosen display units, keyed by ingredient index. Viewing-session
+  // only — never written back to the recipe.
+  const [units, setUnits] = useState({})
+  // The quantity field being typed in right now, held as raw text so it can be
+  // emptied and retyped instead of snapping back to the scaled value.
+  const [qtyDraft, setQtyDraft] = useState(null)
   const [checked, setChecked] = useState(() => new Set())
   const [cookMode, setCookMode] = useState(false)
   const [activeStep, setActiveStep] = useState(0)
@@ -99,19 +105,41 @@ export default function RecipeDetail() {
   const isOwner = user && recipe.authorId === user.uid
   const scaledServings = formatQty((recipe.servings || 1) * factor)
 
-  // Edit one ingredient's quantity -> rescale everything.
-  function editIngredientQty(index, value) {
+  // The unit an ingredient is currently shown in, and its quantity in that unit.
+  const unitFor = (i) => units[i] || abbreviateUnit(recipe.ingredients[i]?.unit)
+  const qtyIn = (i, qty) => convertQty(qty, recipe.ingredients[i]?.unit, unitFor(i))
+
+  // Edit one ingredient's quantity -> rescale everything. The field is free text
+  // so it can be cleared; an empty or half-typed value just parks the draft and
+  // leaves the current scale alone until a real number lands.
+  function editIngredientQty(index, text) {
+    setQtyDraft({ index, text })
+    const typed = parseQty(text)
+    if (typed === '' || !Number.isFinite(typed) || typed <= 0) return
     const orig = Number(recipe.ingredients[index].qty)
-    const next = parseFloat(value)
-    if (!orig || orig <= 0 || !Number.isFinite(next)) return
-    setFactor(next / orig)
+    if (!orig || orig <= 0) return
+    // Typed in the display unit; convert back to the recipe's own unit to scale.
+    const inBase = convertQty(typed, unitFor(index), recipe.ingredients[index].unit)
+    setFactor(Number(inBase) / orig)
+  }
+
+  function changeUnit(index, unit) {
+    setUnits((u) => ({ ...u, [index]: unit }))
+    setQtyDraft(null)
   }
 
   function changeServings(delta) {
     const base = recipe.servings || 1
     const current = Math.max(1, Math.round(base * factor))
     const target = Math.max(1, current + delta)
+    setQtyDraft(null)
     setFactor(target / base)
+  }
+
+  function resetScale() {
+    setQtyDraft(null)
+    setUnits({})
+    setFactor(1)
   }
 
   function toggleCheck(i) {
@@ -135,14 +163,16 @@ export default function RecipeDetail() {
 
   async function handleAddToGrocery() {
     if (!canWrite) return toast('Log in to use the grocery list')
+    // Send whatever the reader is looking at, units included.
     const items = scaledIngredients
-      .filter((i) => i.name)
-      .map((i) => ({
-        name: i.name,
-        qty: i.qty === '' || i.qty == null ? null : Math.round(Number(i.qty) * 100) / 100,
-        unit: i.unit || '',
+      .map((ing, i) => ({ ing, i }))
+      .filter(({ ing }) => ing.name)
+      .map(({ ing, i }) => ({
+        name: ing.name,
+        qty: ing.qty === '' || ing.qty == null ? null : Math.round(Number(qtyIn(i, ing.qty)) * 100) / 100,
+        unit: unitFor(i) || '',
         fromRecipe: recipe.title,
-        category: aisleFor(i.name),
+        category: aisleFor(ing.name),
       }))
     try {
       await addGroceryItems(items)
@@ -237,17 +267,23 @@ export default function RecipeDetail() {
             <button onClick={() => changeServings(-1)} className="h-8 w-8 rounded-full bg-white shadow-card font-extrabold">−</button>
             <span className="min-w-[5rem] text-center text-sm font-bold">{scaledServings} servings</span>
             <button onClick={() => changeServings(1)} className="h-8 w-8 rounded-full bg-white shadow-card font-extrabold">+</button>
-            {factor !== 1 && (
-              <button onClick={() => setFactor(1)} className="ml-1 text-sm font-bold text-peach-dark underline">Reset</button>
+            {(factor !== 1 || Object.keys(units).length > 0) && (
+              <button onClick={resetScale} className="ml-1 text-sm font-bold text-peach-dark underline">Reset</button>
             )}
           </div>
         </div>
-        <p className="mb-2 text-xs text-warm-soft">Tip: edit any quantity and the rest scale to match.</p>
+        <p className="mb-2 text-xs text-warm-soft">Tip: edit any quantity and the rest scale to match. Tap a unit to switch it.</p>
 
         <ul className="card divide-y divide-warm/5 overflow-hidden">
           {scaledIngredients.map((ing, i) => {
             const pretty = formatIngredient(ing)
             const isChecked = checked.has(i)
+            const unit = unitFor(i)
+            const options = compatibleUnits(recipe.ingredients[i]?.unit)
+            const hasQty = !(ing.qty === '' || ing.qty == null)
+            const value = qtyDraft?.index === i
+              ? qtyDraft.text
+              : hasQty ? String(Math.round(Number(qtyIn(i, ing.qty)) * 100) / 100) : ''
             return (
               <li key={i} className="flex items-center gap-3 p-3">
                 <button
@@ -258,24 +294,42 @@ export default function RecipeDetail() {
                   aria-label="Toggle ingredient"
                 >{isChecked ? '✓' : ''}</button>
 
-                {ing.qty === '' || ing.qty == null ? (
-                  <span className="w-16 shrink-0 text-center text-sm text-warm-soft">—</span>
-                ) : (
+                {hasQty ? (
                   <input
-                    type="number"
-                    step="any"
-                    value={Math.round(Number(ing.qty) * 100) / 100}
+                    type="text"
+                    inputMode="decimal"
+                    value={value}
                     onChange={(e) => editIngredientQty(i, e.target.value)}
+                    onFocus={(e) => e.target.select()}
+                    onBlur={() => setQtyDraft(null)}
+                    aria-label={`Amount of ${ing.name}`}
                     className="w-16 shrink-0 rounded-lg border border-warm/15 bg-eggshell px-2 py-1 text-center text-sm font-bold outline-none focus:border-peach-dark"
                   />
+                ) : (
+                  <span className="w-16 shrink-0 text-center text-sm text-warm-soft">—</span>
                 )}
-                <span className="w-14 shrink-0 truncate text-sm text-warm-soft">{abbreviateUnit(ing.unit)}</span>
+
                 <span className={`min-w-0 flex-1 ${isChecked ? 'text-warm-soft line-through' : ''}`}>
                   {ing.name}
-                  {pretty.qtyLabel && (
+                  {!units[i] && pretty.qtyLabel && (
                     <span className="ml-1 text-xs text-warm-soft">({pretty.qtyLabel} {abbreviateUnit(pretty.unit)})</span>
                   )}
                 </span>
+
+                {/* Unit sits at the far end of the row, well clear of the amount
+                    field, so switching units is never a mis-tap on the number. */}
+                {options.length > 1 ? (
+                  <select
+                    value={unit}
+                    onChange={(e) => changeUnit(i, e.target.value)}
+                    aria-label={`Unit for ${ing.name}`}
+                    className="ml-2 h-8 w-[4.5rem] shrink-0 rounded-lg border border-warm/15 bg-white px-1 text-center text-sm font-bold text-warm-soft outline-none focus:border-peach-dark"
+                  >
+                    {options.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                ) : (
+                  <span className="ml-2 w-[4.5rem] shrink-0 truncate text-center text-sm text-warm-soft">{unit}</span>
+                )}
               </li>
             )
           })}

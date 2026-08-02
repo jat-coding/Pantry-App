@@ -70,6 +70,17 @@ const INSTRUCTIONS =
   'Parse this recipe into the required structured fields. If a field is unknown ' +
   'use a sensible default (0, "", or null). qty must be a number (use 0 if none). ' +
   'Use short/abbreviated units where possible (tbsp, tsp, cup, oz, lb, g, kg, ml, L). ' +
+  'For weight, prefer oz and lb over grams and kilograms when the result is a ' +
+  'reasonable cooking amount (e.g. 227 g -> 8 oz, 500 g -> ~1 lb); keep the metric ' +
+  'unit only when converting would give an awkward value. Convert the qty to match ' +
+  'whatever unit you choose. ' +
+  'Clean up each ingredient name so it reads as it would in a cookbook: keep the ' +
+  'food and any descriptor that matters to the dish (e.g. "boneless skinless chicken ' +
+  'thighs", "large eggs", "extra-virgin olive oil", "finely diced onion"). Remove ' +
+  'anything not important to cooking it — prices ($3.99, "on sale"), store or brand ' +
+  'names (unless the brand is essential), aisle/package SKU codes, and other ' +
+  'miscellaneous shopping notes. When unsure, keep the name as-is rather than ' +
+  'dropping real information. ' +
   'For categories, choose every type that fits (e.g. a granola bar could be both ' +
   'Snacks and Breakfast); include at least one.'
 

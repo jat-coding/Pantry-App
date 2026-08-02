@@ -50,6 +50,38 @@ export function abbreviateUnit(unit) {
   return UNIT_ABBR[u.toLowerCase()] || u
 }
 
+// Units a reader can switch between, grouped by what they measure. Keys are the
+// abbreviated forms `abbreviateUnit` produces; values are the size of one unit
+// in the family's canonical unit (tsp for volume, gram for weight). Order is the
+// order they appear in the picker.
+const UNIT_FAMILIES = [
+  { units: { tsp: 1, tbsp: 3, 'fl oz': 6, cup: 48, pt: 96, qt: 192, gal: 768, ml: 0.202884, L: 202.884 } },
+  { units: { g: 1, kg: 1000, oz: 28.3495, lb: 453.592 } },
+]
+
+function familyFor(unit) {
+  const u = abbreviateUnit(unit)
+  return UNIT_FAMILIES.find((f) => u in f.units) || null
+}
+
+// The units a quantity can be re-expressed in. Empty for anything we can't
+// convert ("clove", "pkg", no unit at all) — those stay plain text.
+export function compatibleUnits(unit) {
+  const f = familyFor(unit)
+  return f ? Object.keys(f.units) : []
+}
+
+// Re-express a quantity in another unit of the same family. Returns qty
+// untouched if either side is unknown or they measure different things.
+export function convertQty(qty, from, to) {
+  const n = Number(qty)
+  if (!Number.isFinite(n)) return qty
+  const f = familyFor(from)
+  const t = familyFor(to)
+  if (!f || f !== t) return qty
+  return round((n * f.units[abbreviateUnit(from)]) / t.units[abbreviateUnit(to)], 4)
+}
+
 // Unicode fraction glyphs people paste or type.
 const GLYPH_FRACTIONS = {
   '½': 0.5, '⅓': 1 / 3, '⅔': 2 / 3, '¼': 0.25, '¾': 0.75,

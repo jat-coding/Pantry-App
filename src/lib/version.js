@@ -1,9 +1,18 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.7.0'
+export const APP_VERSION = '1.8.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.8.0',
+    date: '2026-08-02',
+    changes: [
+      'On a recipe, you can now change an ingredient’s unit — the amount converts to match (e.g. 1 cup → 16 tbsp). The unit picker sits at the end of the row, clear of the amount, so it’s never a mis-tap.',
+      'Ingredient amounts can now be cleared completely and retyped from scratch, and accept fractions like 1/2.',
+      'Cleaner imports: weights now come in as oz/lb instead of grams where sensible, and ingredient names are tidied up — prices, store/brand clutter, and other shopping noise are stripped out.',
+    ],
+  },
   {
     version: '1.7.0',
     date: '2026-06-18',
