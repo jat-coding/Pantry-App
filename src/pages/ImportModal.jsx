@@ -42,6 +42,14 @@ function isVideoLink(url) {
   return /(instagram\.com|tiktok\.com|youtube\.com|youtu\.be|facebook\.com|fb\.watch)/i.test(url || '')
 }
 
+function isYouTubeLink(url) {
+  try {
+    return /(^|\.)(youtube\.com|youtu\.be)$/i.test(new URL(url).hostname)
+  } catch {
+    return false
+  }
+}
+
 // A recipe is only worth saving if it has a title, ingredients AND steps.
 // Returns a human reason when something's missing so the user knows why, and we
 // never create a half-empty recipe.
@@ -119,6 +127,13 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
     if (!target) return
     setBusy(true); setError(''); setStatus('Fetching page…')
     try {
+      // YouTube exposes the video's real title and description as structured
+      // data. Reading those directly beats scraping the rendered page, where
+      // the description competes with navigation, comments, and sidebar text.
+      if (video && isYouTubeLink(target)) {
+        await importFromYouTube(target)
+        return
+      }
       const res = await fetchWithTimeout(`/api/recipe-proxy?url=${encodeURIComponent(target)}`, 25000)
       if (!res.ok) throw new Error('Could not open that link. Check the URL and that the post is public.')
       const html = await res.text()
@@ -146,6 +161,41 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
     } finally {
       setBusy(false); setStatus('')
     }
+  }
+
+  // YouTube path: title + description straight from the video's own metadata.
+  // If the recipe isn't written there it simply isn't available to us — the
+  // spoken transcript sits behind tokens YouTube won't issue to a server — so
+  // say that plainly and point at the copy/paste route that does work.
+  async function importFromYouTube(url) {
+    setStatus('Reading video details…')
+    const res = await fetchWithTimeout(`/api/video-meta?url=${encodeURIComponent(url)}`, 25000)
+    const meta = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(meta.error || 'Could not open that video.')
+
+    const description = (meta.description || '').trim()
+    // A bare link tree or "recipe on my website" blurb is not a recipe; require
+    // enough text that there's plausibly a method in there.
+    if (description.length < 120) {
+      throw new Error(
+        meta.hasCaptions
+          ? 'This video’s description doesn’t include the recipe. YouTube has a transcript for it — open the video, tap “…more” then “Show transcript”, copy it, and use the Paste tab.'
+          : 'This video’s description doesn’t include the recipe, and the video has no transcript to copy. Try the Paste tab with the recipe text.',
+      )
+    }
+
+    setStatus('Asking Claude to read the recipe…')
+    const recipe = await normalizeRecipeText(
+      `VIDEO TITLE: ${meta.title || ''}\n\nVIDEO DESCRIPTION:\n${description}`,
+    )
+    const reason = unusableReason(recipe)
+    if (reason) {
+      throw new Error(
+        `Couldn't build a complete recipe — ${reason}. The description may only summarise the dish. ` +
+          'Try “Show transcript” on the video and paste it into the Paste tab.',
+      )
+    }
+    handoffToEditor(recipe)
   }
 
   async function importText() {
@@ -249,7 +299,8 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
           <div className="space-y-3">
             <p className="text-sm text-warm-soft">
               Paste a cooking video link (YouTube, TikTok, Instagram…). Claude reads the
-              video's description to build the recipe — works best when the recipe is written there.
+              video's description to build the recipe. If a recipe is only spoken aloud,
+              use “Show transcript” on the video and paste it into the Paste tab instead.
             </p>
             <input className="input" placeholder="https://youtube.com/…" value={videoUrl}
               onChange={(e) => setVideoUrl(e.target.value)} />

@@ -1,9 +1,18 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.9.1'
+export const APP_VERSION = '1.10.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.10.0',
+    date: '2026-08-08',
+    changes: [
+      'YouTube imports now read the video’s own title and description instead of scraping the page, so recipes written in the description come through much more cleanly.',
+      'When a YouTube recipe is only spoken aloud, Pantry now says so and points you to the video’s “Show transcript” button to paste in — and it tells you plainly when a video is private or unavailable.',
+      'Adding a photo no longer freezes the screen while the image is being prepared, and repeat photos are much faster.',
+    ],
+  },
   {
     version: '1.9.1',
     date: '2026-08-02',

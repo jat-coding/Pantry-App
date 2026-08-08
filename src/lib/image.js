@@ -100,14 +100,21 @@ function approxBytes(dataUrl) {
   return Math.floor(((dataUrl.length - i - 1) * 3) / 4)
 }
 
+// Hand control back to the browser so it can paint. drawScaled + toDataURL are
+// both synchronous and can take a few hundred ms each on a slow phone; run
+// back-to-back they lock the main thread, freezing even the spinner that is
+// supposed to say we're still working.
+const yieldToPaint = () => new Promise((resolve) => setTimeout(resolve, 0))
+
 // Downscale + compress an already-decoded image to a JPEG data URL kept under
 // `maxBytes`. Drops quality first, then dimensions.
-export function scaledDataUrlFrom(img, { maxEdge = 1000, maxBytes = 800 * 1024 } = {}) {
+export async function scaledDataUrlFrom(img, { maxEdge = 1000, maxBytes = 800 * 1024 } = {}) {
   let edge = maxEdge
   let quality = 0.85
   let dataUrl = drawScaled(img, edge, quality).toDataURL('image/jpeg', quality)
   let guard = 0
   while (approxBytes(dataUrl) > maxBytes && guard < 12) {
+    await yieldToPaint()
     if (quality > 0.45) quality -= 0.1
     else { edge = Math.round(edge * 0.85); quality = 0.7 }
     dataUrl = drawScaled(img, edge, quality).toDataURL('image/jpeg', quality)
@@ -130,7 +137,9 @@ export function scaledBlobFrom(img, { maxEdge = 1400, quality = 0.85 } = {}) {
 export async function fileToScaledDataUrl(file, opts) {
   const img = await decodeImage(file)
   try {
-    return scaledDataUrlFrom(img, opts)
+    // `await` matters: without it the finally below would release the bitmap
+    // while scaledDataUrlFrom is still drawing from it.
+    return await scaledDataUrlFrom(img, opts)
   } finally {
     releaseImage(img)
   }
