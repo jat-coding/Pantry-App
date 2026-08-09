@@ -28,9 +28,16 @@ export function SearchBar({ value, onChange, placeholder = 'Search recipes or in
 
 // Multi-select category filter. `selected` is an array; empty means "All".
 export function CategoryFilter({ selected = [], onToggle, onClear }) {
+  // Both states carry a border and a shadow so a chip always reads as a chip;
+  // only the fill changes when you toggle it. Without them an unselected chip
+  // is plain white on the eggshell page with no edge at all, which looks like
+  // it was removed rather than deselected. Keeping the border on both states
+  // also avoids a 1px reflow as chips toggle.
   const cls = (active) =>
-    `whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold transition active:scale-95 ${
-      active ? 'bg-peach text-warm shadow-card' : 'bg-white text-warm-soft hover:bg-eggshell'
+    `whitespace-nowrap rounded-full border px-4 py-2 text-sm font-bold shadow-card transition active:scale-95 ${
+      active
+        ? 'border-peach-dark bg-peach text-warm'
+        : 'border-warm/15 bg-white text-warm-soft hover:bg-eggshell'
     }`
   return (
     <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 py-1">

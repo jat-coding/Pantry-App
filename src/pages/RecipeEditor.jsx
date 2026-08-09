@@ -219,10 +219,15 @@ export default function RecipeEditor() {
           {CATEGORIES.map((c) => {
             const active = (form.categories || [form.category]).includes(c)
             return (
+              // Border + shadow on both states so an unselected category still
+              // reads as a chip against the eggshell page, not as one that was
+              // removed. Matches CategoryFilter.
               <button key={c} type="button" onClick={() => toggleCategory(c)}
                 aria-pressed={active}
-                className={`rounded-full px-4 py-2 text-sm font-bold transition ${
-                  active ? 'bg-peach text-warm shadow-card' : 'bg-white text-warm-soft'
+                className={`rounded-full border px-4 py-2 text-sm font-bold shadow-card transition ${
+                  active
+                    ? 'border-peach-dark bg-peach text-warm'
+                    : 'border-warm/15 bg-white text-warm-soft hover:bg-eggshell'
                 }`}>{active ? '✓ ' : ''}{c}</button>
             )
           })}

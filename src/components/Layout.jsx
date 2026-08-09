@@ -120,8 +120,13 @@ export default function Layout() {
       {/* Mobile add menu (popover above the center +) */}
       {showAddMenu && (
         <div className="fixed inset-0 z-40 sm:hidden" onClick={() => setShowAddMenu(false)}>
+          {/* Centred with inset-x-0 + mx-auto rather than left-1/2 with a
+              -translate-x-1/2. The fadein keyframes animate `transform`, and an
+              animation's transform replaces the element's own — so a centring
+              translate would be dropped for the duration of the animation,
+              making the menu appear off to the right and then snap into place. */}
           <div
-            className="absolute bottom-[calc(env(safe-area-inset-bottom)+6rem)] left-1/2 w-56 -translate-x-1/2 animate-fadein space-y-1 rounded-2xl bg-white p-2 shadow-card-hover"
+            className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+6rem)] mx-auto w-56 animate-fadein space-y-1 rounded-2xl bg-white p-2 shadow-card-hover"
             onClick={(e) => e.stopPropagation()}
           >
             <button className="flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left font-bold hover:bg-eggshell" onClick={openImport}>
