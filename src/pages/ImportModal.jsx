@@ -4,6 +4,7 @@ import { useToast } from '../components/Toast.jsx'
 import { normalizeRecipeImage, normalizeRecipePdf, normalizeRecipeText } from '../lib/anthropic.js'
 import { extractRecipeFromHtml } from '../lib/jsonld.js'
 import { docxToText } from '../lib/docx.js'
+import { useScrollLock } from '../lib/useScrollLock.js'
 import { sanitizeRecipe } from '../lib/recipeShape.js'
 import { LinkIcon, VideoIcon, EditIcon, CameraIcon } from '../components/icons.jsx'
 
@@ -78,6 +79,7 @@ function pageToText(html) {
 }
 
 export default function ImportModal({ onClose, initialUrl = '' }) {
+  useScrollLock()
   const navigate = useNavigate()
   const toast = useToast()
   const [tab, setTab] = useState('url')
@@ -265,7 +267,7 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
 
   return (
     <div className="fixed inset-0 z-[80] flex items-end justify-center bg-warm/40 p-0 sm:items-center sm:p-6" onClick={onClose}>
-      <div className="w-full max-w-md animate-fadein rounded-t-3xl bg-eggshell p-5 sm:rounded-3xl"
+      <div className="max-h-[92vh] w-full max-w-md animate-fadein overflow-y-auto overscroll-contain rounded-t-3xl bg-eggshell p-5 sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-extrabold">Import a Recipe</h2>

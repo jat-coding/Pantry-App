@@ -5,6 +5,7 @@ import { useData } from '../contexts/DataContext.jsx'
 import { useToast } from '../components/Toast.jsx'
 import RecipeCard from '../components/RecipeCard.jsx'
 import { FriendsIcon, ProfileIcon } from '../components/icons.jsx'
+import { useScrollLock } from '../lib/useScrollLock.js'
 import * as fs from '../lib/firestore.js'
 
 export default function Friends() {
@@ -186,9 +187,11 @@ export default function Friends() {
 function FriendProfile({ friend, onClose, onPocket, onRemove }) {
   const [recipes, setRecipes] = useState(null)
   useEffect(() => { fs.getFriendRecipes(friend.id).then(setRecipes).catch(() => setRecipes([])) }, [friend.id])
+  // Keep the page behind still; scrolling here shouldn't move it.
+  useScrollLock()
 
   return (
-    <div className="fixed inset-0 z-[70] overflow-y-auto bg-eggshell">
+    <div className="fixed inset-0 z-[70] overflow-y-auto overscroll-contain bg-eggshell">
       <div className="mx-auto max-w-3xl px-4 py-5">
         <div className="mb-4 flex items-center justify-between">
           <button onClick={onClose} className="font-bold text-warm-soft">← Back</button>

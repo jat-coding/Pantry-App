@@ -1,4 +1,5 @@
 import { GroceryIcon, RecipesIcon, PantryIcon, FriendsIcon, LinkIcon, MealIcon, PlusIcon } from './icons.jsx'
+import { useScrollLock } from '../lib/useScrollLock.js'
 
 const STEPS = [
   { Icon: PantryIcon, title: 'Your Pantry', body: 'Tap the heart on any recipe to save it to My Pantry — your home for the recipes you love.' },
@@ -10,10 +11,11 @@ const STEPS = [
 ]
 
 export default function HelpModal({ onClose }) {
+  useScrollLock()
   return (
     <div className="fixed inset-0 z-[90] flex items-end justify-center bg-warm/40 p-0 sm:items-center sm:p-6"
       onClick={onClose}>
-      <div className="max-h-[88vh] w-full max-w-md animate-fadein overflow-y-auto rounded-t-3xl bg-eggshell p-6 sm:rounded-3xl"
+      <div className="max-h-[88vh] w-full max-w-md animate-fadein overflow-y-auto overscroll-contain rounded-t-3xl bg-eggshell p-6 sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}>
         <div className="mb-1 flex items-center justify-between">
           <h2 className="text-2xl font-extrabold">Welcome to Pantry</h2>

@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.10.1'
+export const APP_VERSION = '1.10.2'
 
 export const CHANGELOG = [
+  {
+    version: '1.10.2',
+    date: '2026-08-10',
+    changes: [
+      'Scrolling inside a friend’s pantry no longer scrolls the page behind it — the same fix applies to the import sheet and the help tour.',
+    ],
+  },
   {
     version: '1.10.1',
     date: '2026-08-09',
