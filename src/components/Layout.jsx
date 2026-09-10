@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate, useSearchParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
+import { useCookMode } from '../contexts/CookModeContext.jsx'
 import { useToast } from './Toast.jsx'
 import ImportModal from '../pages/ImportModal.jsx'
 import {
@@ -39,6 +40,7 @@ function OfflineBanner() {
 export default function Layout() {
   const navigate = useNavigate()
   const { canWrite } = useData()
+  const { cookMode } = useCookMode()
   const toast = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
   const [showAddMenu, setShowAddMenu] = useState(false)
@@ -118,7 +120,7 @@ export default function Layout() {
       </div>
 
       {/* Mobile add menu (popover above the center +) */}
-      {showAddMenu && (
+      {showAddMenu && !cookMode && (
         <div className="fixed inset-0 z-40 sm:hidden" onClick={() => setShowAddMenu(false)}>
           {/* Centred with inset-x-0 + mx-auto rather than left-1/2 with a
               -translate-x-1/2. The fadein keyframes animate `transform`, and an
@@ -139,7 +141,9 @@ export default function Layout() {
         </div>
       )}
 
-      {/* Mobile floating "bubble" tab bar */}
+      {/* Mobile floating "bubble" tab bar — hidden in Cook Mode, whose own
+          Prev/Next bar is the only bottom control until you exit. */}
+      {!cookMode && (
       <nav className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] sm:hidden">
         <div className="flex items-center gap-1 rounded-full border border-warm/10 bg-white/95 px-3 py-2 shadow-card-hover backdrop-blur">
           {TABS.slice(0, 2).map((t) => (
@@ -174,6 +178,7 @@ export default function Layout() {
           ))}
         </div>
       </nav>
+      )}
 
       {showImport && (
         <ImportModal initialUrl={sharedUrl} onClose={() => { setShowImport(false); setSharedUrl('') }} />

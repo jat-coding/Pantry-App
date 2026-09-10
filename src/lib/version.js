@@ -1,9 +1,19 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.10.2'
+export const APP_VERSION = '1.10.3'
 
 export const CHANGELOG = [
+  {
+    version: '1.10.3',
+    date: '2026-09-10',
+    changes: [
+      'Saving an edited recipe now returns you to the screen you opened it from, instead of stranding you on the recipe page.',
+      'The Save button now lives in a banner pinned to the top of the recipe editor, so it stays reachable no matter how far you’ve scrolled.',
+      'A friend’s pantry now has a floating Back button that follows you as you scroll, not just the one at the very top.',
+      'Cook Mode now hides the bottom tab bar — only Prev/Next are shown — until you exit.',
+    ],
+  },
   {
     version: '1.10.2',
     date: '2026-08-10',

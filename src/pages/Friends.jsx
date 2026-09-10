@@ -218,6 +218,14 @@ function FriendProfile({ friend, onClose, onPocket, onRemove }) {
           </div>
         )}
       </div>
+
+      {/* Floating back button — follows the scroll, so leaving doesn't mean
+          scrolling all the way back up to reach the one at the top. */}
+      <button
+        onClick={onClose}
+        aria-label="Back"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] left-1/2 z-[71] flex h-12 w-12 -translate-x-1/2 items-center justify-center rounded-full bg-white/95 text-lg shadow-card-hover backdrop-blur active:scale-90"
+      >←</button>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext.jsx'
 import { DataProvider } from './contexts/DataContext.jsx'
+import { CookModeProvider } from './contexts/CookModeContext.jsx'
 import Layout from './components/Layout.jsx'
 import Auth from './pages/Auth.jsx'
 import Pantry from './pages/Pantry.jsx'
@@ -32,20 +33,22 @@ export default function App() {
 
   return (
     <DataProvider>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<Pantry />} />
-          <Route path="/recipes" element={<AllRecipes />} />
-          <Route path="/recipe/:id" element={<RecipeDetail />} />
-          <Route path="/recipe/:id/edit" element={<RecipeEditor />} />
-          <Route path="/new" element={<RecipeEditor />} />
-          <Route path="/grocery" element={<GroceryList />} />
-          <Route path="/friends" element={<Friends />} />
-          <Route path="/invite/:inviterId" element={<InviteAccept />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="*" element={<Pantry />} />
-        </Route>
-      </Routes>
+      <CookModeProvider>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<Pantry />} />
+            <Route path="/recipes" element={<AllRecipes />} />
+            <Route path="/recipe/:id" element={<RecipeDetail />} />
+            <Route path="/recipe/:id/edit" element={<RecipeEditor />} />
+            <Route path="/new" element={<RecipeEditor />} />
+            <Route path="/grocery" element={<GroceryList />} />
+            <Route path="/friends" element={<Friends />} />
+            <Route path="/invite/:inviterId" element={<InviteAccept />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="*" element={<Pantry />} />
+          </Route>
+        </Routes>
+      </CookModeProvider>
     </DataProvider>
   )
 }

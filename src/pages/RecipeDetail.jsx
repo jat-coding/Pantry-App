@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
+import { useCookMode } from '../contexts/CookModeContext.jsx'
 import { useToast } from '../components/Toast.jsx'
 import { formatIngredient, formatQty, abbreviateUnit, compatibleUnits, convertQty, parseQty } from '../lib/scaling.js'
 import { aisleFor, getCategories, primaryCategory } from '../lib/categories.js'
@@ -35,10 +36,14 @@ export default function RecipeDetail() {
   // emptied and retyped instead of snapping back to the scaled value.
   const [qtyDraft, setQtyDraft] = useState(null)
   const [checked, setChecked] = useState(() => new Set())
-  const [cookMode, setCookMode] = useState(false)
+  const { cookMode, setCookMode } = useCookMode()
   const [activeStep, setActiveStep] = useState(0)
   const wakeRef = useRef(null)
   const stepRefs = useRef([])
+
+  // Cook Mode is app-wide state (Layout hides the bottom tab bar while it's
+  // on) — turn it off if this page is left without an explicit Exit tap.
+  useEffect(() => () => setCookMode(false), [])
 
   useEffect(() => {
     let alive = true
@@ -214,7 +219,7 @@ export default function RecipeDetail() {
           {isOwner && (
             <>
               <button
-                onClick={() => navigate(`/recipe/${recipe.id}/edit`)}
+                onClick={() => navigate(`/recipe/${recipe.id}/edit`, { state: { from: location.state?.from } })}
                 className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-zinc-800 shadow-card backdrop-blur"
                 aria-label="Edit recipe"
               ><EditIcon className="h-5 w-5" /></button>

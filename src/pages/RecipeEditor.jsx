@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useToast } from '../components/Toast.jsx'
@@ -30,6 +30,7 @@ export default function RecipeEditor() {
   const { id } = useParams()
   const isEdit = !!id
   const navigate = useNavigate()
+  const location = useLocation()
   const { recipes, getRecipe, createRecipe, updateRecipe } = useData()
   const { user } = useAuth()
   const toast = useToast()
@@ -154,7 +155,9 @@ export default function RecipeEditor() {
       if (isEdit) {
         await updateRecipe(id, clean)
         toast('Recipe saved')
-        navigate(`/recipe/${id}`)
+        // Return to wherever this recipe was opened from, not just its detail
+        // page — otherwise saving strands you one screen short of home.
+        navigate(location.state?.from || `/recipe/${id}`)
       } else {
         await createRecipe(clean)
         localStorage.removeItem(DRAFT_KEY)
@@ -179,9 +182,15 @@ export default function RecipeEditor() {
 
   return (
     <div className="animate-fadein space-y-5 pb-10">
-      <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-extrabold">{isEdit ? 'Edit Recipe' : 'New Recipe'}</h1>
-        <button onClick={handleCancel} className="font-bold text-warm-soft">Cancel</button>
+      {/* Sticky so Save is always reachable without scrolling to either end of
+          a long recipe form. Cancels out `main`'s own top padding/margin the
+          same way the hero image does, then re-applies it as its own inset. */}
+      <header className="sticky top-0 z-30 -mx-4 -mt-[calc(env(safe-area-inset-top)+1.25rem)] flex items-center justify-between gap-3 border-b border-warm/10 bg-eggshell/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+1.25rem)] backdrop-blur sm:-mx-8 sm:-mt-5 sm:px-8 sm:pt-5">
+        <button onClick={handleCancel} className="font-bold text-warm-soft" disabled={saving}>Cancel</button>
+        <h1 className="text-lg font-extrabold">{isEdit ? 'Edit Recipe' : 'New Recipe'}</h1>
+        <button onClick={handleSave} className="btn-peach px-4 py-2 text-sm disabled:opacity-60" disabled={saving}>
+          {saving ? 'Saving…' : 'Save'}
+        </button>
       </header>
 
       <Field label="Recipe name">
@@ -295,12 +304,6 @@ export default function RecipeEditor() {
           after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5" />
       </label>
 
-      <div className="flex gap-3">
-        <button onClick={handleCancel} className="btn-ghost flex-1" disabled={saving}>Cancel</button>
-        <button onClick={handleSave} className="btn-peach flex-1 disabled:opacity-60" disabled={saving}>
-          {saving ? 'Saving…' : 'Save Recipe'}
-        </button>
-      </div>
     </div>
   )
 }
