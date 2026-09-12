@@ -6,6 +6,7 @@ import { useToast } from '../components/Toast.jsx'
 import RecipeCard from '../components/RecipeCard.jsx'
 import { FriendsIcon, ProfileIcon } from '../components/icons.jsx'
 import { useScrollLock } from '../lib/useScrollLock.js'
+import ConfirmDialog from '../components/ConfirmDialog.jsx'
 import * as fs from '../lib/firestore.js'
 
 export default function Friends() {
@@ -186,6 +187,7 @@ export default function Friends() {
 
 function FriendProfile({ friend, onClose, onPocket, onRemove }) {
   const [recipes, setRecipes] = useState(null)
+  const [confirmingRemove, setConfirmingRemove] = useState(false)
   useEffect(() => { fs.getFriendRecipes(friend.id).then(setRecipes).catch(() => setRecipes([])) }, [friend.id])
   // Keep the page behind still; scrolling here shouldn't move it.
   useScrollLock()
@@ -195,7 +197,7 @@ function FriendProfile({ friend, onClose, onPocket, onRemove }) {
       <div className="mx-auto max-w-3xl px-4 py-5">
         <div className="mb-4 flex items-center justify-between">
           <button onClick={onClose} className="font-bold text-warm-soft">← Back</button>
-          <button onClick={() => window.confirm('Remove this friend?') && onRemove()}
+          <button onClick={() => setConfirmingRemove(true)}
             className="text-sm font-bold text-red-600">Remove Friend</button>
         </div>
         <div className="mb-6 flex items-center gap-4">
@@ -226,6 +228,16 @@ function FriendProfile({ friend, onClose, onPocket, onRemove }) {
         aria-label="Back"
         className="fixed bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] left-1/2 z-[71] flex h-12 w-12 -translate-x-1/2 items-center justify-center rounded-full bg-white/95 text-lg shadow-card-hover backdrop-blur active:scale-90"
       >←</button>
+
+      {confirmingRemove && (
+        <ConfirmDialog
+          message="Remove this friend?"
+          confirmLabel="Remove"
+          danger
+          onConfirm={() => { setConfirmingRemove(false); onRemove() }}
+          onCancel={() => setConfirmingRemove(false)}
+        />
+      )}
     </div>
   )
 }

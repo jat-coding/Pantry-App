@@ -1,6 +1,15 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
+  // Without this, a `hover:` style on mobile Safari/Chrome applies on tap and only
+  // clears on the NEXT tap elsewhere -- the exact "button stays pressed/darker" bug
+  // reported 2026-09-12. Touch has no real hover to release, so this makes every
+  // `hover:` utility in the app apply only on devices that actually support hovering
+  // (mouse/trackpad); `active:` classes (already used everywhere for tap feedback)
+  // are untouched and still work on touch.
+  future: {
+    hoverOnlyWhenSupported: true,
+  },
   theme: {
     extend: {
       colors: {

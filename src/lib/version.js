@@ -1,9 +1,17 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.11.3'
+export const APP_VERSION = '1.12.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.12.0',
+    date: '2026-09-12',
+    changes: [
+      'Fixed: buttons could get stuck looking pressed/darker after a tap and stay that way until you tapped something else — a known mobile-browser quirk, now fixed app-wide.',
+      'Every confirmation popup (delete recipe, remove friend, discard changes, clear grocery list) is now a Pantry-styled popup instead of the browser’s plain gray one.',
+    ],
+  },
   {
     version: '1.11.3',
     date: '2026-09-12',

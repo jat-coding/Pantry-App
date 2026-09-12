@@ -7,11 +7,13 @@ import { formatQty, abbreviateUnit } from '../lib/scaling.js'
 import * as fs from '../lib/firestore.js'
 import RecipeCard from '../components/RecipeCard.jsx'
 import { GroceryIcon, TrashIcon } from '../components/icons.jsx'
+import ConfirmDialog from '../components/ConfirmDialog.jsx'
 
 export default function GroceryList() {
   const { grocery, recipes, addGroceryItems, setGroceryChecked, deleteGroceryItem, clearGrocery, canWrite } = useData()
   const toast = useToast()
   const [mode, setMode] = useState('list') // 'list' | 'find'
+  const [confirming, setConfirming] = useState(null) // 'completed' | 'all' | null
   const [newItem, setNewItem] = useState('')
   const [newQty, setNewQty] = useState('')
   const [newUnit, setNewUnit] = useState('')
@@ -112,18 +114,26 @@ export default function GroceryList() {
               ))}
 
               <div className="flex gap-3 pt-2">
-                <button className="btn-ghost flex-1"
-                  onClick={() => window.confirm('Clear completed items?') && clearGrocery(true)}>
+                <button className="btn-ghost flex-1" onClick={() => setConfirming('completed')}>
                   Clear Completed
                 </button>
-                <button className="btn-ghost flex-1"
-                  onClick={() => window.confirm('Clear the entire list?') && clearGrocery(false)}>
+                <button className="btn-ghost flex-1" onClick={() => setConfirming('all')}>
                   Clear All
                 </button>
               </div>
             </>
           )}
         </>
+      )}
+
+      {confirming && (
+        <ConfirmDialog
+          message={confirming === 'all' ? 'Clear the entire list?' : 'Clear completed items?'}
+          confirmLabel="Clear"
+          danger
+          onConfirm={() => { clearGrocery(confirming === 'completed'); setConfirming(null) }}
+          onCancel={() => setConfirming(null)}
+        />
       )}
     </div>
   )

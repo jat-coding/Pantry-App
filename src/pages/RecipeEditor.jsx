@@ -8,6 +8,7 @@ import { parseQty } from '../lib/scaling.js'
 import { sanitizeRecipe } from '../lib/recipeShape.js'
 import { uploadImage } from '../lib/storage.js'
 import { PantryIcon, CameraIcon } from '../components/icons.jsx'
+import ConfirmDialog from '../components/ConfirmDialog.jsx'
 
 const DRAFT_KEY = 'pantry-draft-new'
 
@@ -39,6 +40,7 @@ export default function RecipeEditor() {
   const [dirty, setDirty] = useState(false)
   const [loaded, setLoaded] = useState(!isEdit)
   const [saving, setSaving] = useState(false)
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const initial = useRef(true)
 
@@ -172,10 +174,14 @@ export default function RecipeEditor() {
     }
   }
 
-  function handleCancel() {
-    if (dirty && !window.confirm('Discard unsaved changes?')) return
+  function doCancel() {
     if (!isEdit) localStorage.removeItem(DRAFT_KEY)
     navigate(-1)
+  }
+
+  function handleCancel() {
+    if (dirty) { setConfirmingDiscard(true); return }
+    doCancel()
   }
 
   if (!loaded) return <div className="py-20 text-center text-warm-soft">Loading…</div>
@@ -304,6 +310,15 @@ export default function RecipeEditor() {
           after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5" />
       </label>
 
+      {confirmingDiscard && (
+        <ConfirmDialog
+          message="Discard unsaved changes?"
+          confirmLabel="Discard"
+          danger
+          onConfirm={() => { setConfirmingDiscard(false); doCancel() }}
+          onCancel={() => setConfirmingDiscard(false)}
+        />
+      )}
     </div>
   )
 }

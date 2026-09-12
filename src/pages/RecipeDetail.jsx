@@ -8,6 +8,7 @@ import { formatIngredient, formatQty, abbreviateUnit, compatibleUnits, convertQt
 import { aisleFor, getCategories, primaryCategory } from '../lib/categories.js'
 import { EditIcon, TrashIcon, HeartIcon, CategoryIcon } from '../components/icons.jsx'
 import { AddToPantryPrompt } from './RecipeEditor.jsx'
+import ConfirmDialog from '../components/ConfirmDialog.jsx'
 
 function timeLabel(t) {
   if (!t || !t.value) return '—'
@@ -21,6 +22,7 @@ export default function RecipeDetail() {
   const { user } = useAuth()
   const { recipes, getRecipe, isInPantry, togglePantry, addGroceryItems, deleteRecipe, canWrite } = useData()
   const toast = useToast()
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
   // Set when navigated here right after creating a recipe.
   const [showPantryPrompt, setShowPantryPrompt] = useState(!!location.state?.promptPantry)
 
@@ -155,8 +157,8 @@ export default function RecipeDetail() {
     })
   }
 
-  async function handleDelete() {
-    if (!window.confirm('Delete this recipe? This cannot be undone.')) return
+  async function doDelete() {
+    setConfirmingDelete(false)
     try {
       await deleteRecipe(recipe.id)
       toast('Recipe deleted')
@@ -224,7 +226,7 @@ export default function RecipeDetail() {
                 aria-label="Edit recipe"
               ><EditIcon className="h-5 w-5" /></button>
               <button
-                onClick={handleDelete}
+                onClick={() => setConfirmingDelete(true)}
                 className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-red-600 shadow-card backdrop-blur"
                 aria-label="Delete recipe"
               ><TrashIcon className="h-5 w-5" /></button>
@@ -394,6 +396,16 @@ export default function RecipeDetail() {
         <AddToPantryPrompt
           onYes={async () => { await togglePantry(recipe.id); toast('Added to Pantry'); setShowPantryPrompt(false) }}
           onNo={() => setShowPantryPrompt(false)}
+        />
+      )}
+
+      {confirmingDelete && (
+        <ConfirmDialog
+          message="Delete this recipe? This cannot be undone."
+          confirmLabel="Delete"
+          danger
+          onConfirm={doDelete}
+          onCancel={() => setConfirmingDelete(false)}
         />
       )}
     </div>
