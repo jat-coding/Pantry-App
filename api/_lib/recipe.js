@@ -76,13 +76,34 @@ const INSTRUCTIONS =
   'whatever unit you choose. ' +
   'Clean up each ingredient name so it reads as it would in a cookbook: keep the ' +
   'food and any descriptor that matters to the dish (e.g. "boneless skinless chicken ' +
-  'thighs", "large eggs", "extra-virgin olive oil", "finely diced onion"). Remove ' +
-  'anything not important to cooking it — prices ($3.99, "on sale"), store or brand ' +
-  'names (unless the brand is essential), aisle/package SKU codes, and other ' +
-  'miscellaneous shopping notes. When unsure, keep the name as-is rather than ' +
-  'dropping real information. ' +
+  'thighs", "large eggs", "extra-virgin olive oil", "finely diced onion"). The name ' +
+  'must be ONLY the fundamental ingredient plus a cooking-relevant descriptor — never ' +
+  'where to buy it or what it was bought as. Strip: prices ($3.99, "on sale", "$5 off"), ' +
+  'store/chain names ("from Trader Joe\'s", "Costco-size"), brand names (unless the ' +
+  'brand is essential to the dish, e.g. "Frank\'s RedHot"), aisle/SKU/package codes, ' +
+  'and any other shopping/sponsorship note. When unsure whether text is a real cooking ' +
+  'descriptor or shopping noise, drop it — a slightly shorter ingredient name is better ' +
+  'than one with checkout-line clutter in it. ' +
+  'Instructions must read like a normal cookbook method, one clear action per step. ' +
+  'This content sometimes comes from a video transcript or social caption, which carries ' +
+  'noise a cookbook never has — strip ALL of it rather than transcribing it verbatim: ' +
+  'transcript/caption artifacts in brackets ([MUSIC PLAYING], [BLANK_AUDIO], [Applause], ' +
+  'speaker labels); timestamps (00:00, 1:23); filler and false starts from speech ("um", ' +
+  '"uh", "so yeah", stutters/repeated words); social-media noise (hashtags, @mentions, ' +
+  'decorative emoji, "like and subscribe", "link in bio", "follow for more", promo codes); ' +
+  'and stray bullet/arrow symbols left over from captions. Never invent a step that ' +
+  'wasn\'t in the source — only remove noise, don\'t add content. ' +
   'For categories, choose every type that fits (e.g. a granola bar could be both ' +
   'Snacks and Breakfast); include at least one.'
+
+// Whisper's own transcript conventions leak into instructions verbatim often enough
+// (every video-mode transcript in testing had at least one) that this is worth a
+// deterministic backstop rather than trusting the model's compliance alone — same
+// principle as coerceRecipe() guaranteeing shape, just for known-junk text instead.
+const TRANSCRIPT_ARTIFACT = /\[[A-Z][A-Z _]*\]/g
+function stripTranscriptArtifacts(s) {
+  return String(s ?? '').replace(TRANSCRIPT_ARTIFACT, '').replace(/\s{2,}/g, ' ').trim()
+}
 
 function getClient() {
   const apiKey = process.env.ANTHROPIC_API_KEY
@@ -208,7 +229,9 @@ function coerceRecipe(r) {
     servings: Number.isFinite(Number(o.servings)) ? Number(o.servings) : 1,
     ingredients,
     instructions: Array.isArray(o.instructions)
-      ? o.instructions.map((s) => (typeof s === 'string' ? s : String(s ?? ''))).filter(Boolean)
+      ? o.instructions
+          .map((s) => stripTranscriptArtifacts(typeof s === 'string' ? s : String(s ?? '')))
+          .filter(Boolean)
       : [],
     imageUrl: typeof o.imageUrl === 'string' ? o.imageUrl : '',
   }

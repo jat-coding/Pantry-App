@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.13.0'
+export const APP_VERSION = '1.13.1'
 
 export const CHANGELOG = [
+  {
+    version: '1.13.1',
+    date: '2026-09-12',
+    changes: [
+      'Cleaner imports: ingredient names no longer carry store/brand/price clutter, and instruction steps strip out video-transcript noise (background-music tags, timestamps, "like and subscribe," filler words) instead of leaving it in the recipe.',
+    ],
+  },
   {
     version: '1.13.0',
     date: '2026-09-12',
