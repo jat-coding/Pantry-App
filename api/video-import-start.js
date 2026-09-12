@@ -1,19 +1,10 @@
-// Vercel serverless function: POST /api/video-import
+// Vercel serverless function: POST /api/video-import-start
 // Body: { url }
-// Returns the structured recipe JSON, built from a video's own audio + frames
-// instead of its description text. Slower and heavier than /api/video-meta —
-// only worth calling when the description path already came back empty.
-//
-// The actual download + transcription runs on a personal machine (whisper.cpp
-// + yt-dlp, no per-video vendor cost), reached over Tailscale Funnel. This
-// function is the thin bridge between that and the existing Claude parser.
-
-import { parseRecipe } from './_lib/recipe.js'
-
-// Download + ffmpeg + whisper on a multi-minute video can run past a minute on
-// its own, before Claude even sees the result. 120s is Vercel's ceiling on a
-// Hobby-tier project; a Pro-tier project can raise this if longer videos need it.
-export const config = { maxDuration: 120 }
+// Kicks off the bridge's video download+transcribe pipeline and returns a jobId
+// immediately — the pipeline itself can run past a minute, well over what a
+// single Vercel invocation should block on regardless of plan tier. The client
+// polls /api/video-import-status with the jobId until it's done.
+export const config = { maxDuration: 20 }
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -36,10 +27,10 @@ export default async function handler(req, res) {
     }
 
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 110_000)
+    const timer = setTimeout(() => controller.abort(), 15_000)
     let bridgeRes
     try {
-      bridgeRes = await fetch(bridgeUrl, {
+      bridgeRes = await fetch(`${bridgeUrl}/start`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-video-secret': bridgeSecret },
         body: JSON.stringify({ url }),
@@ -54,11 +45,9 @@ export default async function handler(req, res) {
 
     const data = await bridgeRes.json().catch(() => ({}))
     if (!bridgeRes.ok || !data.ok) {
-      throw new Error(data.error || `Transcription failed (${bridgeRes.status}).`)
+      throw new Error(data.error || `Could not start transcription (${bridgeRes.status}).`)
     }
-
-    const recipe = await parseRecipe({ mode: 'video', text: data.transcript, images: data.frames })
-    res.status(200).json(recipe)
+    res.status(200).json({ jobId: data.jobId })
   } catch (err) {
     res.status(500).json({ error: err?.message || 'Video import failed' })
   }

@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.11.0'
+export const APP_VERSION = '1.11.1'
 
 export const CHANGELOG = [
+  {
+    version: '1.11.1',
+    date: '2026-09-12',
+    changes: [
+      'The "read the video itself" fallback no longer holds one long request open — it checks in a few times a second instead, so it can’t get cut off partway through a longer video.',
+    ],
+  },
   {
     version: '1.11.0',
     date: '2026-09-12',
