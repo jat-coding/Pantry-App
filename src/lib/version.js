@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.11.1'
+export const APP_VERSION = '1.11.2'
 
 export const CHANGELOG = [
+  {
+    version: '1.11.2',
+    date: '2026-09-12',
+    changes: [
+      'Fixed: importing from a YouTube link could get blocked by YouTube’s "confirm you’re not a bot" page. Reading a video’s title/description now happens the same reliable way the deeper video-reading fallback already did.',
+    ],
+  },
   {
     version: '1.11.1',
     date: '2026-09-12',
