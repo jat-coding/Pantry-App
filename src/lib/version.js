@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.12.0'
+export const APP_VERSION = '1.13.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.13.0',
+    date: '2026-09-12',
+    changes: [
+      'Recipe-URL imports now fetch through the same reliable route video links already use, so a slow site can’t get cut off partway through — with the same progress bar and ETA.',
+    ],
+  },
   {
     version: '1.12.0',
     date: '2026-09-12',

@@ -109,7 +109,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 // `onProgress({ elapsedMs, stage })` fires on every poll tick so the caller can
 // drive a progress bar / ETA; `stage` is whatever the bridge job reports
 // ('fetching' | 'downloading' | 'transcribing'), absent once done.
-async function pollJob(startUrl, statusUrl, url, { onProgress, deadlineMs = 4 * 60 * 1000 } = {}) {
+async function pollJob(startUrl, statusUrl, url, { onProgress, deadlineMs = 4 * 60 * 1000, subject = 'that video' } = {}) {
   const started = Date.now()
   const { jobId } = await postJson(startUrl, { url }, 20000)
 
@@ -118,10 +118,10 @@ async function pollJob(startUrl, statusUrl, url, { onProgress, deadlineMs = 4 * 
     await sleep(3000)
     const data = await getJson(`${statusUrl}?jobId=${encodeURIComponent(jobId)}`, 20000)
     if (data.state === 'done') return data
-    if (data.state === 'error') throw new Error(data.error || 'Could not read that video')
+    if (data.state === 'error') throw new Error(data.error || `Could not read ${subject}`)
     onProgress?.({ elapsedMs: Date.now() - started, stage: data.stage })
   }
-  throw new Error('Reading that video is taking unusually long — please try again later.')
+  throw new Error(`Reading ${subject} is taking unusually long — please try again later.`)
 }
 
 // Read a video directly (download + transcribe + sample frames) when its own
@@ -138,4 +138,15 @@ export async function normalizeRecipeVideo(url, { onProgress } = {}) {
 export async function fetchVideoMeta(url, { onProgress } = {}) {
   const data = await pollJob('/api/video-meta-start', '/api/video-meta-status', url, { onProgress, deadlineMs: 2 * 60 * 1000 })
   return { title: data.title, description: data.description, hasCaptions: data.hasCaptions }
+}
+
+// Fetch a recipe page's HTML through the same bridge, instead of directly from
+// this Vercel function — so a slow site can't get cut off by Vercel's own
+// timeout ceiling either. Usually fast (a few seconds) but still job-shaped
+// for consistency and the same protection.
+export async function fetchPageViaBridge(url, { onProgress } = {}) {
+  const data = await pollJob('/api/recipe-proxy-start', '/api/recipe-proxy-status', url, {
+    onProgress, deadlineMs: 60 * 1000, subject: 'that page',
+  })
+  return data.html
 }

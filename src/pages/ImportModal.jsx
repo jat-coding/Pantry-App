@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../components/Toast.jsx'
-import { normalizeRecipeImage, normalizeRecipePdf, normalizeRecipeText, normalizeRecipeVideo, fetchVideoMeta } from '../lib/anthropic.js'
+import { normalizeRecipeImage, normalizeRecipePdf, normalizeRecipeText, normalizeRecipeVideo, fetchVideoMeta, fetchPageViaBridge } from '../lib/anthropic.js'
 import { extractRecipeFromHtml } from '../lib/jsonld.js'
 import { docxToText } from '../lib/docx.js'
 import { useScrollLock } from '../lib/useScrollLock.js'
@@ -154,26 +154,22 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
         await importFromVideoMeta(target)
         return
       }
-      const res = await fetchWithTimeout(`/api/recipe-proxy?url=${encodeURIComponent(target)}`, 25000)
-      if (!res.ok) throw new Error('Could not open that link. Check the URL and that the post is public.')
-      const html = await res.text()
+      // Fetched through the same Mac-routed bridge as video, not directly from
+      // this Vercel function — a slow site can't get cut off by Vercel's own
+      // timeout ceiling either way.
+      const html = await fetchPageViaBridge(target, {
+        onProgress: ({ elapsedMs, stage }) => setProgress(estimateProgress(stage, elapsedMs)),
+      })
+      setProgress(null)
 
-      let recipe = null
-      if (!video) {
-        setStatus('Reading recipe…')
-        recipe = extractRecipeFromHtml(html)
-      }
+      setStatus('Reading recipe…')
+      let recipe = extractRecipeFromHtml(html)
       if (unusableReason(recipe)) {
         setStatus('Asking Claude to read the page…')
         recipe = await normalizeRecipeText(pageToText(html))
       }
       const reason = unusableReason(recipe)
       if (reason) {
-        if (video) {
-          const e = new Error(`Couldn't build a complete recipe — ${reason}. The caption may not have the full recipe written out.`)
-          e.deepReadable = true
-          throw e
-        }
         throw new Error(`Couldn't build a complete recipe — ${reason}. Try the Paste tab with the full recipe text.`)
       }
       handoffToEditor(recipe)
@@ -328,8 +324,9 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
             <input className="input" placeholder="https://…" value={url}
               onChange={(e) => setUrl(e.target.value)} />
             <button className="btn-peach w-full" disabled={busy} onClick={() => importFromUrl(url)}>
-              {busy ? status || 'Working…' : 'Import from URL'}
+              {busy && !progress ? status || 'Working…' : 'Import from URL'}
             </button>
+            <ProgressBar busy={busy} status={status} progress={progress} />
           </div>
         )}
 
@@ -345,15 +342,7 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
             <button className="btn-peach w-full" disabled={busy} onClick={() => importFromUrl(videoUrl, { video: true })}>
               {busy && !progress ? status || 'Working…' : 'Import from Video'}
             </button>
-            {busy && progress && (
-              <div className="space-y-1">
-                <p className="text-xs font-bold text-warm-soft">{status} — {progress.remainingLabel}</p>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-white">
-                  <div className="h-full rounded-full bg-peach-dark transition-all duration-500"
-                    style={{ width: `${progress.pct}%` }} />
-                </div>
-              </div>
-            )}
+            <ProgressBar busy={busy} status={status} progress={progress} />
             {offerDeepRead && (
               <button className="btn-ghost w-full" disabled={busy} onClick={deepVideoImport}>
                 Read the video itself (slower, ~1-2 min)
@@ -394,18 +383,17 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
   )
 }
 
-// fetch with an abort timeout so the proxy step can't hang the import forever.
-async function fetchWithTimeout(url, ms) {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), ms)
-  try {
-    return await fetch(url, { signal: controller.signal })
-  } catch (err) {
-    if (err?.name === 'AbortError') throw new Error('That link took too long to load.')
-    throw new Error('Network error — check your connection and try again.')
-  } finally {
-    clearTimeout(timer)
-  }
+function ProgressBar({ busy, status, progress }) {
+  if (!busy || !progress) return null
+  return (
+    <div className="space-y-1">
+      <p className="text-xs font-bold text-warm-soft">{status} — {progress.remainingLabel}</p>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-white">
+        <div className="h-full rounded-full bg-peach-dark transition-all duration-500"
+          style={{ width: `${progress.pct}%` }} />
+      </div>
+    </div>
+  )
 }
 
 function fileToBase64(file) {
