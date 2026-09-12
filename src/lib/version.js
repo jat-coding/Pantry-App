@@ -1,9 +1,18 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.11.2'
+export const APP_VERSION = '1.11.3'
 
 export const CHANGELOG = [
+  {
+    version: '1.11.3',
+    date: '2026-09-12',
+    changes: [
+      'Fixed: video import could wrongly say a link "took too long to load" even though it was still working — reading a video’s details is now a background check-in instead of one long wait.',
+      'TikTok, Instagram, and Facebook links now get the same reliable video-reading path YouTube already had.',
+      'Video import now shows a real progress bar with an estimated time remaining instead of a static "this can take a minute or two" message.',
+    ],
+  },
   {
     version: '1.11.2',
     date: '2026-09-12',

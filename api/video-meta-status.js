@@ -1,11 +1,7 @@
-// Vercel serverless function: GET /api/video-import-status?jobId=...
-// Polled repeatedly by the client. While the bridge job is still running this
-// just forwards that state back — cheap, fast, well under any Vercel limit.
-// Once the bridge reports done, this is also where the one Claude call happens
-// (transcript + frames -> structured recipe), still comfortably short.
-import { parseRecipe } from './_lib/recipe.js'
-
-export const config = { maxDuration: 30 }
+// Vercel serverless function: GET /api/video-meta-status?jobId=...
+// Polled repeatedly by the client. Forwards the bridge's job state -- no
+// Claude call happens here, this is metadata only.
+export const config = { maxDuration: 20 }
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -15,7 +11,7 @@ export default async function handler(req, res) {
   const bridgeUrl = process.env.VIDEO_BRIDGE_URL
   const bridgeSecret = process.env.VIDEO_BRIDGE_SECRET
   if (!bridgeUrl || !bridgeSecret) {
-    res.status(500).json({ error: 'Video transcription is not configured on the server.' })
+    res.status(500).json({ error: 'Video reading is not configured on the server.' })
     return
   }
 
@@ -36,7 +32,7 @@ export default async function handler(req, res) {
       })
     } catch (err) {
       const reason = err?.name === 'AbortError' ? 'timed out' : (err?.message || 'unreachable')
-      throw new Error(`Could not reach the transcription service (${reason}).`)
+      throw new Error(`Could not reach the video-reading service (${reason}).`)
     } finally {
       clearTimeout(timer)
     }
@@ -54,11 +50,8 @@ export default async function handler(req, res) {
       res.status(200).json({ state: 'error', error: data.error || 'Could not read that video.' })
       return
     }
-
-    // state === 'done' -- the one Claude call for this whole job happens here.
-    const recipe = await parseRecipe({ mode: 'video', text: data.transcript, images: data.frames })
-    res.status(200).json({ state: 'done', recipe })
+    res.status(200).json({ state: 'done', title: data.title, description: data.description, hasCaptions: data.hasCaptions })
   } catch (err) {
-    res.status(200).json({ state: 'error', error: err?.message || 'Video import failed' })
+    res.status(200).json({ state: 'error', error: err?.message || 'Video read failed' })
   }
 }

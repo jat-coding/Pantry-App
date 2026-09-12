@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../components/Toast.jsx'
-import { normalizeRecipeImage, normalizeRecipePdf, normalizeRecipeText, normalizeRecipeVideo } from '../lib/anthropic.js'
+import { normalizeRecipeImage, normalizeRecipePdf, normalizeRecipeText, normalizeRecipeVideo, fetchVideoMeta } from '../lib/anthropic.js'
 import { extractRecipeFromHtml } from '../lib/jsonld.js'
 import { docxToText } from '../lib/docx.js'
 import { useScrollLock } from '../lib/useScrollLock.js'
@@ -43,12 +43,23 @@ function isVideoLink(url) {
   return /(instagram\.com|tiktok\.com|youtube\.com|youtu\.be|facebook\.com|fb\.watch)/i.test(url || '')
 }
 
-function isYouTubeLink(url) {
-  try {
-    return /(^|\.)(youtube\.com|youtu\.be)$/i.test(new URL(url).hostname)
-  } catch {
-    return false
-  }
+// Rough, honest-about-being-a-guess progress estimate for a video job's poll
+// loop — real percentages aren't available (yt-dlp/whisper don't report
+// partial progress over the wire), so this maps elapsed time within the
+// current stage against a typical duration observed in testing. Caps below
+// 100% until the job actually reports done, so the bar never lies about
+// being finished before it is.
+const STAGE_ESTIMATES = {
+  fetching: { startPct: 0, endPct: 96, estMs: 25_000 },
+  downloading: { startPct: 0, endPct: 45, estMs: 45_000 },
+  transcribing: { startPct: 45, endPct: 96, estMs: 45_000 },
+}
+function estimateProgress(stage, elapsedMs) {
+  const cfg = STAGE_ESTIMATES[stage] || STAGE_ESTIMATES.fetching
+  const within = Math.min(1, elapsedMs / cfg.estMs)
+  const pct = Math.round(cfg.startPct + within * (cfg.endPct - cfg.startPct))
+  const remainingMs = Math.max(0, cfg.estMs - elapsedMs)
+  return { pct, remainingLabel: remainingMs > 2000 ? `~${Math.ceil(remainingMs / 1000)}s left` : 'almost done…' }
 }
 
 // A recipe is only worth saving if it has a title, ingredients AND steps.
@@ -92,6 +103,8 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
   // True only when a video's description/caption didn't have the recipe —
   // the one failure the direct-read fallback can actually help with.
   const [offerDeepRead, setOfferDeepRead] = useState(false)
+  // { pct, remainingLabel } while a video job is polling; null otherwise.
+  const [progress, setProgress] = useState(null)
   const autoRan = useRef(false)
 
   // When opened from a shared link (iOS Shortcut / Android share target), prefill
@@ -131,13 +144,14 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
   async function importFromUrl(rawUrl, { video } = {}) {
     const target = (rawUrl || '').trim()
     if (!target) return
-    setBusy(true); setError(''); setOfferDeepRead(false); setStatus('Fetching page…')
+    setBusy(true); setError(''); setOfferDeepRead(false); setProgress(null); setStatus('Fetching page…')
     try {
-      // YouTube exposes the video's real title and description as structured
-      // data. Reading those directly beats scraping the rendered page, where
-      // the description competes with navigation, comments, and sidebar text.
-      if (video && isYouTubeLink(target)) {
-        await importFromYouTube(target)
+      // Every video platform (YouTube, TikTok, Instagram, Facebook) exposes a
+      // title/description via yt-dlp's own metadata read, which beats scraping
+      // the rendered page — no bot-check wall, and no navigation/comment noise
+      // competing with the actual caption text.
+      if (video) {
+        await importFromVideoMeta(target)
         return
       }
       const res = await fetchWithTimeout(`/api/recipe-proxy?url=${encodeURIComponent(target)}`, 25000)
@@ -166,7 +180,7 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
     } catch (err) {
       fail(err.message || 'Import failed', { deepReadable: !!err.deepReadable })
     } finally {
-      setBusy(false); setStatus('')
+      setBusy(false); setStatus(''); setProgress(null)
     }
   }
 
@@ -174,28 +188,31 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
   // actually download it and read its audio + on-screen frames. Much slower
   // (~1-2 min) and heavier, so it's an explicit second step, never the default.
   async function deepVideoImport() {
-    setBusy(true); setError(''); setStatus('Downloading and transcribing the video (this can take a minute or two)…')
+    setBusy(true); setError(''); setStatus('Downloading and transcribing the video…')
     try {
-      const recipe = await normalizeRecipeVideo(videoUrl.trim())
+      const recipe = await normalizeRecipeVideo(videoUrl.trim(), {
+        onProgress: ({ elapsedMs, stage }) => setProgress(estimateProgress(stage, elapsedMs)),
+      })
       const reason = unusableReason(recipe)
       if (reason) throw new Error(`Couldn't build a complete recipe from the video itself — ${reason}.`)
       handoffToEditor(recipe)
     } catch (err) {
       fail(err.message || 'Could not read that video')
     } finally {
-      setBusy(false); setStatus('')
+      setBusy(false); setStatus(''); setProgress(null)
     }
   }
 
-  // YouTube path: title + description straight from the video's own metadata.
-  // If the recipe isn't written there it simply isn't available to us — the
-  // spoken transcript sits behind tokens YouTube won't issue to a server — so
-  // say that plainly and point at the copy/paste route that does work.
-  async function importFromYouTube(url) {
+  // Title + description straight from the video's own metadata (any of
+  // youtube/tiktok/instagram/facebook — same bridge-routed read for all of
+  // them). If the recipe isn't written there it simply isn't available this
+  // way — a purely-spoken/on-screen recipe needs the deep-read fallback.
+  async function importFromVideoMeta(url) {
     setStatus('Reading video details…')
-    const res = await fetchWithTimeout(`/api/video-meta?url=${encodeURIComponent(url)}`, 25000)
-    const meta = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(meta.error || 'Could not open that video.')
+    const meta = await fetchVideoMeta(url, {
+      onProgress: ({ elapsedMs, stage }) => setProgress(estimateProgress(stage, elapsedMs)),
+    })
+    setProgress(null)
 
     const description = (meta.description || '').trim()
     // A bare link tree or "recipe on my website" blurb is not a recipe; require
@@ -319,15 +336,24 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
         {tab === 'video' && (
           <div className="space-y-3">
             <p className="text-sm text-warm-soft">
-              Paste a cooking video link (YouTube, TikTok, Instagram…). Claude reads the
-              video's description to build the recipe. If a recipe is only spoken aloud,
-              use “Show transcript” on the video and paste it into the Paste tab instead.
+              Paste a cooking video link — YouTube, TikTok, Instagram, or Facebook. Claude
+              reads the video's caption/description to build the recipe first; if that
+              doesn't have it, you can have Pantry watch and listen to the video itself.
             </p>
-            <input className="input" placeholder="https://youtube.com/…" value={videoUrl}
+            <input className="input" placeholder="https://…" value={videoUrl}
               onChange={(e) => setVideoUrl(e.target.value)} />
             <button className="btn-peach w-full" disabled={busy} onClick={() => importFromUrl(videoUrl, { video: true })}>
-              {busy ? status || 'Working…' : 'Import from Video'}
+              {busy && !progress ? status || 'Working…' : 'Import from Video'}
             </button>
+            {busy && progress && (
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-warm-soft">{status} — {progress.remainingLabel}</p>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-white">
+                  <div className="h-full rounded-full bg-peach-dark transition-all duration-500"
+                    style={{ width: `${progress.pct}%` }} />
+                </div>
+              </div>
+            )}
             {offerDeepRead && (
               <button className="btn-ghost w-full" disabled={busy} onClick={deepVideoImport}>
                 Read the video itself (slower, ~1-2 min)

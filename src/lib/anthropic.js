@@ -103,21 +103,39 @@ async function getJson(url, ms) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
-// Read a video directly (download + transcribe + sample frames) when its own
-// description doesn't contain the recipe. Slower than every other import path
-// by a wide margin, so it's a start + poll loop rather than one long request —
-// no single network call ever needs to stay open more than ~15-30s, regardless
-// of how long the actual video takes to process on the other end.
-export async function normalizeRecipeVideo(url, { onProgress } = {}) {
-  const { jobId } = await postJson('/api/video-import-start', { url }, 20000)
+// Shared shape for both video job types (metadata-only and full transcribe):
+// start, then poll every few seconds — no single network call ever needs to
+// stay open more than ~15-30s, no matter how long the job itself takes.
+// `onProgress({ elapsedMs, stage })` fires on every poll tick so the caller can
+// drive a progress bar / ETA; `stage` is whatever the bridge job reports
+// ('fetching' | 'downloading' | 'transcribing'), absent once done.
+async function pollJob(startUrl, statusUrl, url, { onProgress, deadlineMs = 4 * 60 * 1000 } = {}) {
+  const started = Date.now()
+  const { jobId } = await postJson(startUrl, { url }, 20000)
 
-  const deadline = Date.now() + 4 * 60 * 1000 // give up after 4 minutes total
+  const deadline = started + deadlineMs
   while (Date.now() < deadline) {
-    await sleep(4000)
-    const data = await getJson(`/api/video-import-status?jobId=${encodeURIComponent(jobId)}`, 20000)
-    if (data.state === 'done') return data.recipe
+    await sleep(3000)
+    const data = await getJson(`${statusUrl}?jobId=${encodeURIComponent(jobId)}`, 20000)
+    if (data.state === 'done') return data
     if (data.state === 'error') throw new Error(data.error || 'Could not read that video')
-    onProgress?.()
+    onProgress?.({ elapsedMs: Date.now() - started, stage: data.stage })
   }
   throw new Error('Reading that video is taking unusually long — please try again later.')
+}
+
+// Read a video directly (download + transcribe + sample frames) when its own
+// description doesn't contain the recipe. Slower than every other import path
+// by a wide margin.
+export async function normalizeRecipeVideo(url, { onProgress } = {}) {
+  const data = await pollJob('/api/video-import-start', '/api/video-import-status', url, { onProgress })
+  return data.recipe
+}
+
+// Title + description + caption availability for any supported video link
+// (YouTube, TikTok, Instagram, Facebook) — no download, but still job-shaped
+// since even this has shown up to ~80s of YouTube-side response variance.
+export async function fetchVideoMeta(url, { onProgress } = {}) {
+  const data = await pollJob('/api/video-meta-start', '/api/video-meta-status', url, { onProgress, deadlineMs: 2 * 60 * 1000 })
+  return { title: data.title, description: data.description, hasCaptions: data.hasCaptions }
 }

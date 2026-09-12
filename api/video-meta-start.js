@@ -1,0 +1,55 @@
+// Vercel serverless function: POST /api/video-meta-start
+// Body: { url }
+// Kicks off a fast (usually seconds, occasionally up to ~80s -- YouTube-side
+// variance, not something tunable here) metadata-only read on the bridge and
+// returns a jobId immediately. Job-shaped for the same reason video-import is:
+// even this "fast" call has shown enough latency variance to make a single
+// synchronous request unreliable.
+export const config = { maxDuration: 20 }
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' })
+    return
+  }
+  const bridgeUrl = process.env.VIDEO_BRIDGE_URL
+  const bridgeSecret = process.env.VIDEO_BRIDGE_SECRET
+  if (!bridgeUrl || !bridgeSecret) {
+    res.status(500).json({ error: 'Video reading is not configured on the server.' })
+    return
+  }
+
+  try {
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {}
+    const url = (body.url || '').trim()
+    if (!url) {
+      res.status(400).json({ error: 'Missing url' })
+      return
+    }
+
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 15_000)
+    let bridgeRes
+    try {
+      bridgeRes = await fetch(`${bridgeUrl}/start`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-video-secret': bridgeSecret },
+        body: JSON.stringify({ url, mode: 'meta' }),
+        signal: controller.signal,
+      })
+    } catch (err) {
+      const reason = err?.name === 'AbortError' ? 'timed out' : (err?.message || 'unreachable')
+      throw new Error(`Could not reach the video-reading service (${reason}).`)
+    } finally {
+      clearTimeout(timer)
+    }
+
+    const data = await bridgeRes.json().catch(() => ({}))
+    if (!bridgeRes.ok || !data.ok) {
+      throw new Error(data.error || `Could not start reading that video (${bridgeRes.status}).`)
+    }
+    res.status(200).json({ jobId: data.jobId })
+  } catch (err) {
+    res.status(500).json({ error: err?.message || 'Video read failed' })
+  }
+}
