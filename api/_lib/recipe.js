@@ -95,11 +95,32 @@ function getClient() {
 // mode: 'text'  → { text }
 // mode: 'image' → { base64, mediaType }
 // mode: 'pdf'   → { base64 }
-export async function parseRecipe({ mode, text, base64, mediaType }) {
+// mode: 'video' → { text: transcript, images: [{ base64, mediaType }] }
+export async function parseRecipe({ mode, text, base64, mediaType, images }) {
   const client = getClient()
 
   let content
-  if (mode === 'pdf') {
+  if (mode === 'video') {
+    if (!text && !(images || []).length) throw new Error('Missing video transcript/frames.')
+    // Spoken audio and on-screen text (ingredient lists, step captions) are two
+    // independent sources for the same recipe — hand Claude both rather than
+    // picking one, since a video only rarely writes out the full method in
+    // just its dialogue.
+    content = [
+      ...(images || []).map((img) => ({
+        type: 'image',
+        source: { type: 'base64', media_type: img.mediaType || 'image/jpeg', data: img.base64 },
+      })),
+      {
+        type: 'text',
+        text: `${INSTRUCTIONS}\n\nExtract the recipe from this cooking video. You are given ` +
+          `frames sampled across the video plus its spoken audio, transcribed below (may be ` +
+          `empty, incomplete, or contain misheard words — cross-check it against the frames, ` +
+          `which often show the actual ingredient list or steps as on-screen text).\n\n` +
+          `TRANSCRIPT:\n${text || '(no speech detected)'}`,
+      },
+    ]
+  } else if (mode === 'pdf') {
     if (!base64) throw new Error('Missing PDF data.')
     // Claude reads the PDF directly — both its text layer and the page images,
     // so scanned cookbook pages work as well as digital ones.

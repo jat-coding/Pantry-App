@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../components/Toast.jsx'
-import { normalizeRecipeImage, normalizeRecipePdf, normalizeRecipeText } from '../lib/anthropic.js'
+import { normalizeRecipeImage, normalizeRecipePdf, normalizeRecipeText, normalizeRecipeVideo } from '../lib/anthropic.js'
 import { extractRecipeFromHtml } from '../lib/jsonld.js'
 import { docxToText } from '../lib/docx.js'
 import { useScrollLock } from '../lib/useScrollLock.js'
@@ -89,6 +89,9 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
+  // True only when a video's description/caption didn't have the recipe —
+  // the one failure the direct-read fallback can actually help with.
+  const [offerDeepRead, setOfferDeepRead] = useState(false)
   const autoRan = useRef(false)
 
   // When opened from a shared link (iOS Shortcut / Android share target), prefill
@@ -105,8 +108,9 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
 
   // Show a failure as both an inline message (persists) and a toast (notifies),
   // so the user always knows the import didn't work and isn't left waiting.
-  function fail(message) {
+  function fail(message, { deepReadable = false } = {}) {
     setError(message)
+    setOfferDeepRead(deepReadable)
     toast('Import failed — see details')
   }
 
@@ -127,7 +131,7 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
   async function importFromUrl(rawUrl, { video } = {}) {
     const target = (rawUrl || '').trim()
     if (!target) return
-    setBusy(true); setError(''); setStatus('Fetching page…')
+    setBusy(true); setError(''); setOfferDeepRead(false); setStatus('Fetching page…')
     try {
       // YouTube exposes the video's real title and description as structured
       // data. Reading those directly beats scraping the rendered page, where
@@ -151,15 +155,33 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
       }
       const reason = unusableReason(recipe)
       if (reason) {
-        throw new Error(
-          video
-            ? `Couldn't build a complete recipe — ${reason}. The post may not have the full recipe written in its caption (recipes shown only in the video can't be read).`
-            : `Couldn't build a complete recipe — ${reason}. Try the Paste tab with the full recipe text.`,
-        )
+        if (video) {
+          const e = new Error(`Couldn't build a complete recipe — ${reason}. The caption may not have the full recipe written out.`)
+          e.deepReadable = true
+          throw e
+        }
+        throw new Error(`Couldn't build a complete recipe — ${reason}. Try the Paste tab with the full recipe text.`)
       }
       handoffToEditor(recipe)
     } catch (err) {
-      fail(err.message || 'Import failed')
+      fail(err.message || 'Import failed', { deepReadable: !!err.deepReadable })
+    } finally {
+      setBusy(false); setStatus('')
+    }
+  }
+
+  // Fallback for a video whose description/caption didn't have the recipe:
+  // actually download it and read its audio + on-screen frames. Much slower
+  // (~1-2 min) and heavier, so it's an explicit second step, never the default.
+  async function deepVideoImport() {
+    setBusy(true); setError(''); setStatus('Downloading and transcribing the video (this can take a minute or two)…')
+    try {
+      const recipe = await normalizeRecipeVideo(videoUrl.trim())
+      const reason = unusableReason(recipe)
+      if (reason) throw new Error(`Couldn't build a complete recipe from the video itself — ${reason}.`)
+      handoffToEditor(recipe)
+    } catch (err) {
+      fail(err.message || 'Could not read that video')
     } finally {
       setBusy(false); setStatus('')
     }
@@ -179,11 +201,9 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
     // A bare link tree or "recipe on my website" blurb is not a recipe; require
     // enough text that there's plausibly a method in there.
     if (description.length < 120) {
-      throw new Error(
-        meta.hasCaptions
-          ? 'This video’s description doesn’t include the recipe. YouTube has a transcript for it — open the video, tap “…more” then “Show transcript”, copy it, and use the Paste tab.'
-          : 'This video’s description doesn’t include the recipe, and the video has no transcript to copy. Try the Paste tab with the recipe text.',
-      )
+      const e = new Error('This video’s description doesn’t include the recipe.')
+      e.deepReadable = true
+      throw e
     }
 
     setStatus('Asking Claude to read the recipe…')
@@ -192,10 +212,9 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
     )
     const reason = unusableReason(recipe)
     if (reason) {
-      throw new Error(
-        `Couldn't build a complete recipe — ${reason}. The description may only summarise the dish. ` +
-          'Try “Show transcript” on the video and paste it into the Paste tab.',
-      )
+      const e = new Error(`Couldn't build a complete recipe — ${reason}. The description may only summarise the dish.`)
+      e.deepReadable = true
+      throw e
     }
     handoffToEditor(recipe)
   }
@@ -276,7 +295,7 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
 
         <div className="mb-4 flex rounded-2xl bg-white p-1">
           {TABS.map((t) => (
-            <button key={t.id} onClick={() => { setTab(t.id); setError('') }}
+            <button key={t.id} onClick={() => { setTab(t.id); setError(''); setOfferDeepRead(false) }}
               className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2 text-sm font-bold transition ${
                 tab === t.id ? 'bg-peach text-warm' : 'text-warm-soft'
               }`}>
@@ -309,6 +328,11 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
             <button className="btn-peach w-full" disabled={busy} onClick={() => importFromUrl(videoUrl, { video: true })}>
               {busy ? status || 'Working…' : 'Import from Video'}
             </button>
+            {offerDeepRead && (
+              <button className="btn-ghost w-full" disabled={busy} onClick={deepVideoImport}>
+                Read the video itself (slower, ~1-2 min)
+              </button>
+            )}
           </div>
         )}
 

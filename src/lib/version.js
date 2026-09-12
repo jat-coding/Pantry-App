@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.10.3'
+export const APP_VERSION = '1.11.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.11.0',
+    date: '2026-09-12',
+    changes: [
+      'When a video’s description doesn’t have the recipe, you can now have Pantry actually watch and listen to the video itself to build the recipe — a slower fallback (about a minute), not the default.',
+    ],
+  },
   {
     version: '1.10.3',
     date: '2026-09-10',

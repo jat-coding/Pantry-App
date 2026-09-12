@@ -56,3 +56,36 @@ export function normalizeRecipeImage(base64, mediaType = 'image/jpeg') {
 export function normalizeRecipePdf(base64) {
   return callParse({ mode: 'pdf', base64 })
 }
+
+// Read a video directly (download + transcribe + sample frames) when its own
+// description doesn't contain the recipe. Slower than every other import path
+// by a wide margin — a separate, much longer timeout, not callParse's 65s.
+export async function normalizeRecipeVideo(url) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 115000)
+  let res
+  try {
+    res = await fetch('/api/video-import', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ url }),
+      signal: controller.signal,
+    })
+  } catch (err) {
+    if (err?.name === 'AbortError') throw new Error('Reading that video took too long — please try again.')
+    throw new Error('Network error — check your connection and try again.')
+  } finally {
+    clearTimeout(timer)
+  }
+  if (!res.ok) {
+    let msg = `Video import failed (${res.status})`
+    try {
+      const data = await res.json()
+      if (data?.error) msg = data.error
+    } catch {
+      // non-JSON error body — keep the status message
+    }
+    throw new Error(msg)
+  }
+  return res.json()
+}
