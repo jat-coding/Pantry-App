@@ -1,9 +1,19 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.14.0'
+export const APP_VERSION = '1.15.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.15.0',
+    date: '2026-09-13',
+    changes: [
+      'Closing anything now takes you back to the exact screen you came from — back from a recipe, cancelling or saving in the editor, deleting a recipe, and leaving Profile all return to where you were.',
+      'Going back puts you at the same spot you had scrolled to, not the top of the list.',
+      'A friend\u2019s pantry stays open when you open one of their recipes and come back.',
+      'Profile now has a back button.',
+    ],
+  },
   {
     version: '1.14.0',
     date: '2026-09-13',

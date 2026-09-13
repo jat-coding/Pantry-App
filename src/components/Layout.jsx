@@ -4,6 +4,7 @@ import { useData } from '../contexts/DataContext.jsx'
 import { useCookMode } from '../contexts/CookModeContext.jsx'
 import { useToast } from './Toast.jsx'
 import ImportModal from '../pages/ImportModal.jsx'
+import ScrollMemory from './ScrollMemory.jsx'
 import {
   GroceryIcon, RecipesIcon, PantryIcon, FriendsIcon, ProfileIcon, PlusIcon, LinkIcon, EditIcon,
 } from './icons.jsx'
@@ -110,6 +111,8 @@ export default function Layout() {
           ))}
         </nav>
       </aside>
+
+      <ScrollMemory />
 
       {/* Main content */}
       <div className="flex min-w-0 flex-1 flex-col">

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useToast } from '../components/Toast.jsx'
@@ -9,6 +9,7 @@ import { sanitizeRecipe } from '../lib/recipeShape.js'
 import { uploadImage } from '../lib/storage.js'
 import { PantryIcon, CameraIcon } from '../components/icons.jsx'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
+import { useGoBack } from '../lib/useGoBack.js'
 
 const DRAFT_KEY = 'pantry-draft-new'
 
@@ -30,8 +31,7 @@ function blankRecipe() {
 export default function RecipeEditor() {
   const { id } = useParams()
   const isEdit = !!id
-  const navigate = useNavigate()
-  const location = useLocation()
+  const goBack = useGoBack()
   const { recipes, getRecipe, createRecipe, updateRecipe } = useData()
   const { user } = useAuth()
   const toast = useToast()
@@ -157,15 +157,16 @@ export default function RecipeEditor() {
       if (isEdit) {
         await updateRecipe(id, clean)
         toast('Recipe saved')
-        // Return to wherever this recipe was opened from, not just its detail
-        // page — otherwise saving strands you one screen short of home.
-        navigate(location.state?.from || `/recipe/${id}`)
+        // Back to the screen you opened the editor from (the recipe itself, now
+        // showing the saved changes) — one more back from there returns to the list.
+        goBack(`/recipe/${id}`)
       } else {
         await createRecipe(clean)
         localStorage.removeItem(DRAFT_KEY)
         toast('Recipe added to your library')
-        // Leave the editor and return to the library.
-        navigate('/recipes', { replace: true })
+        // Back to wherever you started the new recipe from (the screen you tapped +
+        // on, or where you imported it).
+        goBack('/recipes')
       }
     } catch {
       toast('Could not save recipe')
@@ -176,7 +177,7 @@ export default function RecipeEditor() {
 
   function doCancel() {
     if (!isEdit) localStorage.removeItem(DRAFT_KEY)
-    navigate(-1)
+    goBack(isEdit ? `/recipe/${id}` : '/')
   }
 
   function handleCancel() {

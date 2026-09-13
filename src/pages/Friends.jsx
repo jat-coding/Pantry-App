@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useData } from '../contexts/DataContext.jsx'
 import { useToast } from '../components/Toast.jsx'
@@ -8,6 +8,7 @@ import RecipeCard from '../components/RecipeCard.jsx'
 import { FriendsIcon, ProfileIcon } from '../components/icons.jsx'
 import { useScrollLock } from '../lib/useScrollLock.js'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
+import { useGoBack } from '../lib/useGoBack.js'
 import * as fs from '../lib/firestore.js'
 
 export default function Friends() {
@@ -20,7 +21,12 @@ export default function Friends() {
   const [results, setResults] = useState(null)
   const [requests, setRequests] = useState([])
   const [friends, setFriends] = useState([])
-  const [viewing, setViewing] = useState(null) // friend being viewed
+  const goBack = useGoBack()
+  // The open friend pantry lives in the URL (?friend=<id>), not component state, so it's
+  // a real history step: opening a recipe from a friend's pantry and tapping back lands
+  // you in that pantry again, instead of on the bare Friends list with it closed.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const viewingId = searchParams.get('friend')
 
   // Live incoming friend requests.
   useEffect(() => {
@@ -33,6 +39,10 @@ export default function Friends() {
     if (!profile?.friendIds?.length) { setFriends([]); return }
     fs.getUsersByIds(profile.friendIds).then(setFriends)
   }, [profile?.friendIds])
+
+  const viewing = viewingId ? friends.find((f) => f.id === viewingId) : null
+  const openFriend = (f) => setSearchParams({ friend: f.id })
+  const closeFriend = () => goBack('/friends')
 
   if (guest || !user) {
     return <Gate />
@@ -171,7 +181,7 @@ export default function Friends() {
               <div key={f.id} className="card flex items-center gap-3 p-3">
                 <Avatar user={f} />
                 <span className="flex-1 font-bold">{f.displayName}</span>
-                <button className="btn-ghost py-2 text-sm" onClick={() => setViewing(f)}>View Pantry</button>
+                <button className="btn-ghost py-2 text-sm" onClick={() => openFriend(f)}>View Pantry</button>
               </div>
             ))}
           </div>
@@ -179,8 +189,8 @@ export default function Friends() {
       </section>
 
       {viewing && (
-        <FriendProfile friend={viewing} onClose={() => setViewing(null)} onPocket={handleCopyToPantry}
-          onRemove={async () => { await fs.removeFriend(user.uid, viewing.id); setViewing(null); toast('Friend removed') }} />
+        <FriendProfile friend={viewing} onClose={closeFriend} onPocket={handleCopyToPantry}
+          onRemove={async () => { await fs.removeFriend(user.uid, viewing.id); closeFriend(); toast('Friend removed') }} />
       )}
     </div>
   )

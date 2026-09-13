@@ -7,11 +7,13 @@ import { exportRecipesToExcel } from '../lib/exportExcel.js'
 import { uploadImage } from '../lib/storage.js'
 import { APP_VERSION, CHANGELOG } from '../lib/version.js'
 import { ProfileIcon, CameraIcon } from '../components/icons.jsx'
+import { useGoBack } from '../lib/useGoBack.js'
 
 export default function Profile() {
   const { user, profile, guest, logout } = useAuth()
   const { recipes, pantryRecipes } = useData()
   const toast = useToast()
+  const goBack = useGoBack()
   const [editing, setEditing] = useState(false)
   const [bio, setBio] = useState(profile?.bio || '')
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatarUrl || '')
@@ -61,7 +63,18 @@ export default function Profile() {
 
   return (
     <div className="animate-fadein space-y-6">
-      <header>
+      <header className="flex items-center gap-3">
+        {/* Profile is opened from the Friends screen — this returns you there (or to
+            wherever you actually came from) instead of leaving only the tab bar. */}
+        <button
+          onClick={() => goBack('/friends')}
+          aria-label="Back"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-warm shadow-card transition active:scale-90"
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
         <h1 className="text-3xl font-extrabold">Profile</h1>
       </header>
 

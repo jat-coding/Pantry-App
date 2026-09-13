@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useCookMode } from '../contexts/CookModeContext.jsx'
+import { useGoBack } from '../lib/useGoBack.js'
 import { useToast } from '../components/Toast.jsx'
 import { formatIngredient, formatQty, abbreviateUnit, compatibleUnits, convertQty, parseQty } from '../lib/scaling.js'
 import { aisleFor, getCategories, primaryCategory } from '../lib/categories.js'
@@ -22,6 +23,7 @@ export default function RecipeDetail() {
   const { user } = useAuth()
   const { recipes, getRecipe, isInPantry, togglePantry, addGroceryItems, deleteRecipe, canWrite } = useData()
   const toast = useToast()
+  const goBack = useGoBack()
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   // Set when navigated here right after creating a recipe.
   const [showPantryPrompt, setShowPantryPrompt] = useState(!!location.state?.promptPantry)
@@ -162,7 +164,7 @@ export default function RecipeDetail() {
     try {
       await deleteRecipe(recipe.id)
       toast('Recipe deleted')
-      navigate('/', { replace: true })
+      goBack('/')
     } catch {
       toast('Could not delete recipe')
     }
@@ -213,7 +215,7 @@ export default function RecipeDetail() {
           </div>
         )}
         <button
-          onClick={() => navigate(location.state?.from || '/recipes')}
+          onClick={() => goBack('/recipes')}
           className="absolute left-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-card backdrop-blur"
           aria-label="Back"
         >←</button>
@@ -221,7 +223,7 @@ export default function RecipeDetail() {
           {isOwner && (
             <>
               <button
-                onClick={() => navigate(`/recipe/${recipe.id}/edit`, { state: { from: location.state?.from } })}
+                onClick={() => navigate(`/recipe/${recipe.id}/edit`)}
                 className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-zinc-800 shadow-card backdrop-blur"
                 aria-label="Edit recipe"
               ><EditIcon className="h-5 w-5" /></button>
