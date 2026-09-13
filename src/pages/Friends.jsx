@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useData } from '../contexts/DataContext.jsx'
@@ -192,17 +193,37 @@ function FriendProfile({ friend, onClose, onPocket, onRemove }) {
   // Keep the page behind still; scrolling here shouldn't move it.
   useScrollLock()
 
-  return (
+  // Portaled to <body>: a `position: fixed` overlay nested inside the page inherits
+  // any transform/filter an ancestor has (the page's fade-in animation is one), which
+  // makes "fixed" behave like "absolute" on some phones and clips the overlay.
+  return createPortal(
+    // Every edge respects the phone's safe areas (notch/Dynamic Island on top, home
+    // indicator on the bottom, rounded corners on the sides in landscape) — without
+    // these, content slides under the status bar and past the bottom of the screen.
     <div className="fixed inset-0 z-[70] overflow-y-auto overscroll-contain bg-eggshell">
-      <div className="mx-auto max-w-3xl px-4 py-5">
-        <div className="mb-4 flex items-center justify-between">
-          <button onClick={onClose} className="font-bold text-warm-soft">← Back</button>
+      {/* Sticky header: the back button stays reachable at the top-left however far
+          you've scrolled, so no separate floating button is needed. */}
+      <header className="sticky top-0 z-10 border-b border-warm/10 bg-eggshell/95 pt-[calc(env(safe-area-inset-top)+0.75rem)] pb-3 backdrop-blur">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]">
+          <button
+            onClick={onClose}
+            aria-label="Back"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-warm shadow-card transition active:scale-90"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </button>
+          <span className="min-w-0 flex-1 truncate text-center font-extrabold">{friend.displayName}</span>
           <button onClick={() => setConfirmingRemove(true)}
-            className="text-sm font-bold text-red-600">Remove Friend</button>
+            className="shrink-0 rounded-full px-3 py-2 text-sm font-bold text-red-600 transition active:scale-95">Remove</button>
         </div>
+      </header>
+
+      <div className="mx-auto max-w-3xl pt-5 pb-[calc(env(safe-area-inset-bottom)+2rem)] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]">
         <div className="mb-6 flex items-center gap-4">
           <Avatar user={friend} big />
-          <div>
+          <div className="min-w-0">
             <h1 className="text-2xl font-extrabold">{friend.displayName}</h1>
             {friend.bio && <p className="text-warm-soft">{friend.bio}</p>}
           </div>
@@ -221,14 +242,6 @@ function FriendProfile({ friend, onClose, onPocket, onRemove }) {
         )}
       </div>
 
-      {/* Floating back button — follows the scroll, so leaving doesn't mean
-          scrolling all the way back up to reach the one at the top. */}
-      <button
-        onClick={onClose}
-        aria-label="Back"
-        className="fixed bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] left-1/2 z-[71] flex h-12 w-12 -translate-x-1/2 items-center justify-center rounded-full bg-white/95 text-lg shadow-card-hover backdrop-blur active:scale-90"
-      >←</button>
-
       {confirmingRemove && (
         <ConfirmDialog
           message="Remove this friend?"
@@ -238,7 +251,8 @@ function FriendProfile({ friend, onClose, onPocket, onRemove }) {
           onCancel={() => setConfirmingRemove(false)}
         />
       )}
-    </div>
+    </div>,
+    document.body,
   )
 }
 

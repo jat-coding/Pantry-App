@@ -1,9 +1,18 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.13.1'
+export const APP_VERSION = '1.14.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.14.0',
+    date: '2026-09-13',
+    changes: [
+      'The import progress bar now tracks the real work — actual download and transcription progress, plus a time estimate that learns from how long recent imports took — instead of a fixed guess.',
+      'Recipes imported from a video (YouTube, TikTok, Instagram, Facebook) now use the video\u2019s thumbnail as the recipe photo.',
+      'A friend\u2019s pantry no longer gets cut off at the top or bottom on any phone, and the back button now sits cleanly at the top-left and stays there as you scroll.',
+    ],
+  },
   {
     version: '1.13.1',
     date: '2026-09-12',

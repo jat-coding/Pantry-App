@@ -5,7 +5,7 @@
 // (transcript + frames -> structured recipe), still comfortably short.
 import { parseRecipe } from './_lib/recipe.js'
 
-export const config = { maxDuration: 30 }
+export const config = { maxDuration: 60 }
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -47,7 +47,7 @@ export default async function handler(req, res) {
     }
 
     if (data.state === 'running') {
-      res.status(200).json({ state: 'running', stage: data.stage })
+      res.status(200).json({ state: 'running', stage: data.stage, progress: data.progress, etaMs: data.etaMs })
       return
     }
     if (data.state === 'error') {

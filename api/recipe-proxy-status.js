@@ -42,7 +42,7 @@ export default async function handler(req, res) {
     }
 
     if (data.state === 'running') {
-      res.status(200).json({ state: 'running' })
+      res.status(200).json({ state: 'running', stage: data.stage, progress: data.progress, etaMs: data.etaMs })
       return
     }
     if (data.state === 'error') {

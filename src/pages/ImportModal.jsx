@@ -43,23 +43,17 @@ function isVideoLink(url) {
   return /(instagram\.com|tiktok\.com|youtube\.com|youtu\.be|facebook\.com|fb\.watch)/i.test(url || '')
 }
 
-// Rough, honest-about-being-a-guess progress estimate for a video job's poll
-// loop — real percentages aren't available (yt-dlp/whisper don't report
-// partial progress over the wire), so this maps elapsed time within the
-// current stage against a typical duration observed in testing. Caps below
-// 100% until the job actually reports done, so the bar never lies about
-// being finished before it is.
-const STAGE_ESTIMATES = {
-  fetching: { startPct: 0, endPct: 96, estMs: 25_000 },
-  downloading: { startPct: 0, endPct: 45, estMs: 45_000 },
-  transcribing: { startPct: 45, endPct: 96, estMs: 45_000 },
-}
-function estimateProgress(stage, elapsedMs) {
-  const cfg = STAGE_ESTIMATES[stage] || STAGE_ESTIMATES.fetching
-  const within = Math.min(1, elapsedMs / cfg.estMs)
-  const pct = Math.round(cfg.startPct + within * (cfg.endPct - cfg.startPct))
-  const remainingMs = Math.max(0, cfg.estMs - elapsedMs)
-  return { pct, remainingLabel: remainingMs > 2000 ? `~${Math.ceil(remainingMs / 1000)}s left` : 'almost done…' }
+// Turns a bridge check-in into what the bar shows. `progress` and `etaMs` come from
+// the Mac doing the work — real yt-dlp/whisper percentages where they exist, and an
+// ETA learned from how long recent jobs of the same kind actually took — so this only
+// formats; it doesn't guess.
+function progressFromCheckIn({ progress, etaMs }) {
+  const pct = Math.round(Math.min(98, Math.max(2, (progress || 0) * 100)))
+  const secs = Math.ceil((etaMs || 0) / 1000)
+  const remainingLabel = secs > 90 ? `~${Math.round(secs / 60)} min left`
+    : secs > 3 ? `~${secs}s left`
+    : 'almost done…'
+  return { pct, remainingLabel }
 }
 
 // A recipe is only worth saving if it has a title, ingredients AND steps.
@@ -106,6 +100,9 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
   // { pct, remainingLabel } while a video job is polling; null otherwise.
   const [progress, setProgress] = useState(null)
   const autoRan = useRef(false)
+  // The video's own thumbnail (inline JPEG from the bridge), kept from the metadata
+  // read so the deep-read fallback can reuse it without fetching it again.
+  const thumbnailRef = useRef(null)
 
   // When opened from a shared link (iOS Shortcut / Android share target), prefill
   // the right tab and start the import automatically.
@@ -132,6 +129,7 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
     // fields or wrong types. Normalize to the exact shape the editor expects so
     // it never crashes to a blank screen on render.
     const safe = sanitizeRecipe(recipe)
+    if (!safe.imageUrl && thumbnailRef.current) safe.imageUrl = thumbnailRef.current
     localStorage.setItem(DRAFT_KEY, JSON.stringify(safe))
     onClose()
     navigate('/new')
@@ -145,6 +143,7 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
     const target = (rawUrl || '').trim()
     if (!target) return
     setBusy(true); setError(''); setOfferDeepRead(false); setProgress(null); setStatus('Fetching page…')
+    thumbnailRef.current = null
     try {
       // Every video platform (YouTube, TikTok, Instagram, Facebook) exposes a
       // title/description via yt-dlp's own metadata read, which beats scraping
@@ -158,7 +157,7 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
       // this Vercel function — a slow site can't get cut off by Vercel's own
       // timeout ceiling either way.
       const html = await fetchPageViaBridge(target, {
-        onProgress: ({ elapsedMs, stage }) => setProgress(estimateProgress(stage, elapsedMs)),
+        onProgress: (c) => setProgress(progressFromCheckIn(c)),
       })
       setProgress(null)
 
@@ -185,9 +184,10 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
   // (~1-2 min) and heavier, so it's an explicit second step, never the default.
   async function deepVideoImport() {
     setBusy(true); setError(''); setStatus('Downloading and transcribing the video…')
+    setProgress({ pct: 2, remainingLabel: 'starting…' })
     try {
       const recipe = await normalizeRecipeVideo(videoUrl.trim(), {
-        onProgress: ({ elapsedMs, stage }) => setProgress(estimateProgress(stage, elapsedMs)),
+        onProgress: (c) => setProgress(progressFromCheckIn(c)),
       })
       const reason = unusableReason(recipe)
       if (reason) throw new Error(`Couldn't build a complete recipe from the video itself — ${reason}.`)
@@ -206,9 +206,10 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
   async function importFromVideoMeta(url) {
     setStatus('Reading video details…')
     const meta = await fetchVideoMeta(url, {
-      onProgress: ({ elapsedMs, stage }) => setProgress(estimateProgress(stage, elapsedMs)),
+      onProgress: (c) => setProgress(progressFromCheckIn(c)),
     })
     setProgress(null)
+    thumbnailRef.current = meta.thumbnail || null
 
     const description = (meta.description || '').trim()
     // A bare link tree or "recipe on my website" blurb is not a recipe; require

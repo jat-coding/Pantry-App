@@ -103,23 +103,23 @@ async function getJson(url, ms) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
-// Shared shape for both video job types (metadata-only and full transcribe):
-// start, then poll every few seconds — no single network call ever needs to
-// stay open more than ~15-30s, no matter how long the job itself takes.
-// `onProgress({ elapsedMs, stage })` fires on every poll tick so the caller can
-// drive a progress bar / ETA; `stage` is whatever the bridge job reports
-// ('fetching' | 'downloading' | 'transcribing'), absent once done.
-async function pollJob(startUrl, statusUrl, url, { onProgress, deadlineMs = 4 * 60 * 1000, subject = 'that video' } = {}) {
+// Shared shape for every bridge job (video metadata, full transcribe, page fetch):
+// start, then check in every couple of seconds — no single network call stays open
+// long, no matter how long the job itself takes. Each check-in carries the bridge's own
+// real progress (yt-dlp/whisper percentages where they exist) and an ETA learned from
+// past completed jobs, so `onProgress({ progress, etaMs, stage })` reflects what the
+// job is actually doing rather than a fixed guess.
+async function pollJob(startUrl, statusUrl, url, { onProgress, deadlineMs = 4 * 60 * 1000, subject = 'that video', statusTimeoutMs = 20000 } = {}) {
   const started = Date.now()
   const { jobId } = await postJson(startUrl, { url }, 20000)
 
   const deadline = started + deadlineMs
   while (Date.now() < deadline) {
-    await sleep(3000)
-    const data = await getJson(`${statusUrl}?jobId=${encodeURIComponent(jobId)}`, 20000)
+    await sleep(2000)
+    const data = await getJson(`${statusUrl}?jobId=${encodeURIComponent(jobId)}`, statusTimeoutMs)
     if (data.state === 'done') return data
     if (data.state === 'error') throw new Error(data.error || `Could not read ${subject}`)
-    onProgress?.({ elapsedMs: Date.now() - started, stage: data.stage })
+    onProgress?.({ progress: data.progress ?? 0, etaMs: data.etaMs, stage: data.stage })
   }
   throw new Error(`Reading ${subject} is taking unusually long — please try again later.`)
 }
@@ -128,7 +128,9 @@ async function pollJob(startUrl, statusUrl, url, { onProgress, deadlineMs = 4 * 
 // description doesn't contain the recipe. Slower than every other import path
 // by a wide margin.
 export async function normalizeRecipeVideo(url, { onProgress } = {}) {
-  const data = await pollJob('/api/video-import-start', '/api/video-import-status', url, { onProgress })
+  // The final check-in is also where the recipe gets built from transcript + frames,
+  // which takes longer than a plain status lookup — give that one call more room.
+  const data = await pollJob('/api/video-import-start', '/api/video-import-status', url, { onProgress, statusTimeoutMs: 60000 })
   return data.recipe
 }
 
@@ -137,7 +139,7 @@ export async function normalizeRecipeVideo(url, { onProgress } = {}) {
 // since even this has shown up to ~80s of YouTube-side response variance.
 export async function fetchVideoMeta(url, { onProgress } = {}) {
   const data = await pollJob('/api/video-meta-start', '/api/video-meta-status', url, { onProgress, deadlineMs: 2 * 60 * 1000 })
-  return { title: data.title, description: data.description, hasCaptions: data.hasCaptions }
+  return { title: data.title, description: data.description, hasCaptions: data.hasCaptions, thumbnail: data.thumbnail || null }
 }
 
 // Fetch a recipe page's HTML through the same bridge, instead of directly from

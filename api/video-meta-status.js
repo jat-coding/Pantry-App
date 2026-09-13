@@ -43,14 +43,14 @@ export default async function handler(req, res) {
     }
 
     if (data.state === 'running') {
-      res.status(200).json({ state: 'running', stage: data.stage })
+      res.status(200).json({ state: 'running', stage: data.stage, progress: data.progress, etaMs: data.etaMs })
       return
     }
     if (data.state === 'error') {
       res.status(200).json({ state: 'error', error: data.error || 'Could not read that video.' })
       return
     }
-    res.status(200).json({ state: 'done', title: data.title, description: data.description, hasCaptions: data.hasCaptions })
+    res.status(200).json({ state: 'done', title: data.title, description: data.description, hasCaptions: data.hasCaptions, thumbnail: data.thumbnail || null })
   } catch (err) {
     res.status(200).json({ state: 'error', error: err?.message || 'Video read failed' })
   }
