@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { NavLink, Outlet, useNavigate, useSearchParams } from 'react-router-dom'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import { useCookMode } from '../contexts/CookModeContext.jsx'
 import { useToast } from './Toast.jsx'
@@ -47,6 +47,35 @@ export default function Layout() {
   const [showAddMenu, setShowAddMenu] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [sharedUrl, setSharedUrl] = useState('')
+  const location = useLocation()
+  const tabBarRef = useRef(null)
+  const pillRef = useRef(null)
+  const pillShownRef = useRef(false)
+
+  // Sliding selected-tab pill: one peach pill measures the active tab and glides to it
+  // instead of the highlight just jumping. It snaps (no glide) the first time it
+  // appears, after being hidden, and on resize — gliding in from a stale spot looks
+  // like a glitch. Hidden on screens that aren't a tab (a recipe, the editor, Profile).
+  useLayoutEffect(() => {
+    const bar = tabBarRef.current
+    const pill = pillRef.current
+    if (!bar || !pill) { pillShownRef.current = false; return }
+    const place = (glide) => {
+      const active = bar.querySelector('a[aria-current="page"]')
+      if (!active) { pill.style.opacity = '0'; pillShownRef.current = false; return }
+      if (!glide) pill.style.transition = 'none'
+      pill.style.width = `${active.offsetWidth}px`
+      pill.style.height = `${active.offsetHeight}px`
+      pill.style.transform = `translate(${active.offsetLeft}px, ${active.offsetTop}px)`
+      pill.style.opacity = '1'
+      if (!glide) { pill.getBoundingClientRect(); pill.style.transition = '' }
+      pillShownRef.current = true
+    }
+    place(pillShownRef.current)
+    const onResize = () => place(false)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [location.pathname, cookMode])
 
   // Opened via a shared link, e.g. /recipes?import=<url> (iOS Shortcut / Android
   // share target). Open the importer prefilled, then strip the param.
@@ -75,7 +104,7 @@ export default function Layout() {
   }
 
   const navItem = (isActive) =>
-    `flex w-14 flex-col items-center gap-0.5 text-[10px] font-bold transition ${
+    `relative z-10 flex w-14 flex-col items-center gap-0.5 rounded-full py-1.5 text-[10px] font-bold transition-colors duration-300 ${
       isActive ? 'text-warm' : 'text-warm-soft/70'
     }`
 
@@ -148,7 +177,12 @@ export default function Layout() {
           Prev/Next bar is the only bottom control until you exit. */}
       {!cookMode && (
       <nav className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] sm:hidden">
-        <div className="flex items-center gap-1 rounded-full border border-warm/10 bg-white/95 px-3 py-2 shadow-card-hover backdrop-blur">
+        <div ref={tabBarRef} className="relative flex items-center gap-1 rounded-full border border-warm/10 bg-white/95 px-2 py-1.5 shadow-card-hover backdrop-blur">
+          <div
+            ref={pillRef}
+            aria-hidden="true"
+            className="pointer-events-none absolute left-0 top-0 rounded-full border border-peach-dark/40 bg-peach opacity-0 shadow-[inset_0_1px_3px_rgba(44,36,22,0.12)] transition-[transform,width,height,opacity] duration-[380ms] ease-[cubic-bezier(.3,.8,.25,1)]"
+          />
           {TABS.slice(0, 2).map((t) => (
             <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => navItem(isActive)}>
               {({ isActive }) => (
@@ -164,7 +198,7 @@ export default function Layout() {
           <button
             onClick={() => setShowAddMenu((s) => !s)}
             aria-label="Add a recipe"
-            className={`-mt-8 flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-cta text-white shadow-card-hover ring-4 ring-eggshell transition active:scale-90 hover:bg-cta-dark ${showAddMenu ? 'rotate-45' : ''}`}
+            className={`relative z-20 -mt-8 flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-cta text-white shadow-card-hover ring-4 ring-eggshell transition active:scale-90 hover:bg-cta-dark ${showAddMenu ? 'rotate-45' : ''}`}
           >
             <PlusIcon className="h-8 w-8" />
           </button>
