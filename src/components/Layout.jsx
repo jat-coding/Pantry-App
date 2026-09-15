@@ -187,7 +187,7 @@ export default function Layout() {
             <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => navItem(isActive)}>
               {({ isActive }) => (
                 <>
-                  <t.Icon className={`h-6 w-6 text-zinc-800 transition ${isActive ? 'scale-110' : 'opacity-50'}`} />
+                  <t.Icon className={`h-6 w-6 text-zinc-800 transition ${isActive ? 'scale-110 animate-jiggle' : 'opacity-50'}`} />
                   {t.label}
                 </>
               )}
@@ -207,7 +207,7 @@ export default function Layout() {
             <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => navItem(isActive)}>
               {({ isActive }) => (
                 <>
-                  <t.Icon className={`h-6 w-6 text-zinc-800 transition ${isActive ? 'scale-110' : 'opacity-50'}`} />
+                  <t.Icon className={`h-6 w-6 text-zinc-800 transition ${isActive ? 'scale-110 animate-jiggle' : 'opacity-50'}`} />
                   {t.label}
                 </>
               )}

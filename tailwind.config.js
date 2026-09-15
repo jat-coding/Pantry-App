@@ -51,11 +51,22 @@ export default {
           '0%': { opacity: '0', transform: 'translateY(12px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        // Selected-tab jiggle: a quick excited wobble, ending at the active tab's
+        // resting scale (1.1) so there's no jump when the animation hands back.
+        jiggle: {
+          '0%': { transform: 'rotate(0) scale(1.1)' },
+          '20%': { transform: 'rotate(-14deg) scale(1.2)' },
+          '40%': { transform: 'rotate(11deg) scale(1.2)' },
+          '60%': { transform: 'rotate(-7deg) scale(1.15)' },
+          '80%': { transform: 'rotate(3deg) scale(1.1)' },
+          '100%': { transform: 'rotate(0) scale(1.1)' },
+        },
       },
       animation: {
         pop: 'pop 0.35s ease-out',
         fadein: 'fadein 0.3s ease-out',
         toastin: 'toastin 0.25s ease-out',
+        jiggle: 'jiggle 0.55s ease-in-out',
       },
     },
   },
