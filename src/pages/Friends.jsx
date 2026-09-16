@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Check, ChevronLeft } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
@@ -145,7 +146,7 @@ export default function Friends() {
               <Avatar user={u} />
               <span className="flex-1 font-bold">{u.displayName}</span>
               {friendIds.has(u.id) ? (
-                <span className="text-sm font-bold text-warm-soft">Friends ✓</span>
+                <span className="inline-flex items-center gap-1 text-sm font-bold text-warm-soft">Friends <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" /></span>
               ) : (
                 <button className="btn-ghost py-2 text-sm" onClick={() => addFriend(u)}>Add</button>
               )}
@@ -220,9 +221,7 @@ function FriendProfile({ friend, onClose, onPocket, onRemove }) {
             aria-label="Back"
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-warm shadow-card transition active:scale-90"
           >
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
+            <ChevronLeft className="h-5 w-5" strokeWidth={2.2} aria-hidden="true" />
           </button>
           <span className="min-w-0 flex-1 truncate text-center font-extrabold">{friend.displayName}</span>
           <button onClick={() => setConfirmingRemove(true)}

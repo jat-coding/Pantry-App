@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useData } from '../contexts/DataContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useToast } from '../components/Toast.jsx'
-import { Check } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 import { AISLE_ORDER, aisleFor } from '../lib/categories.js'
 import { formatQty, abbreviateUnit } from '../lib/scaling.js'
 import * as fs from '../lib/firestore.js'
@@ -236,7 +236,7 @@ function WhatCanIMake({ recipes }) {
           {pills.map((p) => (
             <span key={p} className="pill-peach gap-1">
               {p}
-              <button onClick={() => setPills(pills.filter((x) => x !== p))} aria-label="Remove">×</button>
+              <button onClick={() => setPills(pills.filter((x) => x !== p))} aria-label="Remove"><X className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden="true" /></button>
             </span>
           ))}
         </div>

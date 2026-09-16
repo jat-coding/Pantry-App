@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../components/Toast.jsx'
 import { normalizeRecipeImage, normalizeRecipePdf, normalizeRecipeText, normalizeRecipeVideo, fetchVideoMeta, fetchPageViaBridge } from '../lib/anthropic.js'
@@ -304,7 +305,7 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
         onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-extrabold">Import a Recipe</h2>
-          <button onClick={onClose} className="text-2xl text-warm-soft" aria-label="Close">×</button>
+          <button onClick={onClose} className="text-2xl text-warm-soft" aria-label="Close"><X className="h-6 w-6" strokeWidth={2} aria-hidden="true" /></button>
         </div>
 
         <div className="mb-4 flex rounded-2xl bg-white p-1">

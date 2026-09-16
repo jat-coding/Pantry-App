@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ArrowRight } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { PantryIcon } from '../components/icons.jsx'
 
@@ -92,9 +93,9 @@ export default function Auth() {
 
       <button
         onClick={browseAsGuest}
-        className="mt-4 text-sm font-bold text-warm-soft underline-offset-4 hover:underline"
+        className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-warm-soft underline-offset-4 hover:underline"
       >
-        Browse as Guest →
+        Browse as Guest <ArrowRight className="h-4 w-4" strokeWidth={2.2} aria-hidden="true" />
       </button>
       <p className="mt-1 text-xs text-warm-soft/70">Guests can browse but can't save or add friends.</p>
     </div>

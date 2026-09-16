@@ -8,7 +8,7 @@ export const CHANGELOG = [
     version: '1.17.0',
     date: '2026-09-16',
     changes: [
-      'Every icon in the app now comes from one consistent icon set (Lucide), and the last few emoji (invite-link screen, category placeholders) are gone.',
+      'Every icon in the app now comes from one consistent icon set (Lucide) — tabs, buttons, checkmarks, close and back arrows, the heart, and the no-photo category placeholders — and the last emoji are gone. The app\u2019s home-screen icon is unchanged.',
     ],
   },
   {

@@ -1,5 +1,5 @@
 import { CATEGORIES, getCategories } from '../lib/categories.js'
-import { X } from 'lucide-react'
+import { X, Check } from 'lucide-react'
 import { SearchIcon } from './icons.jsx'
 
 export function SearchBar({ value, onChange, placeholder = 'Search recipes or ingredients…' }) {
@@ -47,7 +47,7 @@ export function CategoryFilter({ selected = [], onToggle, onClear }) {
         const active = selected.includes(c)
         return (
           <button key={c} onClick={() => onToggle(c)} className={cls(active)}>
-            {active ? '✓ ' : ''}{c}
+            <span className="inline-flex items-center gap-1">{active && <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" />}{c}</span>
           </button>
         )
       })}

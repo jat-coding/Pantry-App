@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ChevronLeft } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useData } from '../contexts/DataContext.jsx'
 import { useToast } from '../components/Toast.jsx'
@@ -71,9 +72,7 @@ export default function Profile() {
           aria-label="Back"
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-warm shadow-card transition active:scale-90"
         >
-          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
+          <ChevronLeft className="h-5 w-5" strokeWidth={2.2} aria-hidden="true" />
         </button>
         <h1 className="text-3xl font-extrabold">Profile</h1>
       </header>

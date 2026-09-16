@@ -1,4 +1,5 @@
 import { GroceryIcon, RecipesIcon, PantryIcon, FriendsIcon, LinkIcon, MealIcon, PlusIcon } from './icons.jsx'
+import { X } from 'lucide-react'
 import { useScrollLock } from '../lib/useScrollLock.js'
 
 const STEPS = [
@@ -19,7 +20,7 @@ export default function HelpModal({ onClose }) {
         onClick={(e) => e.stopPropagation()}>
         <div className="mb-1 flex items-center justify-between">
           <h2 className="text-2xl font-extrabold">Welcome to Pantry</h2>
-          <button onClick={onClose} className="text-2xl text-warm-soft" aria-label="Close">×</button>
+          <button onClick={onClose} className="text-2xl text-warm-soft" aria-label="Close"><X className="h-6 w-6" strokeWidth={2} aria-hidden="true" /></button>
         </div>
         <p className="mb-5 text-warm-soft">A quick tour of how everything works.</p>
         <ul className="space-y-4">

@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import { useToast } from './Toast.jsx'
 import { getCategories, primaryCategory } from '../lib/categories.js'
-import { CategoryIcon } from './icons.jsx'
+import { CategoryIcon, HeartIcon } from './icons.jsx'
 
 function totalTime(recipe) {
   const toMin = (t) => (t ? (t.unit === 'hr' ? t.value * 60 : t.value) : 0)
@@ -15,20 +15,6 @@ function totalTime(recipe) {
   return m ? `${h}h ${m}m` : `${h}h`
 }
 
-function Heart({ filled }) {
-  // Symmetric heart (mirrored around the vertical center line).
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
-      <path
-        d="M12 20.3l-1.36-1.24C5.9 14.75 3 12.12 3 8.86 3 6.27 5.04 4.25 7.62 4.25c1.46 0 2.86.68 3.78 1.76L12 6.62l.6-.61c.92-1.08 2.32-1.76 3.78-1.76C18.96 4.25 21 6.27 21 8.86c0 3.26-2.9 5.89-7.64 10.2L12 20.3z"
-        fill={filled ? '#FFCBA4' : 'none'}
-        stroke={filled ? '#F2A977' : '#2C2416'}
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
 
 export default function RecipeCard({ recipe, showPocket = false, onPocket, pocketLabel = 'Pocket' }) {
   const navigate = useNavigate()
@@ -81,7 +67,7 @@ export default function RecipeCard({ recipe, showPocket = false, onPocket, pocke
           role="button"
           aria-label={inPantry ? 'Remove from Pantry' : 'Add to Pantry'}
         >
-          <Heart filled={inPantry} />
+          <HeartIcon filled={inPantry} className="h-5 w-5 text-warm" />
         </span>
       </div>
 

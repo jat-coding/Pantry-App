@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
-import { Check } from 'lucide-react'
+import { Check, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCookMode } from '../contexts/CookModeContext.jsx'
 import { useGoBack } from '../lib/useGoBack.js'
 import { useToast } from '../components/Toast.jsx'
@@ -202,7 +202,7 @@ export default function RecipeDetail() {
             onClick={() => { setCookMode(false); setActiveStep(0) }}
             className="flex items-center gap-1 rounded-full bg-eggshell px-3 py-1.5 text-sm font-bold text-warm shadow-card active:scale-95"
             aria-label="Exit Cook Mode"
-          >Exit ✕</button>
+          >Exit <X className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" /></button>
         </div>
       )}
 
@@ -219,7 +219,7 @@ export default function RecipeDetail() {
           onClick={() => goBack('/recipes')}
           className="absolute left-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-card backdrop-blur"
           aria-label="Back"
-        >←</button>
+        ><ChevronLeft className="h-5 w-5 text-warm" strokeWidth={2.2} aria-hidden="true" /></button>
         <div className="absolute right-3 top-3 flex gap-2">
           {isOwner && (
             <>
@@ -383,7 +383,7 @@ export default function RecipeDetail() {
             onClick={() => setActiveStep((s) => Math.max(0, s - 1))}
             disabled={activeStep === 0}
             className="btn-ghost flex-1 disabled:opacity-40"
-          >← Prev</button>
+          ><ChevronLeft className="h-5 w-5" strokeWidth={2.2} aria-hidden="true" /> Prev</button>
           <span className="text-sm font-bold text-warm-soft">
             Step {activeStep + 1}/{recipe.instructions.length}
           </span>
@@ -391,7 +391,7 @@ export default function RecipeDetail() {
             onClick={() => setActiveStep((s) => Math.min(recipe.instructions.length - 1, s + 1))}
             disabled={activeStep === recipe.instructions.length - 1}
             className="btn-peach flex-1 disabled:opacity-40"
-          >Next →</button>
+          >Next <ChevronRight className="h-5 w-5" strokeWidth={2.2} aria-hidden="true" /></button>
         </div>
       )}
 

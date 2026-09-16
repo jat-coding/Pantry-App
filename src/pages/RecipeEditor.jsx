@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
-import { X, ChevronUp, ChevronDown } from 'lucide-react'
+import { X, ChevronUp, ChevronDown, Check } from 'lucide-react'
 import { useToast } from '../components/Toast.jsx'
 import { CATEGORIES } from '../lib/categories.js'
 import { parseQty } from '../lib/scaling.js'
@@ -245,7 +245,7 @@ export default function RecipeEditor() {
                   active
                     ? 'border-peach-dark bg-peach text-warm'
                     : 'border-warm/15 bg-white text-warm-soft hover:bg-eggshell'
-                }`}>{active ? '✓ ' : ''}{c}</button>
+                }`}><span className="inline-flex items-center gap-1">{active && <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" />}{c}</span></button>
             )
           })}
         </div>
