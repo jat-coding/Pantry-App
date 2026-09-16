@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
+import { X, ChevronUp, ChevronDown } from 'lucide-react'
 import { useToast } from '../components/Toast.jsx'
 import { CATEGORIES } from '../lib/categories.js'
 import { parseQty } from '../lib/scaling.js'
@@ -271,7 +272,7 @@ export default function RecipeEditor() {
               <input className="input flex-1" placeholder="ingredient" value={ing.name}
                 onChange={(e) => setIngredient(i, 'name', e.target.value)} />
               <button onClick={() => removeIngredient(i)} className="px-2 text-warm-soft hover:text-red-600"
-                aria-label="Remove">✕</button>
+                aria-label="Remove"><X className="h-4 w-4" strokeWidth={2} aria-hidden="true" /></button>
             </div>
           ))}
         </div>
@@ -287,11 +288,11 @@ export default function RecipeEditor() {
               <textarea className="input min-h-[3rem] flex-1" rows={2} value={step}
                 placeholder="Describe this step…" onChange={(e) => setStep(i, e.target.value)} />
               <div className="flex flex-col">
-                <button onClick={() => moveStep(i, -1)} className="px-1 text-warm-soft" aria-label="Move up">▲</button>
-                <button onClick={() => moveStep(i, 1)} className="px-1 text-warm-soft" aria-label="Move down">▼</button>
+                <button onClick={() => moveStep(i, -1)} className="px-1 text-warm-soft" aria-label="Move up"><ChevronUp className="h-4 w-4" strokeWidth={2} aria-hidden="true" /></button>
+                <button onClick={() => moveStep(i, 1)} className="px-1 text-warm-soft" aria-label="Move down"><ChevronDown className="h-4 w-4" strokeWidth={2} aria-hidden="true" /></button>
               </div>
               <button onClick={() => removeStep(i)} className="mt-2 px-1 text-warm-soft hover:text-red-600"
-                aria-label="Remove">✕</button>
+                aria-label="Remove"><X className="h-4 w-4" strokeWidth={2} aria-hidden="true" /></button>
             </div>
           ))}
         </div>

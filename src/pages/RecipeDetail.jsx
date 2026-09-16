@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
+import { Check } from 'lucide-react'
 import { useCookMode } from '../contexts/CookModeContext.jsx'
 import { useGoBack } from '../lib/useGoBack.js'
 import { useToast } from '../components/Toast.jsx'
@@ -301,7 +302,7 @@ export default function RecipeDetail() {
                     isChecked ? 'border-peach-dark bg-peach-dark text-white' : 'border-warm/30'
                   }`}
                   aria-label="Toggle ingredient"
-                >{isChecked ? '✓' : ''}</button>
+                >{isChecked ? <Check className="h-4 w-4" strokeWidth={3} aria-hidden="true" /> : ''}</button>
 
                 {hasQty ? (
                   <input

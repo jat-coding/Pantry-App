@@ -1,4 +1,5 @@
 import { CATEGORIES, getCategories } from '../lib/categories.js'
+import { X } from 'lucide-react'
 import { SearchIcon } from './icons.jsx'
 
 export function SearchBar({ value, onChange, placeholder = 'Search recipes or ingredients…' }) {
@@ -19,7 +20,7 @@ export function SearchBar({ value, onChange, placeholder = 'Search recipes or in
           className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-soft hover:text-warm"
           aria-label="Clear search"
         >
-          ✕
+          <X className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
         </button>
       )}
     </div>

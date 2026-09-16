@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useData } from '../contexts/DataContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useToast } from '../components/Toast.jsx'
+import { Check } from 'lucide-react'
 import { AISLE_ORDER, aisleFor } from '../lib/categories.js'
 import { formatQty, abbreviateUnit } from '../lib/scaling.js'
 import * as fs from '../lib/firestore.js'
@@ -98,7 +99,7 @@ export default function GroceryList() {
                           className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 ${
                             item.checked ? 'border-peach-dark bg-peach-dark text-white' : 'border-warm/30'
                           }`}
-                        >{item.checked ? '✓' : ''}</button>
+                        >{item.checked ? <Check className="h-4 w-4" strokeWidth={3} aria-hidden="true" /> : ''}</button>
                         <div className={`flex-1 ${item.checked ? 'text-warm-soft line-through' : ''}`}>
                           <span className="font-bold">
                             {item.qty != null && `${formatQty(item.qty)} `}{item.unit && `${abbreviateUnit(item.unit)} `}{item.name}

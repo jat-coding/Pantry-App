@@ -14,16 +14,6 @@ export function primaryCategory(recipe) {
   return getCategories(recipe)[0] || recipe?.category || 'Dinner'
 }
 
-export const CATEGORY_EMOJI = {
-  Breakfast: '🍳',
-  Lunch: '🥪',
-  Dinner: '🍝',
-  Dessert: '🍪',
-  Snacks: '🥨',
-  Drinks: '🥤',
-  'Sauces & Dressings': '🥫',
-}
-
 // Best-effort grocery aisle grouping by ingredient keyword.
 const GROUPS = {
   Produce: ['lettuce', 'greens', 'tomato', 'onion', 'garlic', 'cucumber', 'pepper', 'carrot',

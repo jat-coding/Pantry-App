@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.16.1'
+export const APP_VERSION = '1.17.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.17.0',
+    date: '2026-09-16',
+    changes: [
+      'Every icon in the app now comes from one consistent icon set (Lucide), and the last few emoji (invite-link screen, category placeholders) are gone.',
+    ],
+  },
   {
     version: '1.16.1',
     date: '2026-09-14',
