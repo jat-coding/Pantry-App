@@ -10,6 +10,7 @@ import { formatIngredient, formatQty, abbreviateUnit, compatibleUnits, convertQt
 import { aisleFor, getCategories, primaryCategory } from '../lib/categories.js'
 import { EditIcon, TrashIcon, HeartIcon, CategoryIcon } from '../components/icons.jsx'
 import SafeImage from '../components/SafeImage.jsx'
+import { useImageSnapshot } from '../lib/useImageSnapshot.js'
 import { AddToPantryPrompt } from './RecipeEditor.jsx'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
 
@@ -23,7 +24,7 @@ export default function RecipeDetail() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuth()
-  const { recipes, getRecipe, isInPantry, togglePantry, addGroceryItems, deleteRecipe, canWrite } = useData()
+  const { recipes, getRecipe, isInPantry, togglePantry, addGroceryItems, deleteRecipe, canWrite, updateRecipe } = useData()
   const toast = useToast()
   const goBack = useGoBack()
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -99,6 +100,8 @@ export default function RecipeDetail() {
       release()
     }
   }, [cookMode])
+
+  useImageSnapshot(recipe, user, updateRecipe)
 
   const original = recipe
   const scaledIngredients = useMemo(() => {

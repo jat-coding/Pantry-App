@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext.jsx'
 import { X, ChevronUp, ChevronDown, Check } from 'lucide-react'
 import { useToast } from '../components/Toast.jsx'
 import SafeImage from '../components/SafeImage.jsx'
+import { snapshotImage } from '../lib/imageSnapshot.js'
 import { CATEGORIES } from '../lib/categories.js'
 import { parseQty } from '../lib/scaling.js'
 import { sanitizeRecipe } from '../lib/recipeShape.js'
@@ -156,6 +157,8 @@ export default function RecipeEditor() {
     setSaving(true)
     setDirty(false) // clear the unsaved-changes guard before navigating
     try {
+      // Keep our own copy of a remote photo so the recipe outlives the source link.
+      clean.imageUrl = await snapshotImage(clean.imageUrl, user?.uid)
       if (isEdit) {
         await updateRecipe(id, clean)
         toast('Recipe saved')
