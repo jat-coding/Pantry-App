@@ -9,6 +9,7 @@ import { useToast } from '../components/Toast.jsx'
 import { formatIngredient, formatQty, abbreviateUnit, compatibleUnits, convertQty, parseQty } from '../lib/scaling.js'
 import { aisleFor, getCategories, primaryCategory } from '../lib/categories.js'
 import { EditIcon, TrashIcon, HeartIcon, CategoryIcon } from '../components/icons.jsx'
+import SafeImage from '../components/SafeImage.jsx'
 import { AddToPantryPrompt } from './RecipeEditor.jsx'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
 
@@ -208,13 +209,12 @@ export default function RecipeDetail() {
 
       {/* Hero */}
       <div className="relative -mx-4 -mt-5 mb-4 h-56 overflow-hidden sm:-mx-8 sm:rounded-b-3xl">
-        {recipe.imageUrl ? (
-          <img src={recipe.imageUrl} alt={recipe.title} className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-peach/50 to-surface-2 text-peach-dark">
-            <CategoryIcon category={primaryCategory(recipe)} className="h-24 w-24" />
-          </div>
-        )}
+        <SafeImage src={recipe.imageUrl} alt={recipe.title} className="h-full w-full object-cover"
+          fallback={
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-peach/50 to-surface-2 text-peach-dark">
+              <CategoryIcon category={primaryCategory(recipe)} className="h-24 w-24" />
+            </div>
+          } />
         <button
           onClick={() => goBack('/recipes')}
           className="absolute left-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-card backdrop-blur"

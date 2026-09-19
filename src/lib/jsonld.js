@@ -77,7 +77,9 @@ function mapCategories(c) {
   return hits.size ? [...hits] : ['Dinner']
 }
 
-export function extractRecipeFromHtml(html) {
+import { normalizeImageUrl } from './imageUrl.js'
+
+export function extractRecipeFromHtml(html, pageUrl) {
   const doc = new DOMParser().parseFromString(html, 'text/html')
   const scripts = [...doc.querySelectorAll('script[type="application/ld+json"]')]
   let recipeNode = null
@@ -97,8 +99,8 @@ export function extractRecipeFromHtml(html) {
   }
   if (!recipeNode) return null
 
-  const img = recipeNode.image
-  const imageUrl = typeof img === 'string' ? img : asArray(img)[0]?.url || asArray(img)[0] || ''
+  const imageUrl = normalizeImageUrl(recipeNode.image, pageUrl)
+    || normalizeImageUrl(doc.querySelector('meta[property="og:image"]')?.getAttribute('content'), pageUrl)
   const yieldVal = asArray(recipeNode.recipeYield)[0]
   const servings = parseInt(String(yieldVal).match(/\d+/)?.[0] || '4', 10)
 
@@ -107,7 +109,7 @@ export function extractRecipeFromHtml(html) {
     title: recipeNode.name || 'Imported recipe',
     categories,
     category: categories[0],
-    imageUrl: typeof imageUrl === 'string' ? imageUrl : '',
+    imageUrl,
     prepTime: parseDuration(recipeNode.prepTime),
     cookTime: parseDuration(recipeNode.cookTime),
     servings: Number.isFinite(servings) ? servings : 4,

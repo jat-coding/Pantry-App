@@ -45,19 +45,17 @@ export default function RecipeCard({ recipe, showPocket = false, onPocket, pocke
       className="card group flex flex-col overflow-hidden text-left transition hover:shadow-card-hover sm:hover:-translate-y-1"
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-peach/40 to-surface-2">
-        {recipe.imageUrl ? (
-          <img
-            src={recipe.imageUrl}
-            alt={recipe.title}
-            loading="lazy"
-            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-            onError={(e) => { e.currentTarget.style.display = 'none' }}
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-peach-dark">
-            <CategoryIcon category={primaryCategory(recipe)} className="h-16 w-16" />
-          </div>
-        )}
+        <SafeImage
+          src={recipe.imageUrl}
+          alt={recipe.title}
+          loading="lazy"
+          className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+          fallback={
+            <div className="flex h-full w-full items-center justify-center text-peach-dark">
+              <CategoryIcon category={primaryCategory(recipe)} className="h-16 w-16" />
+            </div>
+          }
+        />
 
         <span
           onClick={handleHeart}

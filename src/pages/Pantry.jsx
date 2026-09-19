@@ -7,6 +7,7 @@ import { CategoryFilter, SearchBar, matchesQuery, matchesCategories } from '../c
 import { getCategories, primaryCategory } from '../lib/categories.js'
 import { GridSkeleton } from '../components/Skeleton.jsx'
 import { GridIcon, ListIcon, PantryIcon, CategoryIcon, HelpIcon } from '../components/icons.jsx'
+import SafeImage from '../components/SafeImage.jsx'
 
 const VIEW_KEY = 'pantry-view'
 const ONBOARDED_KEY = 'pantry-onboarded'
@@ -159,12 +160,8 @@ function RecipeListView({ recipes, onOpen }) {
                 className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-eggshell"
               >
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-peach/40 to-surface-2 text-peach-dark">
-                  {r.imageUrl ? (
-                    <img src={r.imageUrl} alt="" className="h-full w-full object-cover"
-                      onError={(e) => { e.currentTarget.style.display = 'none' }} />
-                  ) : (
-                    <CategoryIcon category={primaryCategory(r)} className="h-6 w-6" />
-                  )}
+                  <SafeImage src={r.imageUrl} className="h-full w-full object-cover"
+                      fallback={<CategoryIcon category={primaryCategory(r)} className="h-6 w-6" />} />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-bold">{r.title}</span>

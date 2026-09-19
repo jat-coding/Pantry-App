@@ -4,6 +4,7 @@ import { useData } from '../contexts/DataContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { X, ChevronUp, ChevronDown, Check } from 'lucide-react'
 import { useToast } from '../components/Toast.jsx'
+import SafeImage from '../components/SafeImage.jsx'
 import { CATEGORIES } from '../lib/categories.js'
 import { parseQty } from '../lib/scaling.js'
 import { sanitizeRecipe } from '../lib/recipeShape.js'
@@ -220,8 +221,8 @@ export default function RecipeEditor() {
           placeholder="…or paste an image URL" />
         {form.imageUrl && (
           <div className="relative mt-2">
-            <img src={form.imageUrl} alt="preview" className="h-40 w-full rounded-2xl object-cover"
-              onError={(e) => { e.currentTarget.style.display = 'none' }} />
+            <SafeImage src={form.imageUrl} alt="preview" className="h-40 w-full rounded-2xl object-cover"
+              fallback={<div className="flex h-40 w-full items-center justify-center rounded-2xl bg-eggshell px-4 text-center text-sm text-warm-soft">This image link can't be loaded. Try another, or choose a photo.</div>} />
             <button type="button" onClick={() => set('imageUrl', '')}
               className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-xs font-bold text-warm shadow-card">
               Remove

@@ -163,7 +163,7 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
       setProgress(null)
 
       setStatus('Reading recipe…')
-      let recipe = extractRecipeFromHtml(html)
+      let recipe = extractRecipeFromHtml(html, target)
       if (unusableReason(recipe)) {
         setStatus('Asking Claude to read the page…')
         recipe = await normalizeRecipeText(pageToText(html))
