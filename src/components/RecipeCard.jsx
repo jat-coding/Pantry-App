@@ -4,6 +4,7 @@ import { useData } from '../contexts/DataContext.jsx'
 import { useToast } from './Toast.jsx'
 import { getCategories, primaryCategory } from '../lib/categories.js'
 import { CategoryIcon, HeartIcon } from './icons.jsx'
+import SafeImage from './SafeImage.jsx'
 
 function totalTime(recipe) {
   const toMin = (t) => (t ? (t.unit === 'hr' ? t.value * 60 : t.value) : 0)
