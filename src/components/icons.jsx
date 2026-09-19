@@ -2,7 +2,7 @@
 // callers control color with Tailwind text-* classes; strokeWidth matched to
 // the app's previous hand-drawn weight (1.8) for visual consistency.
 import {
-  ShoppingCart, BookOpen, Archive, Users, User, LayoutGrid, List, Plus,
+  ShoppingCart, BookOpen, Users, User, LayoutGrid, List, Plus,
   HelpCircle, Search, UtensilsCrossed, Pencil, Trash2, Video, Camera, Link as LinkIconBase,
   Egg, Sandwich, ChefHat, Cookie, Popcorn, CupSoda, Droplet, Heart as HeartIconBase,
 } from 'lucide-react'
@@ -17,8 +17,18 @@ export function RecipesIcon({ className = 'h-6 w-6' }) {
   return <BookOpen className={className} strokeWidth={STROKE_WIDTH} aria-hidden="true" />
 }
 
+// Line-art version of the app icon (cabinet: three top cubbies, split doors, handles).
 export function PantryIcon({ className = 'h-6 w-6' }) {
-  return <Archive className={className} strokeWidth={STROKE_WIDTH} aria-hidden="true" />
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor"
+      strokeWidth={1.3} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="4.3" y="2" width="15.4" height="20" rx="1.6" />
+      <path d="M4.3 8.7h15.4M12 8.7V22M8.9 14.5v2.9M15.1 14.5v2.9" />
+      <rect x="6" y="4.2" width="2.7" height="3.2" rx="0.5" />
+      <rect x="10.65" y="4.2" width="2.7" height="3.2" rx="0.5" />
+      <rect x="15.3" y="4.2" width="2.7" height="3.2" rx="0.5" />
+    </svg>
+  )
 }
 
 export function FriendsIcon({ className = 'h-6 w-6' }) {

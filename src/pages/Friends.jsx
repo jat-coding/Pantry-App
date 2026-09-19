@@ -114,29 +114,17 @@ export default function Friends() {
         </button>
       </header>
 
-      {/* Invite link */}
-      <div className="card p-5">
-        <h2 className="text-lg font-extrabold">Invite a friend</h2>
-        <p className="mb-3 text-sm text-warm-soft">
-          Share this link. When your friend opens it while logged in, you'll be added to each other's friends.
-        </p>
-        <input
-          className="input mb-2 text-sm"
-          value={inviteLink}
-          readOnly
-          onFocus={(e) => e.target.select()}
-        />
-        <div className="flex gap-2">
-          <button className="btn-peach flex-1" onClick={shareInvite}>Share</button>
-          <button className="btn-ghost flex-1" onClick={copyInvite}>Copy link</button>
-        </div>
-      </div>
-
       {/* Search */}
       <div className="flex gap-2">
         <input className="input" placeholder="Search by display name…" value={term}
           onChange={(e) => setTerm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && doSearch()} />
         <button className="btn-peach px-5" onClick={doSearch}>Search</button>
+      </div>
+      {/* Invite link (compact) */}
+      <div className="-mt-3 flex items-center gap-2">
+        <span className="flex-1 text-sm font-bold text-warm-soft">Invite a friend</span>
+        <button className="btn-peach px-3 py-1.5 text-sm" onClick={shareInvite}>Share</button>
+        <button className="btn-ghost px-3 py-1.5 text-sm" onClick={copyInvite}>Copy link</button>
       </div>
       {results && (
         <div className="space-y-2">

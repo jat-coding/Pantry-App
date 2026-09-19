@@ -1,9 +1,17 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.17.1'
+export const APP_VERSION = '1.17.3'
 
 export const CHANGELOG = [
+  {
+    version: '1.17.2',
+    date: '2026-09-19',
+    changes: [
+      'The Pantry tab icon now matches the app icon.',
+      'Friends: Share and Copy link are now one slim row under the search bar instead of a big card.',
+    ],
+  },
   {
     version: '1.17.1',
     date: '2026-09-19',
