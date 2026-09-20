@@ -146,7 +146,7 @@ export default function Layout() {
       {/* Main content */}
       <div className="flex min-w-0 flex-1 flex-col">
         <OfflineBanner />
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-[calc(env(safe-area-inset-bottom)+7rem)] sm:px-8 sm:pt-5 sm:pb-10">
+        <main className="mx-auto w-full max-w-5xl flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-[calc(env(safe-area-inset-bottom)+5.5rem)] sm:px-8 sm:pt-5 sm:pb-10">
           <Outlet />
         </main>
       </div>
@@ -176,7 +176,7 @@ export default function Layout() {
       {/* Mobile floating "bubble" tab bar — hidden in Cook Mode, whose own
           Prev/Next bar is the only bottom control until you exit. */}
       {!cookMode && (
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] sm:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+0.125rem)] sm:hidden">
         <div ref={tabBarRef} className="relative flex items-center gap-1 rounded-full border border-warm/10 bg-white/95 px-2 py-1.5 shadow-card-hover backdrop-blur">
           <div
             ref={pillRef}
@@ -198,9 +198,9 @@ export default function Layout() {
           <button
             onClick={() => setShowAddMenu((s) => !s)}
             aria-label="Add a recipe"
-            className={`relative z-20 -mt-8 flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-cta text-white shadow-card-hover ring-4 ring-eggshell transition active:scale-90 hover:bg-cta-dark ${showAddMenu ? 'rotate-45' : ''}`}
+            className={`relative z-20 -mt-4 flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-cta text-white shadow-card-hover ring-4 ring-eggshell transition active:scale-90 hover:bg-cta-dark ${showAddMenu ? 'rotate-45' : ''}`}
           >
-            <PlusIcon className="h-8 w-8" />
+            <PlusIcon className="h-7 w-7" />
           </button>
 
           {TABS.slice(2).map((t) => (
