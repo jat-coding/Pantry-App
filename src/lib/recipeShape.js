@@ -46,6 +46,7 @@ export function sanitizeRecipe(raw) {
     ...r,
     title: typeof r.title === 'string' ? r.title : '',
     imageUrl: typeof r.imageUrl === 'string' ? r.imageUrl : '',
+    videoUrl: typeof r.videoUrl === 'string' ? r.videoUrl : '',
     category,
     categories,
     prepTime: asTime(r.prepTime, 0),

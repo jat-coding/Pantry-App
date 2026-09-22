@@ -20,6 +20,17 @@ import {
 // fallback below works offline anyway — so cut over much sooner.
 const UPLOAD_TIMEOUT_MS = 30000
 
+// Video has no inline fallback (see uploadVideo below), so it gets a longer
+// timeout than the image path — a real recipe clip at a few dozen MB just
+// takes longer than 30s on a phone connection, and there's nowhere to fall
+// back to if we cut it off early.
+const VIDEO_UPLOAD_TIMEOUT_MS = 120000
+
+// Matches storage.rules' cap for recipes/{uid} video writes. Checked client-side
+// too so a doomed upload fails immediately with a clear reason instead of
+// spending two minutes to learn the rules rejected it.
+const MAX_VIDEO_BYTES = 50 * 1024 * 1024
+
 // Errors that will repeat identically for every later upload this session:
 // there is no bucket, or we are not allowed to write to it.
 const PERMANENT_CODES = new Set([
@@ -77,4 +88,33 @@ export async function uploadImage(file, pathPrefix) {
   } finally {
     releaseImage(img)
   }
+}
+
+// pathPrefix e.g. `recipes/<uid>`. Returns a download URL string.
+//
+// Unlike uploadImage there is no inline data-URL fallback: even a downscaled
+// photo fits comfortably in Firestore's 1 MB document limit, but a video
+// never would, so Storage has to actually work. A failure here is thrown to
+// the caller as a real error instead of silently degrading.
+export async function uploadVideo(file, pathPrefix) {
+  if (!file.type?.startsWith('video/')) throw new Error('That file is not a video')
+  if (file.size > MAX_VIDEO_BYTES) {
+    throw new Error(`Video is too large (max ${Math.floor(MAX_VIDEO_BYTES / 1024 / 1024)}MB)`)
+  }
+  const ext = (file.name?.split('.').pop() || 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4'
+  const name = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+  const r = ref(storage(), `${pathPrefix}/${name}`)
+  try {
+    await withTimeout(
+      uploadBytes(r, file, { contentType: file.type, cacheControl: 'public,max-age=31536000' }),
+      VIDEO_UPLOAD_TIMEOUT_MS,
+      'Upload timed out',
+    )
+  } catch (err) {
+    if (isPermanent(err)) {
+      throw new Error('Video storage is not set up yet for this app')
+    }
+    throw err
+  }
+  return await withTimeout(getDownloadURL(r), UPLOAD_TIMEOUT_MS, 'Upload timed out')
 }

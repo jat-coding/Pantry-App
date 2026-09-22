@@ -9,7 +9,7 @@ import { snapshotImage } from '../lib/imageSnapshot.js'
 import { CATEGORIES } from '../lib/categories.js'
 import { parseQty } from '../lib/scaling.js'
 import { sanitizeRecipe } from '../lib/recipeShape.js'
-import { uploadImage } from '../lib/storage.js'
+import { uploadImage, uploadVideo } from '../lib/storage.js'
 import { PantryIcon, CameraIcon } from '../components/icons.jsx'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
 import { useGoBack } from '../lib/useGoBack.js'
@@ -20,6 +20,7 @@ function blankRecipe() {
   return {
     title: '',
     imageUrl: '',
+    videoUrl: '',
     category: 'Dinner',
     categories: ['Dinner'],
     prepTime: { value: 10, unit: 'min' },
@@ -45,6 +46,7 @@ export default function RecipeEditor() {
   const [saving, setSaving] = useState(false)
   const [confirmingDiscard, setConfirmingDiscard] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [uploadingVideo, setUploadingVideo] = useState(false)
   const initial = useRef(true)
 
   // Load existing recipe (edit) or restore draft (new).
@@ -94,20 +96,42 @@ export default function RecipeEditor() {
     })
   }
 
-  async function handlePhotoFile(file) {
+  // The camera roll picker takes either a photo or a video; route by file
+  // type and set the matching field. One hero media slot, so picking one
+  // clears the other rather than leaving a stale, invisible URL behind.
+  async function handlePickedFile(file) {
     if (!file) return
+    if (file.type?.startsWith('video/')) return handleVideoFile(file)
+    return handlePhotoFile(file)
+  }
+
+  async function handlePhotoFile(file) {
     setUploadingPhoto(true)
     try {
       // Uploads to Firebase Storage when available; otherwise falls back to a
       // size-capped inline data URL so saving still works.
       const url = await uploadImage(file, `recipes/${user?.uid || 'anon'}`)
-      set('imageUrl', url)
+      setForm((f) => ({ ...f, imageUrl: url, videoUrl: '' }))
     } catch (err) {
       // Surface the specific reason (too large, timed out, unreadable) — a
       // generic message leaves people retrying the same photo forever.
       toast(err?.message || 'Could not load that photo')
     } finally {
       setUploadingPhoto(false)
+    }
+  }
+
+  async function handleVideoFile(file) {
+    setUploadingVideo(true)
+    try {
+      // No inline fallback for video (see uploadVideo) -- a failure here is a
+      // real failure, not a silent degrade, so the toast is the only outcome.
+      const url = await uploadVideo(file, `recipes/${user?.uid || 'anon'}`)
+      setForm((f) => ({ ...f, videoUrl: url, imageUrl: '' }))
+    } catch (err) {
+      toast(err?.message || 'Could not upload that video')
+    } finally {
+      setUploadingVideo(false)
     }
   }
 
@@ -210,19 +234,32 @@ export default function RecipeEditor() {
           placeholder="Grandma's lasagna" />
       </Field>
 
-      <Field label="Photo">
-        {/* Choose from the camera roll (or take a photo on mobile). The image is
-            downscaled to a compact data URL stored on the recipe. */}
+      <Field label="Photo or video">
+        {/* Choose a photo or a short video from the camera roll (or shoot one on
+            mobile). Photos are downscaled to a compact data URL/Storage upload;
+            videos skip the downscale and go straight to Storage (max 50MB --
+            there's no inline fallback that fits Firestore's 1MB doc cap). */}
         <label className="btn-ghost w-full cursor-pointer">
           <CameraIcon className="h-5 w-5 text-zinc-800" />
-          {uploadingPhoto ? 'Uploading…' : form.imageUrl ? 'Change photo' : 'Choose from camera roll'}
-          <input type="file" accept="image/*" className="hidden" disabled={uploadingPhoto}
-            onChange={(e) => handlePhotoFile(e.target.files?.[0])} />
+          {uploadingPhoto || uploadingVideo
+            ? 'Uploading…'
+            : (form.imageUrl || form.videoUrl) ? 'Change photo or video' : 'Choose from camera roll'}
+          <input type="file" accept="image/*,video/*" className="hidden" disabled={uploadingPhoto || uploadingVideo}
+            onChange={(e) => handlePickedFile(e.target.files?.[0])} />
         </label>
         <input className="input mt-2" value={(form.imageUrl || '').startsWith('data:') ? '' : (form.imageUrl || '')}
           onChange={(e) => set('imageUrl', e.target.value)}
           placeholder="…or paste an image URL" />
-        {form.imageUrl && (
+        {form.videoUrl && (
+          <div className="relative mt-2">
+            <video src={form.videoUrl} controls className="h-40 w-full rounded-2xl bg-black object-cover" />
+            <button type="button" onClick={() => set('videoUrl', '')}
+              className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-xs font-bold text-warm shadow-card">
+              Remove
+            </button>
+          </div>
+        )}
+        {form.imageUrl && !form.videoUrl && (
           <div className="relative mt-2">
             <SafeImage src={form.imageUrl} alt="preview" className="h-40 w-full rounded-2xl object-cover"
               fallback={<div className="flex h-40 w-full items-center justify-center rounded-2xl bg-eggshell px-4 text-center text-sm text-warm-soft">This image link can't be loaded. Try another, or choose a photo.</div>} />
