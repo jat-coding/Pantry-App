@@ -133,6 +133,7 @@ export async function addGroceryItems(uid, items) {
       qty: it.qty ?? null,
       unit: it.unit || '',
       fromRecipe: it.fromRecipe || '',
+      fromRecipeId: it.fromRecipeId || null,
       category: it.category || 'Other',
       checked: false,
       createdAt: serverTimestamp(),

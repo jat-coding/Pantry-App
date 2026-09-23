@@ -176,7 +176,7 @@ export default function Layout() {
       {/* Mobile floating "bubble" tab bar — hidden in Cook Mode, whose own
           Prev/Next bar is the only bottom control until you exit. */}
       {!cookMode && (
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+0.125rem)] sm:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[env(safe-area-inset-bottom)] sm:hidden">
         <div ref={tabBarRef} className="relative flex items-center gap-1 rounded-full border border-warm/10 bg-white/95 px-2 py-1.5 shadow-card-hover backdrop-blur">
           <div
             ref={pillRef}

@@ -22,6 +22,8 @@ export function DataProvider({ children }) {
   const [grocery, setGrocery] = useState([])
   const [guestPantry, setGuestPantry] = useState([])
   const [loadingRecipes, setLoadingRecipes] = useState(true)
+  const [friends, setFriends] = useState([])
+  const [loadingFriends, setLoadingFriends] = useState(true)
 
   // ----- Recipes -----
   useEffect(() => {
@@ -54,6 +56,24 @@ export function DataProvider({ children }) {
     return unsub
   }, [user, guest])
 
+  // ----- Friends -----
+  // Resolved at the app root, as soon as the profile loads, not when the Friends
+  // tab happens to mount — that's what made opening that tab feel slow before:
+  // it used to fetch fresh every time you navigated there.
+  useEffect(() => {
+    if (!profile?.friendIds?.length) {
+      setFriends([])
+      setLoadingFriends(false)
+      return
+    }
+    let alive = true
+    setLoadingFriends(true)
+    fs.getUsersByIds(profile.friendIds).then((list) => {
+      if (alive) { setFriends(list); setLoadingFriends(false) }
+    })
+    return () => { alive = false }
+  }, [profile?.friendIds])
+
   const pantryIds = guest ? guestPantry : profile?.pantryIds || []
 
   const actions = useMemo(
@@ -85,6 +105,8 @@ export function DataProvider({ children }) {
   const value = {
     recipes,
     grocery,
+    friends,
+    loadingFriends,
     pantryIds,
     pantryRecipes: recipes.filter((r) => pantryIds.includes(r.id)),
     loadingRecipes,

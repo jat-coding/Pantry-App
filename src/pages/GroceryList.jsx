@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useToast } from '../components/Toast.jsx'
@@ -104,7 +105,15 @@ export default function GroceryList() {
                           <span className="font-bold">
                             {item.qty != null && `${formatQty(item.qty)} `}{item.unit && `${abbreviateUnit(item.unit)} `}{item.name}
                           </span>
-                          {item.fromRecipe && <span className="ml-1 text-xs text-warm-soft">· {item.fromRecipe}</span>}
+                          {item.fromRecipe && (
+                            item.fromRecipeId ? (
+                              <Link to={`/recipe/${item.fromRecipeId}`} className="ml-1 text-xs font-bold text-cta underline-offset-2 hover:underline">
+                                · {item.fromRecipe}
+                              </Link>
+                            ) : (
+                              <span className="ml-1 text-xs text-warm-soft">· {item.fromRecipe}</span>
+                            )
+                          )}
                         </div>
                         <button onClick={() => item.ids.forEach(deleteGroceryItem)}
                           className="px-2 text-warm-soft hover:text-red-600" aria-label="Delete"><TrashIcon className="h-5 w-5" /></button>
@@ -153,7 +162,7 @@ function combineItems(items) {
       ex.qty = ex.qty != null && it.qty != null ? ex.qty + it.qty : ex.qty ?? it.qty
       ex.ids.push(it.id)
       ex.checked = ex.checked && it.checked
-      if (!ex.fromRecipe && it.fromRecipe) ex.fromRecipe = it.fromRecipe
+      if (!ex.fromRecipe && it.fromRecipe) { ex.fromRecipe = it.fromRecipe; ex.fromRecipeId = it.fromRecipeId }
     } else {
       map.set(key, { ...it, ids: [it.id] })
     }

@@ -186,6 +186,7 @@ export default function RecipeDetail() {
         qty: ing.qty === '' || ing.qty == null ? null : Math.round(Number(qtyIn(i, ing.qty)) * 100) / 100,
         unit: unitFor(i) || '',
         fromRecipe: recipe.title,
+        fromRecipeId: recipe.id,
         category: aisleFor(ing.name),
       }))
     try {

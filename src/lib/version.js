@@ -1,9 +1,18 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.19.0'
+export const APP_VERSION = '1.20.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.20.0',
+    date: '2026-09-23',
+    changes: [
+      'Bottom tab bar sits flush against the bottom edge now.',
+      'A grocery item shows which recipe it came from as a link — tap it to jump to that recipe.',
+      'Friends list loads in the background as soon as you open the app, instead of on tap.',
+    ],
+  },
   {
     version: '1.19.0',
     date: '2026-09-22',

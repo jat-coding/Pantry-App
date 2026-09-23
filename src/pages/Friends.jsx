@@ -14,14 +14,13 @@ import * as fs from '../lib/firestore.js'
 
 export default function Friends() {
   const { user, profile, guest } = useAuth()
-  const { pocketRecipe, togglePantry } = useData()
+  const { pocketRecipe, togglePantry, friends } = useData()
   const toast = useToast()
   const navigate = useNavigate()
 
   const [term, setTerm] = useState('')
   const [results, setResults] = useState(null)
   const [requests, setRequests] = useState([])
-  const [friends, setFriends] = useState([])
   const goBack = useGoBack()
   // The open friend pantry lives in the URL (?friend=<id>), not component state, so it's
   // a real history step: opening a recipe from a friend's pantry and tapping back lands
@@ -34,12 +33,6 @@ export default function Friends() {
     if (!user) return
     return fs.listenIncomingRequests(user.uid, setRequests)
   }, [user])
-
-  // Resolve friend profiles from ids.
-  useEffect(() => {
-    if (!profile?.friendIds?.length) { setFriends([]); return }
-    fs.getUsersByIds(profile.friendIds).then(setFriends)
-  }, [profile?.friendIds])
 
   const viewing = viewingId ? friends.find((f) => f.id === viewingId) : null
   const openFriend = (f) => setSearchParams({ friend: f.id })
