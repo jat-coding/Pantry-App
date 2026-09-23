@@ -7,13 +7,26 @@ service cloud.firestore {
     function myFriends() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.friendIds;
     }
-    // Allow a signed-in user to add (only) themselves to another user's friend
-    // list, touching no other field. Powers friend-invite links and mutual
-    // accept of friend requests.
-    function addsSelfToFriends() {
+    // Allow a signed-in user to add or remove (only) themselves in another user's
+    // friend list, touching no other field. Powers friend-invite links, mutual
+    // accept of friend requests, and mutual unfriend.
+    //
+    // The set comparison is load-bearing. The old rule only asked "is the caller in
+    // the NEW array", which a plain assignment of [attackerUid] also satisfies — so
+    // any signed-in user could WIPE anyone's entire friend list, or insert a third
+    // party into it. Comparing sets pins the change to exactly one element: the
+    // caller's own uid, added or removed, with every other entry preserved.
+    function friendsPlusSelf() {
+      return resource.data.get('friendIds', []).toSet().union([request.auth.uid].toSet());
+    }
+    function friendsMinusSelf() {
+      return resource.data.get('friendIds', []).toSet().difference([request.auth.uid].toSet());
+    }
+    function togglesSelfInFriends() {
       return signedIn()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['friendIds'])
-        && request.auth.uid in request.resource.data.friendIds;
+        && (request.resource.data.friendIds.toSet() == friendsPlusSelf()
+            || request.resource.data.friendIds.toSet() == friendsMinusSelf());
     }
 
     // Users can read any profile (needed for friend search) but only edit their
@@ -21,7 +34,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if signedIn();
       allow create, delete: if isSelf(userId);
-      allow update: if isSelf(userId) || addsSelfToFriends();
+      allow update: if isSelf(userId) || togglesSelfInFriends();
 
       // Grocery list is private to its owner.
       match /grocery/{itemId} {

@@ -1,9 +1,19 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.20.0'
+export const APP_VERSION = '1.20.1'
 
 export const CHANGELOG = [
+  {
+    version: '1.20.1',
+    date: '2026-09-23',
+    changes: [
+      'Fixed: a video picked from your camera roll for a BRAND NEW recipe was thrown away when you saved it (editing an existing recipe was fine). Videos now save on new recipes too.',
+      'Security: nobody can wipe or edit your friends list any more \u2014 the only change another person can make to it is adding or removing themselves.',
+      'Fixed: removing a friend only worked on your side; it now removes the friendship for both of you.',
+      'Removed an unused server endpoint that would fetch any web address on request.',
+    ],
+  },
   {
     version: '1.20.0',
     date: '2026-09-23',

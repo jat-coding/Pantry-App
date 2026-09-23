@@ -56,6 +56,10 @@ export async function createRecipe(data, user, extra = {}) {
     cookTime: data.cookTime || { value: 0, unit: 'min' },
     servings: Number(data.servings) || 1,
     imageUrl: data.imageUrl || '',
+    // Was missing: the editor uploads the clip, sets form.videoUrl, and this literal
+    // silently dropped it — so every NEW video recipe (and every pocketed one) saved
+    // with no video and an orphaned file in Storage.
+    videoUrl: data.videoUrl || '',
     isPublic: !!data.isPublic,
     authorId: user.uid,
     authorName: user.displayName || 'Me',
