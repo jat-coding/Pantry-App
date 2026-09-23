@@ -10,6 +10,7 @@ import * as fs from '../lib/firestore.js'
 import RecipeCard from '../components/RecipeCard.jsx'
 import { GroceryIcon, TrashIcon } from '../components/icons.jsx'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
+import { tap } from '../lib/haptics.js'
 
 export default function GroceryList() {
   const { grocery, recipes, addGroceryItems, setGroceryChecked, deleteGroceryItem, clearGrocery, canWrite } = useData()
@@ -96,7 +97,7 @@ export default function GroceryList() {
                     {grouped[aisle].map((item) => (
                       <li key={item.ids.join(',')} className="flex items-center gap-3 p-3">
                         <button
-                          onClick={() => item.ids.forEach((id) => setGroceryChecked(id, !item.checked))}
+                          onClick={() => { tap(); item.ids.forEach((id) => setGroceryChecked(id, !item.checked)) }}
                           className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 ${
                             item.checked ? 'border-peach-dark bg-peach-dark text-white' : 'border-warm/30'
                           }`}
@@ -106,10 +107,14 @@ export default function GroceryList() {
                             {item.qty != null && `${formatQty(item.qty)} `}{item.unit && `${abbreviateUnit(item.unit)} `}{item.name}
                           </span>
                           {item.fromRecipe && (
+                            // Tap the source recipe to open it — the fast way back to
+                            // the dish you were shopping for.
                             item.fromRecipeId ? (
-                              <Link to={`/recipe/${item.fromRecipeId}`} className="ml-1 text-xs font-bold text-cta underline-offset-2 hover:underline">
-                                · {item.fromRecipe}
-                              </Link>
+                              <Link
+                                to={`/recipe/${item.fromRecipeId}`}
+                                state={{ from: '/grocery' }}
+                                className="ml-1 text-xs font-bold text-cta underline decoration-dotted underline-offset-2"
+                              >· {item.fromRecipe}</Link>
                             ) : (
                               <span className="ml-1 text-xs text-warm-soft">· {item.fromRecipe}</span>
                             )

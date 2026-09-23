@@ -14,7 +14,7 @@ import * as fs from '../lib/firestore.js'
 
 export default function Friends() {
   const { user, profile, guest } = useAuth()
-  const { pocketRecipe, togglePantry, friends } = useData()
+  const { pocketRecipe, togglePantry, friends, friendsLoaded } = useData()
   const toast = useToast()
   const navigate = useNavigate()
 
@@ -155,7 +155,16 @@ export default function Friends() {
       {/* Friends list */}
       <section>
         <h2 className="mb-2 text-lg font-extrabold">My Friends</h2>
-        {friends.length === 0 ? (
+        {friends.length === 0 && !friendsLoaded ? (
+          <div className="space-y-2">
+            {[0, 1].map((i) => (
+              <div key={i} className="card flex items-center gap-3 p-3">
+                <span className="h-10 w-10 animate-pulse rounded-full bg-warm/10" />
+                <span className="h-4 flex-1 animate-pulse rounded bg-warm/10" />
+              </div>
+            ))}
+          </div>
+        ) : friends.length === 0 ? (
           <p className="text-sm text-warm-soft">No friends yet — search above to connect.</p>
         ) : (
           <div className="space-y-2">
@@ -179,9 +188,18 @@ export default function Friends() {
 }
 
 function FriendProfile({ friend, onClose, onPocket, onRemove }) {
-  const [recipes, setRecipes] = useState(null)
+  // Prefetched by DataContext while the phone was idle, so this is usually already
+  // filled in on the first frame; the fetch below still runs and replaces it.
+  const [recipes, setRecipes] = useState(() => fs.peekFriendRecipes(friend.id))
   const [confirmingRemove, setConfirmingRemove] = useState(false)
-  useEffect(() => { fs.getFriendRecipes(friend.id).then(setRecipes).catch(() => setRecipes([])) }, [friend.id])
+  useEffect(() => {
+    setRecipes(fs.peekFriendRecipes(friend.id))
+    let alive = true
+    fs.getFriendRecipes(friend.id)
+      .then((list) => { if (alive) setRecipes(list) })
+      .catch(() => { if (alive) setRecipes((r) => r ?? []) })
+    return () => { alive = false }
+  }, [friend.id])
   // Keep the page behind still; scrolling here shouldn't move it.
   useScrollLock()
 

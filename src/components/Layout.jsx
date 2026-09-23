@@ -5,6 +5,8 @@ import { useCookMode } from '../contexts/CookModeContext.jsx'
 import { useToast } from './Toast.jsx'
 import ImportModal from '../pages/ImportModal.jsx'
 import ScrollMemory from './ScrollMemory.jsx'
+import { useNavStyle } from '../lib/navStyle.js'
+import { tap } from '../lib/haptics.js'
 import {
   GroceryIcon, RecipesIcon, PantryIcon, FriendsIcon, ProfileIcon, PlusIcon, LinkIcon, EditIcon,
 } from './icons.jsx'
@@ -48,6 +50,7 @@ export default function Layout() {
   const [showImport, setShowImport] = useState(false)
   const [sharedUrl, setSharedUrl] = useState('')
   const location = useLocation()
+  const nav = useNavStyle()
   const tabBarRef = useRef(null)
   const pillRef = useRef(null)
   const pillShownRef = useRef(false)
@@ -75,7 +78,7 @@ export default function Layout() {
     const onResize = () => place(false)
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
-  }, [location.pathname, cookMode])
+  }, [location.pathname, cookMode, nav.id])
 
   // Opened via a shared link, e.g. /recipes?import=<url> (iOS Shortcut / Android
   // share target). Open the importer prefilled, then strip the param.
@@ -103,10 +106,16 @@ export default function Layout() {
     if (guardWrite()) { setSharedUrl(''); setShowImport(true) }
   }
 
+  // The active label always sits on the peach pill, so it stays dark in every look.
+  // Only the inactive labels/icons need to flip for the charcoal bar.
   const navItem = (isActive) =>
     `relative z-10 flex w-14 flex-col items-center gap-0.5 rounded-full py-1.5 text-[10px] font-bold transition-colors duration-300 ${
-      isActive ? 'text-warm' : 'text-warm-soft/70'
+      isActive ? 'text-warm' : nav.dark ? 'text-eggshell/85' : 'text-warm-soft/70'
     }`
+  const navIcon = (isActive) =>
+    `h-6 w-6 transition ${isActive
+      ? 'scale-110 animate-jiggle text-zinc-800'
+      : nav.dark ? 'text-eggshell opacity-80' : 'text-zinc-800 opacity-50'}`
 
   return (
     <div className="min-h-screen sm:flex">
@@ -146,7 +155,8 @@ export default function Layout() {
       {/* Main content */}
       <div className="flex min-w-0 flex-1 flex-col">
         <OfflineBanner />
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-[calc(env(safe-area-inset-bottom)+5.5rem)] sm:px-8 sm:pt-5 sm:pb-10">
+        <main className="mx-auto w-full max-w-5xl flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-[calc(env(safe-area-inset-bottom)+var(--nav-pad))] sm:px-8 sm:pt-5 sm:pb-10"
+          style={{ '--nav-pad': nav.mainPad }}>
           <Outlet />
         </main>
       </div>
@@ -176,18 +186,21 @@ export default function Layout() {
       {/* Mobile floating "bubble" tab bar — hidden in Cook Mode, whose own
           Prev/Next bar is the only bottom control until you exit. */}
       {!cookMode && (
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[env(safe-area-inset-bottom)] sm:hidden">
-        <div ref={tabBarRef} className="relative flex items-center gap-1 rounded-full border border-warm/10 bg-white/95 px-2 py-1.5 shadow-card-hover backdrop-blur">
+      <nav
+        className={`fixed inset-x-0 bottom-0 z-40 flex justify-center pb-[calc(env(safe-area-inset-bottom)+var(--nav-bottom))] sm:hidden ${nav.wrap}`}
+        style={{ '--nav-bottom': nav.bottom }}
+      >
+        <div ref={tabBarRef} className={`relative flex items-center gap-1 px-2 py-1.5 ${nav.bar}`}>
           <div
             ref={pillRef}
             aria-hidden="true"
             className="pointer-events-none absolute left-0 top-0 rounded-full border border-peach-dark/40 bg-peach opacity-0 shadow-[inset_0_1px_3px_rgba(44,36,22,0.12)] transition-[transform,width,height,opacity] duration-[380ms] ease-[cubic-bezier(.3,.8,.25,1)]"
           />
           {TABS.slice(0, 2).map((t) => (
-            <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => navItem(isActive)}>
+            <NavLink key={t.to} to={t.to} end={t.end} onClick={tap} className={({ isActive }) => navItem(isActive)}>
               {({ isActive }) => (
                 <>
-                  <t.Icon className={`h-6 w-6 text-zinc-800 transition ${isActive ? 'scale-110 animate-jiggle' : 'opacity-50'}`} />
+                  <t.Icon className={navIcon(isActive)} />
                   {t.label}
                 </>
               )}
@@ -198,16 +211,16 @@ export default function Layout() {
           <button
             onClick={() => setShowAddMenu((s) => !s)}
             aria-label="Add a recipe"
-            className={`relative z-20 -mt-4 flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-cta text-white shadow-card-hover ring-4 ring-eggshell transition active:scale-90 hover:bg-cta-dark ${showAddMenu ? 'rotate-45' : ''}`}
+            className={`relative z-20 -mt-4 flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-cta text-white shadow-card-hover ring-4 transition active:scale-90 hover:bg-cta-dark ${nav.ring} ${showAddMenu ? 'rotate-45' : ''}`}
           >
             <PlusIcon className="h-7 w-7" />
           </button>
 
           {TABS.slice(2).map((t) => (
-            <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => navItem(isActive)}>
+            <NavLink key={t.to} to={t.to} end={t.end} onClick={tap} className={({ isActive }) => navItem(isActive)}>
               {({ isActive }) => (
                 <>
-                  <t.Icon className={`h-6 w-6 text-zinc-800 transition ${isActive ? 'scale-110 animate-jiggle' : 'opacity-50'}`} />
+                  <t.Icon className={navIcon(isActive)} />
                   {t.label}
                 </>
               )}

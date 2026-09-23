@@ -13,6 +13,7 @@ import SafeImage from '../components/SafeImage.jsx'
 import { useImageSnapshot } from '../lib/useImageSnapshot.js'
 import { AddToPantryPrompt } from './RecipeEditor.jsx'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
+import { thud } from '../lib/haptics.js'
 
 function timeLabel(t) {
   if (!t || !t.value) return '—'
@@ -191,7 +192,11 @@ export default function RecipeDetail() {
       }))
     try {
       await addGroceryItems(items)
+      thud()
       toast('Added to grocery list')
+      // Land on the list you just changed — seeing the items arrive is the point,
+      // and each line links back to this recipe.
+      navigate('/grocery', { state: { from: `/recipe/${recipe.id}` } })
     } catch {
       toast('Could not add to grocery list')
     }

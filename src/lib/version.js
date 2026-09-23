@@ -8,9 +8,10 @@ export const CHANGELOG = [
     version: '1.20.0',
     date: '2026-09-23',
     changes: [
-      'Bottom tab bar sits flush against the bottom edge now.',
-      'A grocery item shows which recipe it came from as a link — tap it to jump to that recipe.',
-      'Friends list loads in the background as soon as you open the app, instead of on tap.',
+      'You can now choose how the bottom tab bar looks \u2014 frosted glass, a full-width rectangle box, solid white, charcoal, or just the icons with no bar at all. Profile \u2192 Tab bar. The bar also sits flush against the bottom edge.',
+      'Tapping \u201cAdd to Grocery List\u201d on a recipe now takes you straight to your grocery list, and each item on the list links back to the recipe it came from.',
+      'The Friends tab opens instantly: friends load in the background while you use the rest of the app, the list shows immediately from your last visit, and a friend\u2019s pantry is ready before you tap it.',
+      'A small buzz of haptic feedback when you switch tabs, tick off a grocery item, or heart a recipe (Android).',
     ],
   },
   {

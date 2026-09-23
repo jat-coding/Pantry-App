@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronLeft } from 'lucide-react'
+import { Check, ChevronLeft } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useData } from '../contexts/DataContext.jsx'
 import { useToast } from '../components/Toast.jsx'
@@ -9,6 +9,8 @@ import { uploadImage } from '../lib/storage.js'
 import { APP_VERSION, CHANGELOG } from '../lib/version.js'
 import { ProfileIcon, CameraIcon } from '../components/icons.jsx'
 import { useGoBack } from '../lib/useGoBack.js'
+import { NAV_STYLES, readNavStyle, writeNavStyle } from '../lib/navStyle.js'
+import { tap } from '../lib/haptics.js'
 
 export default function Profile() {
   const { user, profile, guest, logout } = useAuth()
@@ -42,6 +44,7 @@ export default function Profile() {
         <p className="font-bold">You're browsing as a guest</p>
         <p className="mb-4 text-sm text-warm-soft">Log in to save recipes, build your pantry, and add friends.</p>
         <button className="btn-peach" onClick={logout}>Go to login</button>
+        <div className="mt-6 text-left"><TabBarCard /></div>
       </div>
     )
   }
@@ -123,6 +126,8 @@ export default function Profile() {
         </div>
       </div>
 
+      <TabBarCard />
+
       {/* Export */}
       <div className="card p-5">
         <h2 className="text-lg font-extrabold">Your data</h2>
@@ -161,6 +166,56 @@ export default function Profile() {
           </div>
         </details>
       </section>
+    </div>
+  )
+}
+
+// A 56x28 thumbnail of the bar in that look, so the difference is visible without
+// scrolling down to the real thing.
+function NavStyleSwatch({ style }) {
+  const dot = style.dark ? 'bg-eggshell/70' : 'bg-warm/35'
+  return (
+    <span className="flex h-11 w-16 shrink-0 items-end justify-center rounded-xl bg-eggshell p-1">
+      <span className={`flex h-5 w-full items-center justify-center gap-1 px-1 ${style.bar}`}>
+        <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+        <span className="h-2.5 w-2.5 rounded-full bg-peach" />
+        <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+      </span>
+    </span>
+  )
+}
+
+// The bottom bar's look. Device-local, so guests can set it too.
+function TabBarCard() {
+  const [navStyle, setNavStyle] = useState(readNavStyle)
+  // Changing it restyles the real bar behind this page immediately, so the picker
+  // is its own preview.
+  return (
+    <div className="card p-5">
+      <h2 className="text-lg font-extrabold">Tab bar</h2>
+      <p className="mb-3 text-sm text-warm-soft">
+        Pick how the bar at the bottom of the screen looks — it changes the moment
+        you tap, so watch the real bar while you choose. Saved on this device.
+      </p>
+      <div className="space-y-2">
+        {NAV_STYLES.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => { tap(); setNavStyle(s.id); writeNavStyle(s.id) }}
+            aria-pressed={navStyle === s.id}
+            className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition active:scale-[0.99] ${
+              navStyle === s.id ? 'border-peach-dark bg-peach' : 'border-warm/15 bg-white hover:bg-eggshell'
+            }`}
+          >
+            <NavStyleSwatch style={s} />
+            <span className="min-w-0 flex-1">
+              <span className="block font-bold">{s.label}</span>
+              <span className="block text-xs text-warm-soft">{s.hint}</span>
+            </span>
+            {navStyle === s.id && <Check className="h-5 w-5 shrink-0 text-warm" strokeWidth={3} aria-hidden="true" />}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { useAuth } from './AuthContext.jsx'
 import * as fs from '../lib/firestore.js'
+import { readFriendCache, writeFriendCache } from '../lib/friendCache.js'
 import { sampleRecipes } from '../data/sampleRecipes.js'
 
 const DataContext = createContext(null)
@@ -23,7 +24,7 @@ export function DataProvider({ children }) {
   const [guestPantry, setGuestPantry] = useState([])
   const [loadingRecipes, setLoadingRecipes] = useState(true)
   const [friends, setFriends] = useState([])
-  const [loadingFriends, setLoadingFriends] = useState(true)
+  const [friendsLoaded, setFriendsLoaded] = useState(false)
 
   // ----- Recipes -----
   useEffect(() => {
@@ -57,22 +58,31 @@ export function DataProvider({ children }) {
   }, [user, guest])
 
   // ----- Friends -----
-  // Resolved at the app root, as soon as the profile loads, not when the Friends
-  // tab happens to mount — that's what made opening that tab feel slow before:
-  // it used to fetch fresh every time you navigated there.
+  // Loaded here, not on the Friends page, so the profiles are already in memory by
+  // the time you tap the tab. Paints from the device cache on the first frame and
+  // replaces it when the live read lands.
+  const friendKey = (profile?.friendIds || []).join(',')
   useEffect(() => {
-    if (!profile?.friendIds?.length) {
-      setFriends([])
-      setLoadingFriends(false)
-      return
-    }
+    if (guest || !user) { setFriends([]); setFriendsLoaded(true); return }
+    const ids = profile?.friendIds || []
+    if (!ids.length) { setFriends([]); setFriendsLoaded(true); return }
+
     let alive = true
-    setLoadingFriends(true)
-    fs.getUsersByIds(profile.friendIds).then((list) => {
-      if (alive) { setFriends(list); setLoadingFriends(false) }
-    })
+    const cached = readFriendCache(user.uid)
+    if (cached?.length) setFriends(cached)
+    fs.getUsersByIds(ids)
+      .then((list) => {
+        if (!alive) return
+        setFriends(list)
+        setFriendsLoaded(true)
+        writeFriendCache(user.uid, list)
+        // Warm each friend's recipes while the phone is idle.
+        fs.prefetchFriendRecipes(ids)
+      })
+      .catch(() => { if (alive) setFriendsLoaded(true) })
     return () => { alive = false }
-  }, [profile?.friendIds])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, guest, friendKey])
 
   const pantryIds = guest ? guestPantry : profile?.pantryIds || []
 
@@ -106,7 +116,7 @@ export function DataProvider({ children }) {
     recipes,
     grocery,
     friends,
-    loadingFriends,
+    friendsLoaded,
     pantryIds,
     pantryRecipes: recipes.filter((r) => pantryIds.includes(r.id)),
     loadingRecipes,

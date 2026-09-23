@@ -133,7 +133,7 @@ export async function addGroceryItems(uid, items) {
       qty: it.qty ?? null,
       unit: it.unit || '',
       fromRecipe: it.fromRecipe || '',
-      fromRecipeId: it.fromRecipeId || null,
+      fromRecipeId: it.fromRecipeId || '',
       category: it.category || 'Other',
       checked: false,
       createdAt: serverTimestamp(),
@@ -212,12 +212,12 @@ export async function respondToRequest(request, accept, myUid) {
 }
 
 export async function getUsersByIds(ids = []) {
-  const out = []
-  for (const id of ids) {
-    const snap = await getDoc(doc(db, 'users', id))
-    if (snap.exists()) out.push({ id: snap.id, ...snap.data() })
-  }
-  return out
+  // One round trip per id, all in flight at once. Sequentially awaiting these was
+  // the Friends tab's whole load time: 6 friends = 6 chained round trips.
+  const snaps = await Promise.all(ids.map((id) => getDoc(doc(db, 'users', id)).catch(() => null)))
+  return snaps
+    .filter((snap) => snap && snap.exists())
+    .map((snap) => ({ id: snap.id, ...snap.data() }))
 }
 
 export async function getUserById(id) {
@@ -248,8 +248,27 @@ export async function getPublicRecipesOf(authorId) {
 
 // All of a friend's recipes (their pantry/collection). Security rules let you
 // read recipes authored by someone in your friend list, public or not.
+// Friends' pantries, cached for the session so reopening one paints instantly.
+// Stale-while-revalidate: peek gives the last copy to render immediately, the
+// fetch below still runs and replaces it, so nothing goes stale on screen.
+const friendRecipeCache = new Map()
+
+export function peekFriendRecipes(authorId) {
+  return friendRecipeCache.get(authorId) || null
+}
+
 export async function getFriendRecipes(authorId) {
   const q = query(recipesCol, where('authorId', '==', authorId))
   const snap = await getDocs(q)
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+  const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+  friendRecipeCache.set(authorId, list)
+  return list
+}
+
+// Warm the cache for every friend while the phone is idle, so the first
+// "View Pantry" tap is instant too. Never throws — this is best-effort.
+export function prefetchFriendRecipes(ids = []) {
+  const run = () => { for (const id of ids) getFriendRecipes(id).catch(() => {}) }
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 4000 })
+  else setTimeout(run, 1200)
 }
