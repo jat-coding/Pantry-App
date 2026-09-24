@@ -1,9 +1,18 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.20.1'
+export const APP_VERSION = '1.21.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.21.0',
+    date: '2026-09-24',
+    changes: [
+      'Friendships are now mutual: your private recipes are only visible to people you are friends with AND who are friends with you.',
+      'Opening a friend\u2019s invite link now sends them a friend request instead of adding you instantly \u2014 you become friends when they accept.',
+      'Removing a friend ends the friendship on both sides.',
+    ],
+  },
   {
     version: '1.20.1',
     date: '2026-09-23',
