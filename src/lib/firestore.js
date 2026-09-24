@@ -208,11 +208,21 @@ export async function respondToRequest(request, accept, myUid) {
   await updateDoc(doc(db, 'friendRequests', request.id), {
     status: accept ? 'accepted' : 'declined',
   })
-  if (accept) {
-    // Add each user to the other's friend list.
-    await updateDoc(doc(db, 'users', myUid), { friendIds: arrayUnion(request.fromUserId) })
-    await updateDoc(doc(db, 'users', request.fromUserId), { friendIds: arrayUnion(myUid) })
-  }
+  // Friendship is mutual and each side writes only its own list (see firestore.rules).
+  // The recipient adds the sender here; the sender's client adds the recipient when it
+  // sees the accepted request (syncAcceptedRequests).
+  if (accept) await updateDoc(doc(db, 'users', myUid), { friendIds: arrayUnion(request.fromUserId) })
+}
+
+// Requests I sent that were accepted. My client completes my half of the friendship.
+export function listenAcceptedSent(uid, cb) {
+  const q = query(requestsCol, where('fromUserId', '==', uid), where('status', '==', 'accepted'))
+  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => d.data().toUserId)), () => {})
+}
+
+export async function addFriendIds(myUid, ids) {
+  if (!ids.length) return
+  await updateDoc(doc(db, 'users', myUid), { friendIds: arrayUnion(...ids) })
 }
 
 export async function getUsersByIds(ids = []) {
@@ -229,18 +239,25 @@ export async function getUserById(id) {
   return snap.exists() ? { id: snap.id, ...snap.data() } : null
 }
 
-// Accept a friend-invite link: add each user to the other's friend list.
-// The cross-write to the inviter's doc relies on the firestore rule that lets a
-// signed-in user add (only) themselves to another user's friendIds.
-export async function acceptInvite(myUid, inviterId) {
-  if (!myUid || !inviterId || myUid === inviterId) return
-  await updateDoc(doc(db, 'users', myUid), { friendIds: arrayUnion(inviterId) })
-  await updateDoc(doc(db, 'users', inviterId), { friendIds: arrayUnion(myUid) })
+// Opening a friend-invite link sends a friend request to the inviter; it becomes a
+// friendship only when they accept. (Instant two-way adds are gone: they let anyone
+// write into anyone's friend list.)
+export async function acceptInvite(me, inviterId) {
+  if (!me?.uid || !inviterId || me.uid === inviterId) return
+  const existing = await getDocs(query(requestsCol,
+    where('fromUserId', '==', me.uid), where('toUserId', '==', inviterId), where('status', '==', 'pending')))
+  if (existing.empty) await sendFriendRequest(me, inviterId)
 }
 
+// Unfriend: drop them from my list and delete the request records between us so
+// the accepted request can't re-add them. They keep a stale entry, but without
+// mutuality it grants nothing and the app hides it.
 export async function removeFriend(myUid, friendId) {
   await updateDoc(doc(db, 'users', myUid), { friendIds: arrayRemove(friendId) })
-  await updateDoc(doc(db, 'users', friendId), { friendIds: arrayRemove(myUid) })
+  for (const [from, to] of [[myUid, friendId], [friendId, myUid]]) {
+    const snap = await getDocs(query(requestsCol, where('fromUserId', '==', from), where('toUserId', '==', to)))
+    await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)))
+  }
 }
 
 // A friend's public recipes.

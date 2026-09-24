@@ -71,8 +71,11 @@ export function DataProvider({ children }) {
     const cached = readFriendCache(user.uid)
     if (cached?.length) setFriends(cached)
     fs.getUsersByIds(ids)
-      .then((list) => {
+      .then((all) => {
         if (!alive) return
+        // Mutual only: a friend who no longer lists me is a stale entry, not a friend.
+        const list = all.filter((f) => (f.friendIds || []).includes(user.uid))
+        const ids = list.map((f) => f.id)
         setFriends(list)
         setFriendsLoaded(true)
         writeFriendCache(user.uid, list)
@@ -83,6 +86,17 @@ export function DataProvider({ children }) {
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, guest, friendKey])
+
+  // Complete my half of friendships the other person accepted (each side writes only
+  // its own list). Adds only ids missing from my list.
+  const myFriendIds = profile?.friendIds
+  useEffect(() => {
+    if (guest || !user) return
+    return fs.listenAcceptedSent(user.uid, (toIds) => {
+      const missing = toIds.filter((id) => !(myFriendIds || []).includes(id))
+      fs.addFriendIds(user.uid, missing).catch(() => {})
+    })
+  }, [user, guest, myFriendIds])
 
   const pantryIds = guest ? guestPantry : profile?.pantryIds || []
 

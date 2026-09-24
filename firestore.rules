@@ -4,37 +4,22 @@ service cloud.firestore {
 
     function signedIn() { return request.auth != null; }
     function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
-    function myFriends() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.friendIds;
+    // Friendship is MUTUAL, and each side writes only its OWN friendIds. A reads B's
+    // private recipe only if B is in A's list AND A is in B's list. No one can write
+    // another user's friendIds, so neither side can force the other into a friendship
+    // (the old "add myself to their list" rule let anyone wipe or stuff a friend list).
+    function friendsOf(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.get('friendIds', []);
     }
-    // Allow a signed-in user to add or remove (only) themselves in another user's
-    // friend list, touching no other field. Powers friend-invite links, mutual
-    // accept of friend requests, and mutual unfriend.
-    //
-    // The set comparison is load-bearing. The old rule only asked "is the caller in
-    // the NEW array", which a plain assignment of [attackerUid] also satisfies — so
-    // any signed-in user could WIPE anyone's entire friend list, or insert a third
-    // party into it. Comparing sets pins the change to exactly one element: the
-    // caller's own uid, added or removed, with every other entry preserved.
-    function friendsPlusSelf() {
-      return resource.data.get('friendIds', []).toSet().union([request.auth.uid].toSet());
-    }
-    function friendsMinusSelf() {
-      return resource.data.get('friendIds', []).toSet().difference([request.auth.uid].toSet());
-    }
-    function togglesSelfInFriends() {
-      return signedIn()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['friendIds'])
-        && (request.resource.data.friendIds.toSet() == friendsPlusSelf()
-            || request.resource.data.friendIds.toSet() == friendsMinusSelf());
+    function mutualFriendOf(authorId) {
+      return authorId in friendsOf(request.auth.uid) && request.auth.uid in friendsOf(authorId);
     }
 
-    // Users can read any profile (needed for friend search) but only edit their
-    // own — except the constrained friendIds self-add above.
+    // Users can read any profile (needed for friend search) but only edit their own.
     match /users/{userId} {
       allow read: if signedIn();
       allow create, delete: if isSelf(userId);
-      allow update: if isSelf(userId) || togglesSelfInFriends();
+      allow update: if isSelf(userId);
 
       // Grocery list is private to its owner.
       match /grocery/{itemId} {
@@ -48,18 +33,21 @@ service cloud.firestore {
       allow read: if signedIn() && (
         resource.data.isPublic == true ||
         resource.data.authorId == request.auth.uid ||
-        resource.data.authorId in myFriends()
+        mutualFriendOf(resource.data.authorId)
       );
       allow create: if signedIn() && request.resource.data.authorId == request.auth.uid;
       allow update, delete: if signedIn() && resource.data.authorId == request.auth.uid;
     }
 
-    // Friend requests: sender creates; only the recipient can accept/decline.
+    // Friend requests: sender creates; only the recipient can accept/decline; either
+    // party can delete (unfriending clears the record so it can't re-add anyone).
     match /friendRequests/{requestId} {
       allow read: if signedIn() &&
         (resource.data.fromUserId == request.auth.uid || resource.data.toUserId == request.auth.uid);
       allow create: if signedIn() && request.resource.data.fromUserId == request.auth.uid;
       allow update: if signedIn() && resource.data.toUserId == request.auth.uid;
+      allow delete: if signedIn() &&
+        (resource.data.fromUserId == request.auth.uid || resource.data.toUserId == request.auth.uid);
     }
   }
 }

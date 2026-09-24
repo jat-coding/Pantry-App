@@ -24,7 +24,7 @@ export default function InviteAccept() {
       if (user.uid === inviterId) { setState('self'); return }
       if (profile?.friendIds?.includes(inviterId)) { setState('already'); return }
       try {
-        await fs.acceptInvite(user.uid, inviterId)
+        await fs.acceptInvite(user, inviterId)
         if (active) setState('done')
       } catch {
         if (active) setState('error')
@@ -40,8 +40,8 @@ export default function InviteAccept() {
   const name = inviter?.displayName || 'your friend'
 
   const messages = {
-    working: { Icon: Loader2, spin: true, title: 'Adding your friend…', body: 'One moment.' },
-    done: { Icon: PartyPopper, title: `You and ${name} are now friends!`, body: 'Find them under Friends.' },
+    working: { Icon: Loader2, spin: true, title: 'Sending your request…', body: 'One moment.' },
+    done: { Icon: PartyPopper, title: `Friend request sent to ${name}`, body: 'You become friends when they accept.' },
     already: { Icon: CheckCircle2, title: `You're already friends with ${name}.`, body: '' },
     self: { Icon: Smile, title: 'This is your own invite link.', body: 'Share it with a friend to connect.' },
     needauth: { Icon: Lock, title: 'Log in to add your friend', body: `Sign in to accept ${name}'s invite.` },
