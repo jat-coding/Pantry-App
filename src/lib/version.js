@@ -9,7 +9,7 @@ export const CHANGELOG = [
     date: '2026-09-24',
     changes: [
       'Friendships are now mutual: your private recipes are only visible to people you are friends with AND who are friends with you.',
-      'Opening a friend\u2019s invite link now sends them a friend request instead of adding you instantly \u2014 you become friends when they accept.',
+      'Opening a friend\u2019s invite link makes you friends straight away, with nothing for them to tap. Adding someone from search now sends a request they have to accept.',
       'Removing a friend ends the friendship on both sides.',
     ],
   },

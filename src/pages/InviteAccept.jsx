@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Loader2, PartyPopper, CheckCircle2, Smile, Lock, AlertTriangle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import * as fs from '../lib/firestore.js'
 
 // Route: /invite/:inviterId — when a logged-in user opens a friend's invite
-// link, they become mutual friends with the inviter.
+// link, they become mutual friends with the inviter, no tap needed (the ?t= secret proves the link is genuine).
 export default function InviteAccept() {
   const { inviterId } = useParams()
+  const [params] = useSearchParams()
+  const token = params.get('t')
   const { user, profile, guest, logout } = useAuth()
   const navigate = useNavigate()
   const [state, setState] = useState('working') // working | done | self | already | needauth | error
@@ -24,8 +26,8 @@ export default function InviteAccept() {
       if (user.uid === inviterId) { setState('self'); return }
       if (profile?.friendIds?.includes(inviterId)) { setState('already'); return }
       try {
-        await fs.acceptInvite(user, inviterId)
-        if (active) setState('done')
+        const result = await fs.acceptInvite(user, inviterId, token)
+        if (active) setState(result === 'friends' ? 'friends' : 'done')
       } catch {
         if (active) setState('error')
       }
@@ -41,6 +43,7 @@ export default function InviteAccept() {
 
   const messages = {
     working: { Icon: Loader2, spin: true, title: 'Sending your request…', body: 'One moment.' },
+    friends: { Icon: PartyPopper, title: `You and ${name} are now friends`, body: 'Their pantry is on your Friends tab.' },
     done: { Icon: PartyPopper, title: `Friend request sent to ${name}`, body: 'You become friends when they accept.' },
     already: { Icon: CheckCircle2, title: `You're already friends with ${name}.`, body: '' },
     self: { Icon: Smile, title: 'This is your own invite link.', body: 'Share it with a friend to connect.' },

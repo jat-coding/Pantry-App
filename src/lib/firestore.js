@@ -239,14 +239,47 @@ export async function getUserById(id) {
   return snap.exists() ? { id: snap.id, ...snap.data() } : null
 }
 
-// Opening a friend-invite link sends a friend request to the inviter; it becomes a
-// friendship only when they accept. (Instant two-way adds are gone: they let anyone
-// write into anyone's friend list.)
-export async function acceptInvite(me, inviterId) {
-  if (!me?.uid || !inviterId || me.uid === inviterId) return
-  const existing = await getDocs(query(requestsCol,
-    where('fromUserId', '==', me.uid), where('toUserId', '==', inviterId), where('status', '==', 'pending')))
-  if (existing.empty) await sendFriendRequest(me, inviterId)
+// My secret invite token (lives in users/{me}/private/invite, readable only by me).
+// Created on first use; it is what lets someone who opens my link become my friend
+// with no tap from me.
+export async function getOrCreateInviteToken(uid) {
+  const ref = doc(db, 'users', uid, 'private', 'invite')
+  const snap = await getDoc(ref)
+  if (snap.exists() && snap.data().token) return snap.data().token
+  const token = (crypto.randomUUID?.() || Math.random().toString(36).slice(2) + Date.now().toString(36)).replace(/-/g, '')
+  await setDoc(ref, { token })
+  return token
+}
+
+// Opening a friend's invite link. With the link's secret token the friendship is
+// automatic: I add them to my list now, and their client adds me when it sees my
+// pre-accepted request (syncAcceptedIncoming). Without a token (old links) it falls
+// back to a normal request they must accept.
+export async function acceptInvite(me, inviterId, token) {
+  if (!me?.uid || !inviterId || me.uid === inviterId) return 'self'
+  if (!token) {
+    const existing = await getDocs(query(requestsCol,
+      where('fromUserId', '==', me.uid), where('toUserId', '==', inviterId), where('status', '==', 'pending')))
+    if (existing.empty) await sendFriendRequest(me, inviterId)
+    return 'requested'
+  }
+  await addDoc(requestsCol, {
+    fromUserId: me.uid,
+    fromDisplayName: me.displayName || 'Someone',
+    toUserId: inviterId,
+    status: 'accepted',
+    inviteToken: token,
+    createdAt: serverTimestamp(),
+  })
+  await updateDoc(doc(db, 'users', me.uid), { friendIds: arrayUnion(inviterId) })
+  return 'friends'
+}
+
+// Requests sent TO me that are accepted (someone used my invite link). My client
+// completes my half. The rules guarantee these only exist via my token or my own accept.
+export function listenAcceptedIncoming(uid, cb) {
+  const q = query(requestsCol, where('toUserId', '==', uid), where('status', '==', 'accepted'))
+  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => d.data().fromUserId)), () => {})
 }
 
 // Unfriend: drop them from my list and delete the request records between us so

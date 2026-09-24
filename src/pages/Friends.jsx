@@ -69,7 +69,14 @@ export default function Friends() {
   }
 
   const friendIds = new Set(profile?.friendIds || [])
-  const inviteLink = `${window.location.origin}/invite/${user.uid}`
+  const [inviteToken, setInviteToken] = useState(null)
+  useEffect(() => {
+    let alive = true
+    fs.getOrCreateInviteToken(user.uid).then((t) => { if (alive) setInviteToken(t) }).catch(() => {})
+    return () => { alive = false }
+  }, [user.uid])
+  // The token is the secret that makes the link add you as friends automatically.
+  const inviteLink = `${window.location.origin}/invite/${user.uid}${inviteToken ? `?t=${inviteToken}` : ''}`
 
   function copyInvite() {
     navigator.clipboard?.writeText(inviteLink)

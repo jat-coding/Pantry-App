@@ -98,6 +98,15 @@ export function DataProvider({ children }) {
     })
   }, [user, guest, myFriendIds])
 
+  // Same, for people who used MY invite link (their request arrives already accepted).
+  useEffect(() => {
+    if (guest || !user) return
+    return fs.listenAcceptedIncoming(user.uid, (fromIds) => {
+      const missing = fromIds.filter((id) => !(myFriendIds || []).includes(id))
+      fs.addFriendIds(user.uid, missing).catch(() => {})
+    })
+  }, [user, guest, myFriendIds])
+
   const pantryIds = guest ? guestPantry : profile?.pantryIds || []
 
   const actions = useMemo(
