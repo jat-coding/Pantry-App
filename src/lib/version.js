@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.21.0'
+export const APP_VERSION = '1.21.1'
 
 export const CHANGELOG = [
+  {
+    version: '1.21.1',
+    date: '2026-09-26',
+    changes: [
+      'Creating an account now asks for your password twice, so a typo can\u2019t lock you out.',
+    ],
+  },
   {
     version: '1.21.0',
     date: '2026-09-24',

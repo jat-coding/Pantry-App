@@ -8,6 +8,7 @@ export default function Auth() {
   const [mode, setMode] = useState('login') // 'login' | 'signup'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -19,6 +20,8 @@ export default function Auth() {
     try {
       if (mode === 'signup') {
         if (!displayName.trim()) throw new Error('Please enter a display name.')
+        // Sign-up only: a typo here locks you out of the account you just made.
+        if (password !== confirm) throw new Error('Passwords don\u2019t match.')
         await signup(email.trim(), password, displayName.trim())
       } else {
         await login(email.trim(), password)
@@ -83,6 +86,21 @@ export default function Auth() {
           autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
           required
         />
+        {mode === 'signup' && (
+          <input
+            className={`input ${confirm && confirm !== password ? 'border-red-400 focus:border-red-400' : ''}`}
+            type="password"
+            placeholder="Confirm password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            autoComplete="new-password"
+            aria-invalid={!!confirm && confirm !== password}
+            required
+          />
+        )}
+        {mode === 'signup' && confirm && confirm !== password && (
+          <p className="-mt-1 text-xs font-semibold text-red-600">Passwords don\u2019t match yet.</p>
+        )}
 
         {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
 
