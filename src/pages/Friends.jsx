@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext.jsx'
 import { useData } from '../contexts/DataContext.jsx'
 import { useToast } from '../components/Toast.jsx'
 import RecipeCard from '../components/RecipeCard.jsx'
+import { ListSkeleton, GridSkeleton } from '../components/Skeleton.jsx'
 import { FriendsIcon, ProfileIcon } from '../components/icons.jsx'
 import { useScrollLock } from '../lib/useScrollLock.js'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
@@ -20,6 +21,7 @@ export default function Friends() {
 
   const [term, setTerm] = useState('')
   const [results, setResults] = useState(null)
+  const [searching, setSearching] = useState(false)
   const [requests, setRequests] = useState([])
   const goBack = useGoBack()
   // The open friend pantry lives in the URL (?friend=<id>), not component state, so it's
@@ -44,8 +46,13 @@ export default function Friends() {
 
   async function doSearch() {
     if (!term.trim()) return
-    const list = await fs.searchUsers(term.trim(), user.uid)
-    setResults(list)
+    setSearching(true)
+    try {
+      const list = await fs.searchUsers(term.trim(), user.uid)
+      setResults(list)
+    } finally {
+      setSearching(false)
+    }
   }
 
   async function addFriend(u) {
@@ -126,7 +133,9 @@ export default function Friends() {
         <button className="btn-peach px-3 py-1.5 text-sm" onClick={shareInvite}>Share</button>
         <button className="btn-ghost px-3 py-1.5 text-sm" onClick={copyInvite}>Copy link</button>
       </div>
-      {results && (
+      {searching ? (
+        <ListSkeleton count={3} />
+      ) : results && (
         <div className="space-y-2">
           {results.length === 0 && <p className="text-sm text-warm-soft">No users found.</p>}
           {results.map((u) => (
@@ -163,14 +172,7 @@ export default function Friends() {
       <section>
         <h2 className="mb-2 text-lg font-extrabold">My Friends</h2>
         {friends.length === 0 && !friendsLoaded ? (
-          <div className="space-y-2">
-            {[0, 1].map((i) => (
-              <div key={i} className="card flex items-center gap-3 p-3">
-                <span className="h-10 w-10 animate-pulse rounded-full bg-warm/10" />
-                <span className="h-4 flex-1 animate-pulse rounded bg-warm/10" />
-              </div>
-            ))}
-          </div>
+          <ListSkeleton count={2} action={false} />
         ) : friends.length === 0 ? (
           <p className="text-sm text-warm-soft">No friends yet — search above to connect.</p>
         ) : (
@@ -245,7 +247,7 @@ function FriendProfile({ friend, onClose, onPocket, onRemove }) {
         </div>
         <h2 className="mb-3 text-lg font-extrabold">{friend.displayName}'s Pantry</h2>
         {recipes == null ? (
-          <p className="text-warm-soft">Loading…</p>
+          <GridSkeleton count={3} />
         ) : recipes.length === 0 ? (
           <p className="text-warm-soft">No recipes to show yet.</p>
         ) : (

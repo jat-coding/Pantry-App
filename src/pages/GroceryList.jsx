@@ -10,10 +10,11 @@ import * as fs from '../lib/firestore.js'
 import RecipeCard from '../components/RecipeCard.jsx'
 import { GroceryIcon, TrashIcon } from '../components/icons.jsx'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
+import { ChecklistSkeleton } from '../components/Skeleton.jsx'
 import { tap } from '../lib/haptics.js'
 
 export default function GroceryList() {
-  const { grocery, recipes, addGroceryItems, setGroceryChecked, deleteGroceryItem, clearGrocery, canWrite } = useData()
+  const { grocery, recipes, addGroceryItems, setGroceryChecked, deleteGroceryItem, clearGrocery, canWrite, loadingGrocery } = useData()
   const toast = useToast()
   const [mode, setMode] = useState('list') // 'list' | 'find'
   const [confirming, setConfirming] = useState(null) // 'completed' | 'all' | null
@@ -82,7 +83,9 @@ export default function GroceryList() {
             <button className="btn-peach w-full" onClick={addManual}>Add to list</button>
           </div>
 
-          {combined.length === 0 ? (
+          {loadingGrocery ? (
+            <ChecklistSkeleton />
+          ) : combined.length === 0 ? (
             <div className="card px-6 py-16 text-center">
               <div className="mb-2 flex justify-center text-zinc-800"><GroceryIcon className="h-12 w-12" /></div>
               <p className="font-bold">Your list is empty</p>

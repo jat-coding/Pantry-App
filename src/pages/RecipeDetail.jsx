@@ -9,6 +9,7 @@ import { useToast } from '../components/Toast.jsx'
 import { formatIngredient, formatQty, abbreviateUnit, compatibleUnits, convertQty, parseQty } from '../lib/scaling.js'
 import { aisleFor, getCategories, primaryCategory } from '../lib/categories.js'
 import { EditIcon, TrashIcon, HeartIcon, CategoryIcon } from '../components/icons.jsx'
+import { RecipeDetailSkeleton } from '../components/Skeleton.jsx'
 import SafeImage from '../components/SafeImage.jsx'
 import { useImageSnapshot } from '../lib/useImageSnapshot.js'
 import { AddToPantryPrompt } from './RecipeEditor.jsx'
@@ -113,7 +114,7 @@ export default function RecipeDetail() {
     }))
   }, [original, factor])
 
-  if (loading) return <div className="py-20 text-center text-warm-soft">Loading recipe…</div>
+  if (loading) return <RecipeDetailSkeleton />
   if (!recipe) return <div className="py-20 text-center text-warm-soft">Recipe not found.</div>
 
   const inPantry = isInPantry(recipe.id)

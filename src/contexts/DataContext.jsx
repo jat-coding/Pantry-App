@@ -23,6 +23,7 @@ export function DataProvider({ children }) {
   const [grocery, setGrocery] = useState([])
   const [guestPantry, setGuestPantry] = useState([])
   const [loadingRecipes, setLoadingRecipes] = useState(true)
+  const [loadingGrocery, setLoadingGrocery] = useState(true)
   const [friends, setFriends] = useState([])
   const [friendsLoaded, setFriendsLoaded] = useState(false)
 
@@ -51,9 +52,14 @@ export function DataProvider({ children }) {
   useEffect(() => {
     if (guest || !user) {
       setGrocery([])
+      setLoadingGrocery(false)
       return
     }
-    const unsub = fs.listenGrocery(user.uid, setGrocery)
+    setLoadingGrocery(true)
+    const unsub = fs.listenGrocery(user.uid, (list) => {
+      setGrocery(list)
+      setLoadingGrocery(false)
+    })
     return unsub
   }, [user, guest])
 
@@ -143,6 +149,7 @@ export function DataProvider({ children }) {
     pantryIds,
     pantryRecipes: recipes.filter((r) => pantryIds.includes(r.id)),
     loadingRecipes,
+    loadingGrocery,
     canWrite: !guest && !!user,
     ...actions,
   }

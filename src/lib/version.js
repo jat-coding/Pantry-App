@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.21.1'
+export const APP_VERSION = '1.21.2'
 
 export const CHANGELOG = [
+  {
+    version: '1.21.2',
+    date: '2026-09-28',
+    changes: [
+      'Skeleton loaders while data is loading on Recipes, Friends, Grocery List, Profile, and Recipe Detail — no more blank screens or plain "Loading…" text.',
+    ],
+  },
   {
     version: '1.21.1',
     date: '2026-09-26',

@@ -10,11 +10,12 @@ import { APP_VERSION, CHANGELOG } from '../lib/version.js'
 import { ProfileIcon, CameraIcon } from '../components/icons.jsx'
 import { useGoBack } from '../lib/useGoBack.js'
 import { NAV_STYLES, readNavStyle, writeNavStyle } from '../lib/navStyle.js'
+import { StatSkeleton } from '../components/Skeleton.jsx'
 import { tap } from '../lib/haptics.js'
 
 export default function Profile() {
   const { user, profile, guest, logout } = useAuth()
-  const { recipes, pantryRecipes } = useData()
+  const { recipes, pantryRecipes, loadingRecipes } = useData()
   const toast = useToast()
   const goBack = useGoBack()
   const [editing, setEditing] = useState(false)
@@ -115,16 +116,23 @@ export default function Profile() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="card flex flex-col items-center py-4">
-          <span className="text-2xl font-extrabold">{recipes.length}</span>
-          <span className="text-sm text-warm-soft">Recipes</span>
+      {loadingRecipes ? (
+        <div className="grid grid-cols-2 gap-3">
+          <StatSkeleton />
+          <StatSkeleton />
         </div>
-        <div className="card flex flex-col items-center py-4">
-          <span className="text-2xl font-extrabold">{pantryRecipes.length}</span>
-          <span className="text-sm text-warm-soft">In Pantry</span>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="card flex flex-col items-center py-4">
+            <span className="text-2xl font-extrabold">{recipes.length}</span>
+            <span className="text-sm text-warm-soft">Recipes</span>
+          </div>
+          <div className="card flex flex-col items-center py-4">
+            <span className="text-2xl font-extrabold">{pantryRecipes.length}</span>
+            <span className="text-sm text-warm-soft">In Pantry</span>
+          </div>
         </div>
-      </div>
+      )}
 
       <TabBarCard />
 
