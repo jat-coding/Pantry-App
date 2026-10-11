@@ -147,8 +147,42 @@ export async function fetchVideoMeta(url, { onProgress } = {}) {
 // timeout ceiling either. Usually fast (a few seconds) but still job-shaped
 // for consistency and the same protection.
 export async function fetchPageViaBridge(url, { onProgress } = {}) {
-  const data = await pollJob('/api/recipe-proxy-start', '/api/recipe-proxy-status', url, {
-    onProgress, deadlineMs: 60 * 1000, subject: 'that page',
-  })
-  return data.html
+  try {
+    const data = await pollJob('/api/recipe-proxy-start', '/api/recipe-proxy-status', url, {
+      onProgress, deadlineMs: 60 * 1000, subject: 'that page',
+    })
+    return data.html
+  } catch (err) {
+    throw new Error(explainPageFetchError(err.message))
+  }
+}
+
+// The bridge's raw fetch failure ("HTTP 403", "page too large", ...) tells a
+// developer what happened but not a user what to do about it. Translate the
+// known shapes into a message that says both.
+function explainPageFetchError(raw) {
+  const status = /^HTTP (\d{3})$/.exec(raw || '')
+  if (status) {
+    const code = Number(status[1])
+    if (code === 403 || code === 429) {
+      return `This site blocked the automatic import (HTTP ${code}) — some sites don't allow recipe apps to read their pages. Copy the recipe text and use the Paste tab instead.`
+    }
+    if (code === 404) {
+      return `That page doesn't exist (HTTP 404) — double check the link.`
+    }
+    if (code >= 500) {
+      return `The site is having trouble right now (HTTP ${code}) — try again in a few minutes.`
+    }
+    return `The site returned an error (HTTP ${code}) — try again, or use the Paste tab with the recipe text instead.`
+  }
+  if (raw === 'page too large') {
+    return `That page is too large to import automatically — use the Paste tab with the recipe text instead.`
+  }
+  if (raw === 'timed out') {
+    return `The site took too long to respond — try again in a moment.`
+  }
+  if (raw && raw.includes('can’t fetch from')) {
+    return `That link can't be imported automatically — double check it's a public recipe page.`
+  }
+  return raw || `Couldn't read that page — try again, or use the Paste tab with the recipe text instead.`
 }
