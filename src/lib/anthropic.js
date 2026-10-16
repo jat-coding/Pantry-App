@@ -165,7 +165,7 @@ function explainPageFetchError(raw) {
   if (status) {
     const code = Number(status[1])
     if (code === 403 || code === 429) {
-      return `This site blocked the automatic import (HTTP ${code}) — some sites don't allow recipe apps to read their pages. Copy the recipe text and use the Paste tab instead.`
+      return `This site blocked the automatic import — some sites don't allow recipe apps to read their pages. Try: find a printable or PDF version of the recipe and use the File tab, or copy the recipe text into the Paste tab instead.`
     }
     if (code === 404) {
       return `That page doesn't exist (HTTP 404) — double check the link.`
