@@ -73,7 +73,9 @@ const INSTRUCTIONS =
   'For weight, prefer oz and lb over grams and kilograms when the result is a ' +
   'reasonable cooking amount (e.g. 227 g -> 8 oz, 500 g -> ~1 lb); keep the metric ' +
   'unit only when converting would give an awkward value. Convert the qty to match ' +
-  'whatever unit you choose. ' +
+  'whatever unit you choose. A US "stick" of butter is exactly 1/2 cup (8 tbsp, 4 oz, ' +
+  '113 g) -- never 1/4 cup. When a source gives butter in sticks, either keep unit ' +
+  '"stick" with that qty, or convert using 1 stick = 0.5 cup. ' +
   'Clean up each ingredient name so it reads as it would in a cookbook: keep the ' +
   'food and any descriptor that matters to the dish (e.g. "boneless skinless chicken ' +
   'thighs", "large eggs", "extra-virgin olive oil", "finely diced onion"). The name ' +
