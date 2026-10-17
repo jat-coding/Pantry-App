@@ -8,7 +8,7 @@ import { useGoBack } from '../lib/useGoBack.js'
 import { useToast } from '../components/Toast.jsx'
 import { formatIngredient, formatQty, abbreviateUnit, compatibleUnits, convertQty, parseQty } from '../lib/scaling.js'
 import { aisleFor, getCategories, primaryCategory } from '../lib/categories.js'
-import { EditIcon, TrashIcon, HeartIcon, CategoryIcon } from '../components/icons.jsx'
+import { EditIcon, TrashIcon, HeartIcon, CategoryIcon, ShareIcon } from '../components/icons.jsx'
 import { RecipeDetailSkeleton } from '../components/Skeleton.jsx'
 import SafeImage from '../components/SafeImage.jsx'
 import { useImageSnapshot } from '../lib/useImageSnapshot.js'
@@ -47,6 +47,10 @@ export default function RecipeDetail() {
   const [checked, setChecked] = useState(() => new Set())
   const { cookMode, setCookMode } = useCookMode()
   const [activeStep, setActiveStep] = useState(0)
+  // PDF share: `sharing` while it's being built; `readyPdf` keeps a built file for
+  // the current view so a second tap can share it straight away (see sharePdf).
+  const [sharing, setSharing] = useState(false)
+  const [readyPdf, setReadyPdf] = useState(null)
   const wakeRef = useRef(null)
   const stepRefs = useRef([])
 
@@ -158,6 +162,60 @@ export default function RecipeDetail() {
     setFactor(1)
   }
 
+  // Ingredient lines exactly as the reader is viewing them: scaled, and in whatever
+  // unit they picked (or the friendly auto unit if they didn't pick one).
+  function pdfIngredientLines() {
+    return scaledIngredients
+      .map((ing, i) => {
+        if (!ing.name) return ''
+        if (ing.qty === '' || ing.qty == null) return ing.name
+        if (units[i]) return `${formatQty(qtyIn(i, ing.qty))} ${units[i]} ${ing.name}`
+        const pretty = formatIngredient(ing)
+        return [pretty.qtyLabel, abbreviateUnit(pretty.unit), ing.name].filter(Boolean).join(' ')
+      })
+      .filter(Boolean)
+  }
+
+  async function sharePdf() {
+    if (sharing) return
+    const viewKey = JSON.stringify([recipe, factor, units])
+    let file = readyPdf?.key === viewKey ? readyPdf.file : null
+    if (!file) {
+      setSharing(true)
+      try {
+        const { buildRecipePdf } = await import('../lib/recipePdf.jsx')
+        file = await buildRecipePdf({ recipe, ingredients: pdfIngredientLines(), servings: scaledServings })
+        setReadyPdf({ key: viewKey, file })
+      } catch {
+        setSharing(false)
+        return toast('Could not create the PDF')
+      }
+      setSharing(false)
+    }
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: recipe.title })
+      } catch (err) {
+        if (err?.name === 'AbortError') return // closed the share sheet
+        // iOS only opens the sheet straight from a tap; building the PDF can take
+        // long enough that the tap no longer counts. The file is kept, so the next
+        // tap shares instantly.
+        if (err?.name === 'NotAllowedError') return toast('PDF ready — tap share again')
+        toast('Could not share the PDF')
+      }
+      return
+    }
+    // No file sharing here (desktop, older Safari): just download it.
+    const url = URL.createObjectURL(file)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = file.name
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 10000)
+  }
+
   function toggleCheck(i) {
     setChecked((s) => {
       const n = new Set(s)
@@ -235,6 +293,15 @@ export default function RecipeDetail() {
           aria-label="Back"
         ><ChevronLeft className="h-5 w-5 text-warm" strokeWidth={2.2} aria-hidden="true" /></button>
         <div className="absolute right-3 top-3 flex gap-2">
+          <button
+            onClick={sharePdf}
+            disabled={sharing}
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-zinc-800 shadow-card backdrop-blur active:scale-90"
+            aria-label={sharing ? 'Creating PDF' : 'Share recipe as PDF'}
+            aria-busy={sharing}
+          >{sharing
+            ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-warm/20 border-t-peach-dark" aria-hidden="true" />
+            : <ShareIcon className="h-5 w-5" />}</button>
           {isOwner && (
             <>
               <button
