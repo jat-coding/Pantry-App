@@ -1,6 +1,6 @@
 // Printable recipe card, laid out after the "Honey Garlic Glazed Salmon" card Mr. Roni
 // sent: eyebrow label with sprigs, serif title, 4-stat row, ingredients | numbered
-// method, ornament divider, boxed note, photo bottom-right. Only ever rendered
+// method, with the photo at the top of the ingredients column. Only ever rendered
 // off-screen by lib/recipePdf.js and snapshotted into a PDF -- never shown in the UI.
 // Fixed pixel sizes on purpose: the page is a fixed 816px (8.5in @ 96dpi) sheet.
 // html2canvas quirks this works around: icons get an explicit `color` (an SVG is
@@ -8,7 +8,7 @@
 // drawn here at all: this only reserves its rounded box (data-pdf-photo), and
 // lib/recipePdf.jsx paints the cover-cropped photo into that box itself after the
 // snapshot, so html2canvas never has to load or crop it.
-import { Users, Timer, CookingPot, UtensilsCrossed, Sprout, ChefHat } from 'lucide-react'
+import { Users, Timer, CookingPot, UtensilsCrossed, Sprout } from 'lucide-react'
 
 const ROSE = '#B9837A' // dusty-rose accent from the reference card
 
@@ -35,7 +35,7 @@ function Heading({ children }) {
 // recipe: the (sanitized) recipe. ingredients: display strings, already scaled and
 // in the reader's chosen units. servings: scaled servings label. hasPhoto: reserve
 // the photo box (false = no box at all).
-export default function RecipePdfTemplate({ recipe, eyebrow, ingredients, servings, prep, cook, total, note, hasPhoto }) {
+export default function RecipePdfTemplate({ recipe, eyebrow, ingredients, servings, prep, cook, total, hasPhoto }) {
   const steps = recipe.instructions.filter((s) => s && s.trim())
   return (
     <div className="w-[816px] bg-surface-2 px-14 pb-14 pt-12 font-sans text-warm" style={{ minHeight: 1056 }}>
@@ -60,6 +60,7 @@ export default function RecipePdfTemplate({ recipe, eyebrow, ingredients, servin
       {/* Body */}
       <div className="mt-8 grid grid-cols-[5fr_7fr] gap-10">
         <div>
+          {hasPhoto && <div data-pdf-photo className="mb-8 h-[300px] w-full rounded-[28px]" />}
           <Heading>Ingredients</Heading>
           <ul className="space-y-1.5 text-[15px] leading-snug">
             {ingredients.map((line, i) => (
@@ -69,23 +70,6 @@ export default function RecipePdfTemplate({ recipe, eyebrow, ingredients, servin
               </li>
             ))}
           </ul>
-
-          {note && (
-            <>
-              <div className="my-7 flex items-center gap-3">
-                <span className="h-px flex-1 bg-warm/25" />
-                <Sprout className="h-4 w-4" color={ROSE} strokeWidth={1.5} />
-                <span className="h-px flex-1 bg-warm/25" />
-              </div>
-              <div data-pdf-keep className="relative mt-10 border px-5 pb-5 pt-9 text-center" style={{ borderColor: ROSE }}>
-                <span className="absolute -top-6 flex h-12 w-12 items-center justify-center rounded-full" style={{ background: ROSE, left: 'calc(50% - 24px)' }}>
-                  <ChefHat className="h-6 w-6" color="#fff" strokeWidth={1.6} />
-                </span>
-                <div className="text-[14px] font-extrabold uppercase tracking-[0.16em]">{note.title}</div>
-                <p className="mt-2 text-[14px] leading-snug text-warm-soft">{note.body}</p>
-              </div>
-            </>
-          )}
         </div>
 
         <div>
@@ -100,8 +84,6 @@ export default function RecipePdfTemplate({ recipe, eyebrow, ingredients, servin
               </li>
             ))}
           </ol>
-
-          {hasPhoto && <div data-pdf-photo className="mt-8 h-[300px] w-full rounded-[28px]" />}
         </div>
       </div>
     </div>

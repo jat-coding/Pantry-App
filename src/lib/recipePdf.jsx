@@ -98,7 +98,7 @@ function drawPhoto(ctx, img, box, scale) {
 
 // Where each page ends, in CSS px from the top of the sheet. A page is cut at the
 // last line/block that still fits, never through one (a list item, a heading, the
-// stat row, the note box, the photo). Page 1 keeps the sheet's own top padding;
+// stat row, the photo). Page 1 keeps the sheet's own top padding;
 // later pages get PAGE_TOP of fresh margin, so each holds a bit less.
 function pageBreaks(blocks, total) {
   const breaks = []
@@ -133,11 +133,6 @@ export async function buildRecipePdf({ recipe, ingredients, servings }) {
   const photo = await loadPhoto(recipe.imageUrl)
   const prep = minutes(recipe.prepTime)
   const cook = minutes(recipe.cookTime)
-  const note = recipe.pocketedFromName
-    ? { title: 'Pocketed From', body: `Saved from ${recipe.pocketedFromName}’s recipe collection.` }
-    : recipe.authorName
-      ? { title: 'From the Kitchen Of', body: recipe.authorName }
-      : null
 
   const host = document.createElement('div')
   host.setAttribute('aria-hidden', 'true')
@@ -155,7 +150,6 @@ export async function buildRecipePdf({ recipe, ingredients, servings }) {
           prep={timeText(prep)}
           cook={timeText(cook)}
           total={timeText(prep + cook)}
-          note={note}
           hasPhoto={!!photo}
         />,
       )
@@ -176,14 +170,20 @@ export async function buildRecipePdf({ recipe, ingredients, servings }) {
       const r = el.getBoundingClientRect()
       return { x: r.left - origin.left, y: r.top - origin.top, w: r.width, h: r.height }
     }
-    // The note box's chef-hat badge hangs 24px above it, so that block starts higher.
     const blocks = [...node.querySelectorAll('h1, h2, li, [data-pdf-keep], [data-pdf-photo]')].map((el) => {
       const r = rel(el)
-      return { top: r.y - (el.matches('[data-pdf-keep]') ? 28 : 4), bottom: r.y + r.h }
+      return { top: r.y - 4, bottom: r.y + r.h }
     })
     const photoEl = node.querySelector('[data-pdf-photo]')
     const photoBox = photoEl && rel(photoEl)
 
+    // html2canvas finds each font's baseline by measuring a 1px <img> in a hidden
+    // div it appends to <body>; Tailwind's preflight makes that img display:block,
+    // which puts every line of text ~15px below where the layout (and so the page
+    // breaks below) has it. Undo that for its probe only, while it snapshots.
+    const probeFix = document.createElement('style')
+    probeFix.textContent = 'body > div[style*="visibility: hidden"] > img { display: inline !important; }'
+    document.head.appendChild(probeFix)
     const scale = Math.min(2, Math.sqrt(MAX_CANVAS_PIXELS / (w * h)))
     const canvas = await html2canvas(node, {
       scale,
@@ -192,7 +192,7 @@ export async function buildRecipePdf({ recipe, ingredients, servings }) {
       width: w,
       height: h,
       windowWidth: PAGE_WIDTH,
-    })
+    }).finally(() => probeFix.remove())
     if (photo && photoBox) drawPhoto(canvas.getContext('2d'), photo.img, photoBox, canvas.width / w)
 
     // 1 CSS px = 0.75pt, so an 816px-wide sheet is a true 8.5x11in page: text prints

@@ -1,9 +1,17 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.22.1'
+export const APP_VERSION = '1.22.2'
 
 export const CHANGELOG = [
+  {
+    version: '1.22.2',
+    date: '2026-10-17',
+    changes: [
+      'Recipe PDF: the photo now sits at the top, just above the ingredients, and the "From the Kitchen Of" note box is gone.',
+      'Fixed: text in the recipe PDF sat slightly lower than intended, which could cut a line in half at a page break on long recipes.',
+    ],
+  },
   {
     version: '1.22.1',
     date: '2026-10-17',
