@@ -12,6 +12,7 @@ import { GroceryIcon, TrashIcon } from '../components/icons.jsx'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
 import { ChecklistSkeleton } from '../components/Skeleton.jsx'
 import { tap } from '../lib/haptics.js'
+import { rankByPantry, sortRanked, dedupeRecipes } from '../lib/whatCanIMake.js'
 
 export default function GroceryList() {
   const { grocery, recipes, addGroceryItems, setGroceryChecked, deleteGroceryItem, clearGrocery, canWrite, loadingGrocery } = useData()
@@ -178,19 +179,6 @@ function combineItems(items) {
   return [...map.values()]
 }
 
-// Rank recipes by how many of the given ingredients they use.
-function rankByPantry(recipes, pills) {
-  return recipes
-    .map((r) => {
-      const names = (r.ingredients || []).map((i) => (i.name || '').toLowerCase())
-      const have = pills.filter((p) => names.some((n) => n.includes(p)))
-      const missing = names.length - have.length
-      return { recipe: r, have: have.length, total: names.length, missing }
-    })
-    .filter((x) => x.have > 0)
-    .sort((a, b) => b.have - a.have || a.missing - b.missing)
-}
-
 // Reverse recipe search — Layer 1 (own library) + Layer 2 (friends' recipes).
 function WhatCanIMake({ recipes }) {
   const { profile } = useAuth()
@@ -201,6 +189,9 @@ function WhatCanIMake({ recipes }) {
   const [results, setResults] = useState(null)
   const [friendResults, setFriendResults] = useState(null)
   const [friendRecipes, setFriendRecipes] = useState([])
+  const [sortMode, setSortMode] = useState('percent') // 'percent' | 'count'
+  const sortedResults = useMemo(() => results && sortRanked(results, sortMode), [results, sortMode])
+  const sortedFriendResults = useMemo(() => friendResults && sortRanked(friendResults, sortMode), [friendResults, sortMode])
 
   // Load friends' recipes once so we can suggest dishes you could pocket.
   useEffect(() => {
@@ -212,7 +203,7 @@ function WhatCanIMake({ recipes }) {
       for (const id of ids) {
         try { all.push(...(await fs.getFriendRecipes(id))) } catch { /* ignore one friend */ }
       }
-      if (alive) setFriendRecipes(all)
+      if (alive) setFriendRecipes(dedupeRecipes(all))
     })()
     return () => { alive = false }
   }, [profile?.friendIds])
@@ -262,12 +253,20 @@ function WhatCanIMake({ recipes }) {
 
       {results && (
         <div className="space-y-6">
+          <div className="flex rounded-2xl bg-white p-1" role="group" aria-label="Sort results">
+            {[['percent', 'Best match %'], ['count', 'Most ingredients']].map(([m, label]) => (
+              <button key={m} type="button" aria-pressed={sortMode === m} onClick={() => setSortMode(m)}
+                className={`flex-1 rounded-xl py-2 text-sm font-bold ${sortMode === m ? 'bg-peach text-warm' : 'text-warm-soft'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
           <section className="space-y-4">
             <h3 className="text-sm font-extrabold uppercase tracking-wide text-warm-soft">From your library</h3>
-            {results.length === 0 ? (
+            {sortedResults.length === 0 ? (
               <p className="py-4 text-center text-warm-soft">No matches in your library yet.</p>
             ) : (
-              results.map(({ recipe, have, total }) => (
+              sortedResults.map(({ recipe, have, total }) => (
                 <div key={recipe.id}>
                   <p className="mb-1 text-sm font-bold text-warm-soft">
                     You have {have}/{total} ingredients ({Math.round((have / total) * 100)}%)
@@ -278,10 +277,10 @@ function WhatCanIMake({ recipes }) {
             )}
           </section>
 
-          {friendResults && friendResults.length > 0 && (
+          {sortedFriendResults && sortedFriendResults.length > 0 && (
             <section className="space-y-4">
               <h3 className="text-sm font-extrabold uppercase tracking-wide text-warm-soft">From your friends</h3>
-              {friendResults.map(({ recipe, have, total }) => (
+              {sortedFriendResults.map(({ recipe, have, total }) => (
                 <div key={recipe.id}>
                   <p className="mb-1 text-sm font-bold text-warm-soft">
                     You have {have}/{total} ingredients ({Math.round((have / total) * 100)}%)

@@ -1,9 +1,17 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.22.2'
+export const APP_VERSION = '1.23.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.23.0',
+    date: '2026-10-17',
+    changes: [
+      'What Can I Make? now puts the best match first by percentage, so a recipe you have 4 of 4 ingredients for beats one you have 5 of 20 for. A new toggle lets you switch to sorting by most ingredients instead.',
+      'Fixed: the same recipe no longer shows up several times under From your friends when more than one friend has a copy of it.',
+    ],
+  },
   {
     version: '1.22.2',
     date: '2026-10-17',
