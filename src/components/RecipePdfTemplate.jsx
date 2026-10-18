@@ -4,8 +4,10 @@
 // off-screen by lib/recipePdf.js and snapshotted into a PDF -- never shown in the UI.
 // Fixed pixel sizes on purpose: the page is a fixed 816px (8.5in @ 96dpi) sheet.
 // html2canvas quirks this works around: icons get an explicit `color` (an SVG is
-// rasterised standalone, so currentColor would come out black) and the photo is a
-// cover-sized background, since html2canvas ignores object-fit on <img>.
+// rasterised standalone, so currentColor would come out black) and the photo is not
+// drawn here at all: this only reserves its rounded box (data-pdf-photo), and
+// lib/recipePdf.jsx paints the cover-cropped photo into that box itself after the
+// snapshot, so html2canvas never has to load or crop it.
 import { Users, Timer, CookingPot, UtensilsCrossed, Sprout, ChefHat } from 'lucide-react'
 
 const ROSE = '#B9837A' // dusty-rose accent from the reference card
@@ -31,9 +33,9 @@ function Heading({ children }) {
 }
 
 // recipe: the (sanitized) recipe. ingredients: display strings, already scaled and
-// in the reader's chosen units. servings: scaled servings label. imageSrc: a
-// same-origin data URL (or null to skip the photo entirely).
-export default function RecipePdfTemplate({ recipe, eyebrow, ingredients, servings, prep, cook, total, note, imageSrc }) {
+// in the reader's chosen units. servings: scaled servings label. hasPhoto: reserve
+// the photo box (false = no box at all).
+export default function RecipePdfTemplate({ recipe, eyebrow, ingredients, servings, prep, cook, total, note, hasPhoto }) {
   const steps = recipe.instructions.filter((s) => s && s.trim())
   return (
     <div className="w-[816px] bg-surface-2 px-14 pb-14 pt-12 font-sans text-warm" style={{ minHeight: 1056 }}>
@@ -48,7 +50,7 @@ export default function RecipePdfTemplate({ recipe, eyebrow, ingredients, servin
       </h1>
 
       {/* Stat row */}
-      <div className="mt-6 flex border-y border-warm/25">
+      <div data-pdf-keep className="mt-6 flex border-y border-warm/25">
         <StatCell icon={Users} label="Serves" value={servings} />
         <StatCell icon={Timer} label="Prep" value={prep} />
         <StatCell icon={CookingPot} label="Cook" value={cook} />
@@ -75,7 +77,7 @@ export default function RecipePdfTemplate({ recipe, eyebrow, ingredients, servin
                 <Sprout className="h-4 w-4" color={ROSE} strokeWidth={1.5} />
                 <span className="h-px flex-1 bg-warm/25" />
               </div>
-              <div className="relative mt-10 border px-5 pb-5 pt-9 text-center" style={{ borderColor: ROSE }}>
+              <div data-pdf-keep className="relative mt-10 border px-5 pb-5 pt-9 text-center" style={{ borderColor: ROSE }}>
                 <span className="absolute -top-6 flex h-12 w-12 items-center justify-center rounded-full" style={{ background: ROSE, left: 'calc(50% - 24px)' }}>
                   <ChefHat className="h-6 w-6" color="#fff" strokeWidth={1.6} />
                 </span>
@@ -99,9 +101,7 @@ export default function RecipePdfTemplate({ recipe, eyebrow, ingredients, servin
             ))}
           </ol>
 
-          {imageSrc && (
-            <div className="mt-8 h-[300px] w-full rounded-[28px] bg-cover bg-center" style={{ backgroundImage: `url("${imageSrc}")` }} />
-          )}
+          {hasPhoto && <div data-pdf-photo className="mt-8 h-[300px] w-full rounded-[28px]" />}
         </div>
       </div>
     </div>
