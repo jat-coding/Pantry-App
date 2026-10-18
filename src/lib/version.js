@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.25.0'
+export const APP_VERSION = '1.25.1'
 
 export const CHANGELOG = [
+  {
+    version: '1.25.1',
+    date: '2026-10-17',
+    changes: [
+      'PDF preview: the Close and Share buttons now sit right at the bottom of the screen on iPhone, with no empty strip underneath them.',
+    ],
+  },
   {
     version: '1.25.0',
     date: '2026-10-17',

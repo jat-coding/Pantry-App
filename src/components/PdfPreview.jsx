@@ -1,7 +1,9 @@
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { ShareIcon } from './icons.jsx'
 import { useToast } from './Toast.jsx'
 import { useScrollLock } from '../lib/useScrollLock.js'
+import { useStandaloneBottomGap } from '../lib/useStandaloneBottomGap.js'
 
 // Full-screen look at a recipe PDF before it goes anywhere. Shows each page as the
 // exact image that was put into the PDF (an <iframe> of the PDF only ever shows page
@@ -9,6 +11,7 @@ import { useScrollLock } from '../lib/useScrollLock.js'
 // lets it open the share sheet even when building the PDF took a while.
 export default function PdfPreview({ file, pages, title, onClose }) {
   useScrollLock()
+  const bottomGap = useStandaloneBottomGap()
   const toast = useToast()
 
   async function share() {
@@ -34,8 +37,14 @@ export default function PdfPreview({ file, pages, title, onClose }) {
     setTimeout(() => URL.revokeObjectURL(url), 10000)
   }
 
-  return (
-    <div className="fixed inset-0 z-[90] flex flex-col bg-eggshell animate-fadein" role="dialog" aria-modal="true" aria-label="PDF preview">
+  // Portaled to <body>, like the friend overlay: a `fixed` element nested in the page
+  // would be sized by any ancestor transform (the page's fade-in has one) instead of
+  // the screen. `bottom` reaches over the strip iOS home-screen apps leave under
+  // fixed overlays (see useStandaloneBottomGap), so the button bar sits on the real
+  // bottom edge.
+  return createPortal(
+    <div className="fixed inset-0 z-[90] flex flex-col bg-eggshell animate-fadein" style={{ bottom: -bottomGap }}
+      role="dialog" aria-modal="true" aria-label="PDF preview">
       <div className="flex items-center justify-between gap-3 border-b border-warm/10 bg-white/95 px-4 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] backdrop-blur">
         <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-wide text-warm-soft">PDF preview</p>
@@ -62,6 +71,7 @@ export default function PdfPreview({ file, pages, title, onClose }) {
         <button onClick={onClose} className="btn-ghost flex-1">Close</button>
         <button onClick={share} className="btn-peach flex-1"><ShareIcon className="h-5 w-5" />Share</button>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
