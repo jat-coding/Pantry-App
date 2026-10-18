@@ -1,21 +1,22 @@
-// Recipe -> Letter-size PDF, client-side: render RecipePdfTemplate off-screen, snapshot
-// it with html2canvas, paint the photo into its reserved box, then slice the bitmap
-// into 8.5x11in pages with jsPDF (a long recipe flows onto more pages).
+// Recipe -> Letter-size PDF, client-side: measure the recipe's blocks off-screen, flow
+// them snake-wise through two columns per 8.5x11in page (flowColumns), render those
+// pages, snapshot each with html2canvas, paint the photo into its reserved box, and
+// add each to a jsPDF document (a long recipe flows onto more pages).
 // Loaded on demand (dynamic import from RecipeDetail) so jspdf/html2canvas stay out of
 // the main bundle.
 import { createRoot } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
-import RecipePdfTemplate from '../components/RecipePdfTemplate.jsx'
+import { RecipePdfMeasure, RecipePdfPages, pdfBlocks, PDF_PAGE } from '../components/RecipePdfTemplate.jsx'
 import { primaryCategory } from './categories.js'
 import { isExternalImage } from './imageSnapshot.js'
 import { withTimeout } from './image.js'
 
-const PAGE_WIDTH = 816 // CSS px = 8.5in at 96dpi -> 612pt PDF page width
-const PAGE_HEIGHT = 1056 // CSS px = 11in at 96dpi -> 792pt; the template's minHeight
-const PAGE_TOP = 48 // top margin on continuation pages (the template's pt-12)
-const PAGE_BOTTOM = 56 // bottom margin before a page break (the template's pb-14)
+const PAGE_WIDTH = PDF_PAGE.width // CSS px = 8.5in at 96dpi -> 612pt PDF page width
+const PAGE_HEIGHT = PDF_PAGE.height // CSS px = 11in at 96dpi -> 792pt
+const PAGE_TOP = PDF_PAGE.top // top margin (page 1 has the header below it)
+const PAGE_BOTTOM = PDF_PAGE.bottom // a column ends this far above the page's bottom edge
 const PHOTO_RADIUS = 28 // the photo box's rounded-[28px]
 const BG = '#FAF4E8'
 const MAX_CANVAS_PIXELS = 16_000_000 // iOS Safari refuses canvases much bigger than this
@@ -96,30 +97,43 @@ function drawPhoto(ctx, img, box, scale) {
   ctx.restore()
 }
 
-// Where each page ends, in CSS px from the top of the sheet. A page is cut at the
-// last line/block that still fits, never through one (a list item, a heading, the
-// stat row, the photo). Page 1 keeps the sheet's own top padding;
-// later pages get PAGE_TOP of fresh margin, so each holds a bit less.
-function pageBreaks(blocks, total) {
-  const breaks = []
-  let start = 0
-  while (total - start > (start ? PAGE_HEIGHT - PAGE_TOP : PAGE_HEIGHT)) {
-    const limit = start + (start ? PAGE_HEIGHT - PAGE_TOP : PAGE_HEIGHT) - PAGE_BOTTOM
-    // Two columns: moving the cut up to clear one line can land it inside a line of
-    // the other column, so repeat until nothing straddles it.
-    let cut = limit
-    for (let moved = true; moved;) {
-      moved = false
-      for (const b of blocks) {
-        if (b.top < cut && b.bottom > cut && b.top > start) { cut = b.top; moved = true }
-      }
-    }
-    // A single block taller than a page can't be kept whole; cut at the limit.
-    if (cut <= start + 1) cut = limit
-    breaks.push(cut)
-    start = cut
+// The snake flow. Blocks go down the left column, then the right, then the next
+// page's left, and so on, never split. Page 1's columns start under the header
+// (firstTop); later pages start at PAGE_TOP. Method always opens a fresh column (the
+// one after wherever Ingredients ended), and a heading never sits alone at the
+// bottom of a column without its first line. Returns pages[p] = [{ i, col, y }].
+function gapBefore(prev, b) {
+  if (b.type === 'heading' || prev.type === 'photo') return 32
+  if (prev.type === 'heading') return 12
+  return b.type === 'step' ? 12 : 6
+}
+
+export function flowColumns(blocks, heights, firstTop) {
+  const bottom = PAGE_HEIGHT - PAGE_BOTTOM
+  const pages = [[]]
+  let col = 0
+  let y = firstTop
+  let empty = true
+  let prev = null
+  const nextColumn = () => {
+    if (++col === 2) { col = 0; pages.push([]) }
+    y = pages.length > 1 ? PAGE_TOP : firstTop
+    empty = true
   }
-  return breaks
+  blocks.forEach((b, i) => {
+    if (b.section && !empty) nextColumn()
+    let gap = empty ? 0 : gapBefore(prev, b)
+    let need = gap + heights[i]
+    if (b.type === 'heading' && i + 1 < blocks.length) need += gapBefore(b, blocks[i + 1]) + heights[i + 1]
+    // A block taller than a whole column can't be kept whole; it gets a column of its
+    // own and is clipped at the page edge.
+    if (!empty && y + need > bottom) { nextColumn(); gap = 0 }
+    pages[pages.length - 1].push({ i, col, y: y + gap })
+    y += gap + heights[i]
+    empty = false
+    prev = b
+  })
+  return pages
 }
 
 function fileName(title) {
@@ -134,93 +148,83 @@ export async function buildRecipePdf({ recipe, ingredients, servings }) {
   const prep = minutes(recipe.prepTime)
   const cook = minutes(recipe.cookTime)
 
+  const steps = recipe.instructions.filter((st) => st && st.trim())
+  const blocks = pdfBlocks({ ingredients, steps, hasPhoto: !!photo })
+  const header = {
+    eyebrow: primaryCategory(recipe),
+    title: recipe.title,
+    servings,
+    prep: timeText(prep),
+    cook: timeText(cook),
+    total: timeText(prep + cook),
+  }
+
   const host = document.createElement('div')
   host.setAttribute('aria-hidden', 'true')
   host.style.cssText = `position:fixed;left:-${PAGE_WIDTH + 2000}px;top:0;width:${PAGE_WIDTH}px;pointer-events:none;`
   document.body.appendChild(host)
   const root = createRoot(host)
+  // html2canvas finds each font's baseline by measuring a 1px <img> in a hidden
+  // div it appends to <body>; Tailwind's preflight makes that img display:block,
+  // which puts every line of text ~15px below where the layout has it. Undo that for
+  // its probe only, while it snapshots.
+  const probeFix = document.createElement('style')
+  probeFix.textContent = 'body > div[style*="visibility: hidden"] > img { display: inline !important; }'
   try {
-    flushSync(() => {
-      root.render(
-        <RecipePdfTemplate
-          recipe={recipe}
-          eyebrow={primaryCategory(recipe)}
-          ingredients={ingredients}
-          servings={servings}
-          prep={timeText(prep)}
-          cook={timeText(cook)}
-          total={timeText(prep + cook)}
-          hasPhoto={!!photo}
-        />,
-      )
-    })
-    // The serif title must be in Fraunces, not a fallback face, before the snapshot.
+    // Pass 1: measure every block at column width, in the real fonts.
+    flushSync(() => root.render(<RecipePdfMeasure header={header} blocks={blocks} />))
+    // The serif title must be in Fraunces, not a fallback face, before measuring.
     await Promise.all([
       document.fonts.load('600 44px Fraunces'),
+      document.fonts.load('600 24px Fraunces'),
       document.fonts.load('800 15px Nunito'),
       document.fonts.load('400 15px Nunito'),
     ]).catch(() => {})
     await document.fonts.ready
+    const measure = host.firstElementChild
+    const sheetTop = measure.getBoundingClientRect().top
+    const firstTop = measure.querySelector('[data-pdf-body]').getBoundingClientRect().top - sheetTop
+    const heights = [...measure.querySelectorAll('[data-pdf-block]')].map((el) => el.getBoundingClientRect().height)
+    const layout = flowColumns(blocks, heights, firstTop)
 
-    const node = host.firstElementChild
-    const w = node.offsetWidth
-    const h = node.offsetHeight
-    const origin = node.getBoundingClientRect()
-    const rel = (el) => {
-      const r = el.getBoundingClientRect()
-      return { x: r.left - origin.left, y: r.top - origin.top, w: r.width, h: r.height }
-    }
-    const blocks = [...node.querySelectorAll('h1, h2, li, [data-pdf-keep], [data-pdf-photo]')].map((el) => {
-      const r = rel(el)
-      return { top: r.y - 4, bottom: r.y + r.h }
-    })
-    const photoEl = node.querySelector('[data-pdf-photo]')
-    const photoBox = photoEl && rel(photoEl)
-
-    // html2canvas finds each font's baseline by measuring a 1px <img> in a hidden
-    // div it appends to <body>; Tailwind's preflight makes that img display:block,
-    // which puts every line of text ~15px below where the layout (and so the page
-    // breaks below) has it. Undo that for its probe only, while it snapshots.
-    const probeFix = document.createElement('style')
-    probeFix.textContent = 'body > div[style*="visibility: hidden"] > img { display: inline !important; }'
-    document.head.appendChild(probeFix)
-    const scale = Math.min(2, Math.sqrt(MAX_CANVAS_PIXELS / (w * h)))
-    const canvas = await html2canvas(node, {
-      scale,
-      backgroundColor: BG,
-      logging: false,
-      width: w,
-      height: h,
-      windowWidth: PAGE_WIDTH,
-    }).finally(() => probeFix.remove())
-    if (photo && photoBox) drawPhoto(canvas.getContext('2d'), photo.img, photoBox, canvas.width / w)
+    // Pass 2: the real pages, each block placed where the flow put it.
+    flushSync(() => root.render(<RecipePdfPages header={header} blocks={blocks} pages={layout} />))
+    const pageEls = [...host.querySelectorAll('[data-pdf-page]')]
 
     // 1 CSS px = 0.75pt, so an 816px-wide sheet is a true 8.5x11in page: text prints
-    // and opens in Preview/Files at real size instead of shrunk to fit. A sheet taller
-    // than one page is sliced into more pages of the same size, never squeezed.
-    const px = canvas.width / w // canvas px per CSS px
+    // and opens in Preview/Files at real size instead of shrunk to fit. Each page is
+    // snapshotted on its own, so the canvas never grows past one page's pixels.
     const wPt = PAGE_WIDTH * 0.75
     const hPt = PAGE_HEIGHT * 0.75
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: [wPt, hPt], compress: true })
-    const cuts = [0, ...pageBreaks(blocks, h), h]
-    const page = document.createElement('canvas')
-    page.width = canvas.width
-    page.height = Math.round(PAGE_HEIGHT * px)
-    const pctx = page.getContext('2d')
-    for (let i = 0; i < cuts.length - 1; i++) {
-      const top = i ? PAGE_TOP : 0
-      const sy = Math.round(cuts[i] * px)
-      const sh = Math.min(Math.round(cuts[i + 1] * px), canvas.height) - sy
-      pctx.fillStyle = BG
-      pctx.fillRect(0, 0, page.width, page.height)
-      pctx.drawImage(canvas, 0, sy, canvas.width, sh, 0, Math.round(top * px), canvas.width, sh)
-      if (i) pdf.addPage([wPt, hPt], 'portrait')
-      pdf.addImage(page.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, wPt, hPt, undefined, 'FAST')
+    const scale = Math.min(2, Math.sqrt(MAX_CANVAS_PIXELS / (PAGE_WIDTH * PAGE_HEIGHT)))
+    document.head.appendChild(probeFix)
+    for (let p = 0; p < pageEls.length; p++) {
+      const node = pageEls[p]
+      const canvas = await html2canvas(node, {
+        scale,
+        backgroundColor: BG,
+        logging: false,
+        width: PAGE_WIDTH,
+        height: PAGE_HEIGHT,
+        windowWidth: PAGE_WIDTH,
+      })
+      const photoEl = node.querySelector('[data-pdf-photo]')
+      if (photo && photoEl) {
+        const o = node.getBoundingClientRect()
+        const r = photoEl.getBoundingClientRect()
+        const box = { x: r.left - o.left, y: r.top - o.top, w: r.width, h: r.height }
+        drawPhoto(canvas.getContext('2d'), photo.img, box, canvas.width / PAGE_WIDTH)
+      }
+      if (p) pdf.addPage([wPt, hPt], 'portrait')
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, wPt, hPt, undefined, 'FAST')
+      canvas.width = canvas.height = 0 // hand the pixels back now; iOS caps total canvas memory
     }
     pdf.setProperties({ title: recipe.title || 'Recipe' })
     const blob = pdf.output('blob')
     return new File([blob], fileName(recipe.title), { type: 'application/pdf' })
   } finally {
+    probeFix.remove()
     root.unmount()
     host.remove()
     photo?.release()

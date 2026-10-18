@@ -1,9 +1,17 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.23.0'
+export const APP_VERSION = '1.24.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.24.0',
+    date: '2026-10-17',
+    changes: [
+      'Recipe PDF: the recipe now reads in one continuous order, like a magazine. Ingredients run down the left column and carry on into the right column if they need to, Method starts in the next free column once Ingredients are done, and anything left over continues at the top left of the next page.',
+      'Recipe PDF: Serves, Prep, Cook and Total now sit in one slim line under the title instead of a tall row of icons, leaving more of the page for the recipe.',
+    ],
+  },
   {
     version: '1.23.0',
     date: '2026-10-17',
