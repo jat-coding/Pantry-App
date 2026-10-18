@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.24.0'
+export const APP_VERSION = '1.25.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.25.0',
+    date: '2026-10-17',
+    changes: [
+      'Sharing a recipe as a PDF now shows you the PDF first. Tap the share icon, look over every page, then tap Share to send it or Close to back out.',
+    ],
+  },
   {
     version: '1.24.0',
     date: '2026-10-17',

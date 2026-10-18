@@ -14,6 +14,7 @@ import SafeImage from '../components/SafeImage.jsx'
 import { useImageSnapshot } from '../lib/useImageSnapshot.js'
 import { AddToPantryPrompt } from './RecipeEditor.jsx'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
+import PdfPreview from '../components/PdfPreview.jsx'
 import { thud } from '../lib/haptics.js'
 
 function timeLabel(t) {
@@ -47,10 +48,12 @@ export default function RecipeDetail() {
   const [checked, setChecked] = useState(() => new Set())
   const { cookMode, setCookMode } = useCookMode()
   const [activeStep, setActiveStep] = useState(0)
-  // PDF share: `sharing` while it's being built; `readyPdf` keeps a built file for
-  // the current view so a second tap can share it straight away (see sharePdf).
+  // PDF share: `sharing` while it's being built; `readyPdf` keeps the built file (and
+  // its page images) for the current view so a second tap opens it straight away;
+  // `previewPdf` is the one on screen in the preview (see sharePdf).
   const [sharing, setSharing] = useState(false)
   const [readyPdf, setReadyPdf] = useState(null)
+  const [previewPdf, setPreviewPdf] = useState(null)
   const wakeRef = useRef(null)
   const stepRefs = useRef([])
 
@@ -176,44 +179,26 @@ export default function RecipeDetail() {
       .filter(Boolean)
   }
 
+  // Build the PDF for the current view (or reuse the one already built for it) and
+  // open it in the preview; the preview's own Share button does the actual share.
   async function sharePdf() {
     if (sharing) return
     const viewKey = JSON.stringify([recipe, factor, units])
-    let file = readyPdf?.key === viewKey ? readyPdf.file : null
-    if (!file) {
+    let pdf = readyPdf?.key === viewKey ? readyPdf : null
+    if (!pdf) {
       setSharing(true)
       try {
         const { buildRecipePdf } = await import('../lib/recipePdf.jsx')
-        file = await buildRecipePdf({ recipe, ingredients: pdfIngredientLines(), servings: scaledServings })
-        setReadyPdf({ key: viewKey, file })
+        const { file, pages } = await buildRecipePdf({ recipe, ingredients: pdfIngredientLines(), servings: scaledServings })
+        pdf = { key: viewKey, file, pages }
+        setReadyPdf(pdf)
       } catch {
-        setSharing(false)
         return toast('Could not create the PDF')
+      } finally {
+        setSharing(false)
       }
-      setSharing(false)
     }
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], title: recipe.title })
-      } catch (err) {
-        if (err?.name === 'AbortError') return // closed the share sheet
-        // iOS only opens the sheet straight from a tap; building the PDF can take
-        // long enough that the tap no longer counts. The file is kept, so the next
-        // tap shares instantly.
-        if (err?.name === 'NotAllowedError') return toast('PDF ready — tap share again')
-        toast('Could not share the PDF')
-      }
-      return
-    }
-    // No file sharing here (desktop, older Safari): just download it.
-    const url = URL.createObjectURL(file)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = file.name
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    setTimeout(() => URL.revokeObjectURL(url), 10000)
+    setPreviewPdf(pdf)
   }
 
   function toggleCheck(i) {
@@ -480,6 +465,15 @@ export default function RecipeDetail() {
         <AddToPantryPrompt
           onYes={async () => { await togglePantry(recipe.id); toast('Added to Pantry'); setShowPantryPrompt(false) }}
           onNo={() => setShowPantryPrompt(false)}
+        />
+      )}
+
+      {previewPdf && (
+        <PdfPreview
+          file={previewPdf.file}
+          pages={previewPdf.pages}
+          title={recipe.title}
+          onClose={() => setPreviewPdf(null)}
         />
       )}
 

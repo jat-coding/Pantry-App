@@ -143,6 +143,8 @@ function fileName(title) {
 
 // recipe: the recipe as shown. ingredients: display lines in the reader's current
 // scaled view (amount + unit + name). servings: the scaled servings label.
+// Returns the PDF file plus each page as the JPEG data URL that went into it, so the
+// in-app preview shows exactly what gets shared (iOS can't scroll a PDF in a page).
 export async function buildRecipePdf({ recipe, ingredients, servings }) {
   const photo = await loadPhoto(recipe.imageUrl)
   const prep = minutes(recipe.prepTime)
@@ -198,6 +200,7 @@ export async function buildRecipePdf({ recipe, ingredients, servings }) {
     const hPt = PAGE_HEIGHT * 0.75
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: [wPt, hPt], compress: true })
     const scale = Math.min(2, Math.sqrt(MAX_CANVAS_PIXELS / (PAGE_WIDTH * PAGE_HEIGHT)))
+    const pages = []
     document.head.appendChild(probeFix)
     for (let p = 0; p < pageEls.length; p++) {
       const node = pageEls[p]
@@ -217,12 +220,14 @@ export async function buildRecipePdf({ recipe, ingredients, servings }) {
         drawPhoto(canvas.getContext('2d'), photo.img, box, canvas.width / PAGE_WIDTH)
       }
       if (p) pdf.addPage([wPt, hPt], 'portrait')
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, wPt, hPt, undefined, 'FAST')
+      const jpeg = canvas.toDataURL('image/jpeg', 0.92)
+      pdf.addImage(jpeg, 'JPEG', 0, 0, wPt, hPt, undefined, 'FAST')
+      pages.push(jpeg)
       canvas.width = canvas.height = 0 // hand the pixels back now; iOS caps total canvas memory
     }
     pdf.setProperties({ title: recipe.title || 'Recipe' })
     const blob = pdf.output('blob')
-    return new File([blob], fileName(recipe.title), { type: 'application/pdf' })
+    return { file: new File([blob], fileName(recipe.title), { type: 'application/pdf' }), pages }
   } finally {
     probeFix.remove()
     root.unmount()
