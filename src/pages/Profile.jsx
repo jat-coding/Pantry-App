@@ -158,7 +158,7 @@ export default function Profile() {
             What's new
           </summary>
           <div className="mt-3 space-y-4">
-            {CHANGELOG.map((entry) => (
+            {CHANGELOG.slice(0, 5).map((entry) => (
               <div key={entry.version} className="card p-4">
                 <div className="mb-2 flex items-baseline justify-between">
                   <span className="font-extrabold">v{entry.version}</span>
