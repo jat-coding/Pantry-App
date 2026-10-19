@@ -1,9 +1,17 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.28.0'
+export const APP_VERSION = '1.29.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.29.0',
+    date: '2026-10-19',
+    changes: [
+      'Opening a friend\'s pantry now also shows who they are friends with, under their recipes. Tap Add next to anyone you don\'t know yet to send them a friend request.',
+      'People you are already friends with show as Friends, people you already sent a request to show as Requested, and anyone who already asked you shows an Accept button, so a request never goes out twice.',
+    ],
+  },
   {
     version: '1.28.0',
     date: '2026-10-19',

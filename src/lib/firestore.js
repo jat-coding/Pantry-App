@@ -216,6 +216,13 @@ export async function respondToRequest(request, accept, myUid) {
   if (accept) await updateDoc(doc(db, 'users', myUid), { friendIds: arrayUnion(request.fromUserId) })
 }
 
+// Requests I sent that are still waiting on the other person, so the app never offers
+// to add someone twice.
+export function listenOutgoingRequests(uid, cb) {
+  const q = query(requestsCol, where('fromUserId', '==', uid), where('status', '==', 'pending'))
+  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => d.data().toUserId)), () => cb([]))
+}
+
 // Requests I sent that were accepted. My client completes my half of the friendship.
 export function listenAcceptedSent(uid, cb) {
   const q = query(requestsCol, where('fromUserId', '==', uid), where('status', '==', 'accepted'))

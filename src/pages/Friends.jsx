@@ -190,13 +190,14 @@ export default function Friends() {
 
       {viewing && (
         <FriendProfile friend={viewing} onClose={closeFriend} onPocket={handleCopyToPantry}
+          me={user} myFriendIds={friendIds} incoming={requests} onRespond={respond}
           onRemove={async () => { await fs.removeFriend(user.uid, viewing.id); closeFriend(); toast('Friend removed') }} />
       )}
     </div>
   )
 }
 
-function FriendProfile({ friend, onClose, onPocket, onRemove }) {
+function FriendProfile({ friend, onClose, onPocket, onRemove, me, myFriendIds, incoming, onRespond }) {
   // Prefetched by DataContext while the phone was idle, so this is usually already
   // filled in on the first frame; the fetch below still runs and replaces it.
   const [recipes, setRecipes] = useState(() => fs.peekFriendRecipes(friend.id))
@@ -257,6 +258,8 @@ function FriendProfile({ friend, onClose, onPocket, onRemove }) {
             ))}
           </div>
         )}
+
+        <FriendsOfFriend friend={friend} me={me} myFriendIds={myFriendIds} incoming={incoming} onRespond={onRespond} />
       </div>
 
       {confirmingRemove && (
@@ -270,6 +273,80 @@ function FriendProfile({ friend, onClose, onPocket, onRemove }) {
       )}
     </div>,
     document.body,
+  )
+}
+
+// The viewed friend's own friends, each with an Add button unless you're already
+// friends or a request is already waiting either way.
+function FriendsOfFriend({ friend, me, myFriendIds, incoming, onRespond }) {
+  const toast = useToast()
+  const [people, setPeople] = useState(null)
+  const [outgoing, setOutgoing] = useState([])
+  const [sent, setSent] = useState(() => new Set())
+  const [accepted, setAccepted] = useState(() => new Set())
+  const idsKey = (friend.friendIds || []).join(',')
+  useEffect(() => {
+    let alive = true
+    setPeople(null)
+    // You are always on a friend's list here (friendships are mutual), so skip yourself.
+    const ids = (friend.friendIds || []).filter((id) => id !== me.uid)
+    fs.getUsersByIds(ids)
+      // Mutual only, same as your own list: a one-sided leftover entry isn't a friend.
+      .then((list) => { if (alive) setPeople(list.filter((u) => (u.friendIds || []).includes(friend.id))) })
+      .catch(() => { if (alive) setPeople([]) })
+    return () => { alive = false }
+  }, [friend.id, idsKey, me.uid])
+  useEffect(() => fs.listenOutgoingRequests(me.uid, setOutgoing), [me.uid])
+
+  const waitingOnThem = new Set([...outgoing, ...sent])
+  const askedMe = new Map(incoming.map((r) => [r.fromUserId, r]))
+
+  async function add(u) {
+    if (waitingOnThem.has(u.id)) return
+    setSent((s) => new Set(s).add(u.id))
+    try {
+      await fs.sendFriendRequest(me, u.id)
+      toast('Friend request sent')
+    } catch {
+      setSent((s) => { const n = new Set(s); n.delete(u.id); return n })
+      toast('Could not send request')
+    }
+  }
+
+  async function accept(req) {
+    // Shown as friends straight away: the request leaves the pending list before your
+    // own friend list catches up, which would otherwise flash an Add button.
+    setAccepted((s) => new Set(s).add(req.fromUserId))
+    await onRespond(req, true)
+  }
+
+  return (
+    <section className="mt-8">
+      <h2 className="mb-3 text-lg font-extrabold">{friend.displayName}'s Friends</h2>
+      {people == null ? (
+        <ListSkeleton count={2} />
+      ) : people.length === 0 ? (
+        <p className="text-warm-soft">No other friends yet.</p>
+      ) : (
+        <div className="space-y-2">
+          {people.map((u) => (
+            <div key={u.id} data-fof={u.id} className="card flex items-center gap-3 p-3">
+              <Avatar user={u} />
+              <span className="min-w-0 flex-1 truncate font-bold">{u.displayName}</span>
+              {myFriendIds.has(u.id) || accepted.has(u.id) ? (
+                <span className="inline-flex items-center gap-1 text-sm font-bold text-warm-soft">Friends <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" /></span>
+              ) : askedMe.has(u.id) ? (
+                <button className="btn-peach py-2 text-sm" onClick={() => accept(askedMe.get(u.id))}>Accept</button>
+              ) : waitingOnThem.has(u.id) ? (
+                <span className="text-sm font-bold text-warm-soft">Requested</span>
+              ) : (
+                <button className="btn-ghost py-2 text-sm" onClick={() => add(u)}>Add</button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   )
 }
 
