@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.26.0'
+export const APP_VERSION = '1.26.1'
 
 export const CHANGELOG = [
+  {
+    version: '1.26.1',
+    date: '2026-10-19',
+    changes: [
+      'Ingredient rows show the unit right next to the amount instead of after the name, so the quantity reads at a glance. Dropped the redundant converted-amount note that used to repeat next to the ingredient name.',
+    ],
+  },
   {
     version: '1.26.0',
     date: '2026-10-19',

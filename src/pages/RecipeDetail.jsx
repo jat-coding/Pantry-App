@@ -364,7 +364,6 @@ export default function RecipeDetail() {
 
         <ul className="card divide-y divide-warm/5 overflow-hidden">
           {scaledIngredients.map((ing, i) => {
-            const pretty = formatIngredient(ing)
             const isChecked = checked.has(i)
             const unit = unitFor(i)
             const options = compatibleUnits(recipe.ingredients[i]?.unit)
@@ -397,27 +396,24 @@ export default function RecipeDetail() {
                   <span className="w-16 shrink-0 text-center text-sm text-warm-soft">—</span>
                 )}
 
-                <span className={`min-w-0 flex-1 ${isChecked ? 'text-warm-soft line-through' : ''}`}>
-                  {ing.name}
-                  {!units[i] && !autoConverted(i) && pretty.qtyLabel && (
-                    <span className="ml-1 text-xs text-warm-soft">({pretty.qtyLabel} {abbreviateUnit(pretty.unit)})</span>
-                  )}
-                </span>
-
-                {/* Unit sits at the far end of the row, well clear of the amount
-                    field, so switching units is never a mis-tap on the number. */}
+                {/* Unit sits right next to the amount, so qty+unit read together
+                    before the (often long) ingredient name. */}
                 {options.length > 1 ? (
                   <select
                     value={unit}
                     onChange={(e) => changeUnit(i, e.target.value)}
                     aria-label={`Unit for ${ing.name}`}
-                    className="ml-2 h-8 w-[4.5rem] shrink-0 rounded-lg border border-warm/15 bg-white px-1 text-center text-sm font-bold text-warm-soft outline-none focus:border-peach-dark"
+                    className="h-8 w-[4.5rem] shrink-0 rounded-lg border border-warm/15 bg-white px-1 text-center text-sm font-bold text-warm-soft outline-none focus:border-peach-dark"
                   >
                     {options.map((u) => <option key={u} value={u}>{u}</option>)}
                   </select>
-                ) : (
-                  <span className="ml-2 w-[4.5rem] shrink-0 truncate text-center text-sm text-warm-soft">{unit}</span>
-                )}
+                ) : unit ? (
+                  <span className="w-[4.5rem] shrink-0 truncate text-center text-sm text-warm-soft">{unit}</span>
+                ) : null}
+
+                <span className={`min-w-0 flex-1 ${isChecked ? 'text-warm-soft line-through' : ''}`}>
+                  {ing.name}
+                </span>
               </li>
             )
           })}
