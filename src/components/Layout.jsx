@@ -8,13 +8,15 @@ import ScrollMemory from './ScrollMemory.jsx'
 import { useNavStyle } from '../lib/navStyle.js'
 import { tap } from '../lib/haptics.js'
 import {
-  GroceryIcon, PantryIcon, FriendsIcon, ProfileIcon, PlusIcon, LinkIcon, EditIcon,
+  GroceryIcon, CookIcon, PantryIcon, FriendsIcon, ProfileIcon, PlusIcon, LinkIcon, EditIcon,
 } from './icons.jsx'
 
-// Bottom-bar order: Grocery, [+ add], Pantry, Friends.
+// Bottom-bar order: Grocery, Cook, [+ add], Pantry, Friends.
 // Profile is reached from the top-right of the Friends screen.
+// Cook isn't a screen of its own: /cook picks a recipe and opens it in Cook Mode.
 const TABS = [
   { to: '/grocery', label: 'Grocery', Icon: GroceryIcon },
+  { to: '/cook', label: 'Cook', Icon: CookIcon },
   { to: '/', label: 'Pantry', Icon: PantryIcon, end: true },
   { to: '/friends', label: 'Friends', Icon: FriendsIcon },
 ]
@@ -133,6 +135,19 @@ export default function Layout() {
     `h-6 w-6 transition ${isActive
       ? 'scale-110 animate-jiggle text-zinc-800'
       : nav.dark ? 'text-eggshell opacity-80' : 'text-zinc-800 opacity-50'}`
+  const tabLink = (t) => (
+    <NavLink key={t.to} to={t.to} end={t.end} onClick={tap} className={({ isActive }) => navItem(isActive)}>
+      {({ isActive }) => (
+        <>
+          <span className="relative">
+            <t.Icon className={navIcon(isActive)} />
+            {t.to === '/friends' && <RequestBadge count={incomingRequestCount} className="absolute -right-2.5 -top-1.5" />}
+          </span>
+          {t.label}
+        </>
+      )}
+    </NavLink>
+  )
 
   return (
     <div className="min-h-screen sm:flex">
@@ -216,16 +231,7 @@ export default function Layout() {
             aria-hidden="true"
             className="pointer-events-none absolute left-0 top-0 rounded-2xl border border-peach-dark/40 bg-peach opacity-0 shadow-[inset_0_1px_3px_rgba(44,36,22,0.12)] transition-[transform,width,height,opacity] duration-[380ms] ease-[cubic-bezier(.3,.8,.25,1)]"
           />
-          {TABS.slice(0, 1).map((t) => (
-            <NavLink key={t.to} to={t.to} end={t.end} onClick={tap} className={({ isActive }) => navItem(isActive)}>
-              {({ isActive }) => (
-                <>
-                  <t.Icon className={navIcon(isActive)} />
-                  {t.label}
-                </>
-              )}
-            </NavLink>
-          ))}
+          {TABS.slice(0, 2).map(tabLink)}
 
           {/* Raised center add button */}
           <button
@@ -236,19 +242,7 @@ export default function Layout() {
             <PlusIcon className="h-7 w-7" />
           </button>
 
-          {TABS.slice(1).map((t) => (
-            <NavLink key={t.to} to={t.to} end={t.end} onClick={tap} className={({ isActive }) => navItem(isActive)}>
-              {({ isActive }) => (
-                <>
-                  <span className="relative">
-                    <t.Icon className={navIcon(isActive)} />
-                    {t.to === '/friends' && <RequestBadge count={incomingRequestCount} className="absolute -right-2.5 -top-1.5" />}
-                  </span>
-                  {t.label}
-                </>
-              )}
-            </NavLink>
-          ))}
+          {TABS.slice(2).map(tabLink)}
         </div>
       </nav>
       )}

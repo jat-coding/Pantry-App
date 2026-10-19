@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext.jsx'
 import { Check, X, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react'
 import { useCookMode } from '../contexts/CookModeContext.jsx'
 import { useGoBack } from '../lib/useGoBack.js'
+import { recordOpened } from '../lib/cookLaunch.js'
 import { useToast } from '../components/Toast.jsx'
 import { formatIngredient, formatQty, abbreviateUnit, compatibleUnits, convertQty, parseQty, defaultUnitFor, displayQtyIn } from '../lib/scaling.js'
 import { stepIngredientIndexes } from '../lib/stepIngredients.js'
@@ -61,6 +62,20 @@ export default function RecipeDetail() {
   // Cook Mode is app-wide state (Layout hides the bottom tab bar while it's
   // on) — turn it off if this page is left without an explicit Exit tap.
   useEffect(() => () => setCookMode(false), [])
+
+  // Arrived from the Cook tab: start in Cook Mode, then drop the flag from history so
+  // a refresh or coming back to this entry doesn't force it on again. Exit works as
+  // usual from here.
+  useEffect(() => {
+    if (!location.state?.cook) return
+    setCookMode(true)
+    const { cook, ...rest } = location.state
+    navigate(location.pathname, { replace: true, state: Object.keys(rest).length ? rest : null })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Remember the last recipe opened, for the Cook tab.
+  useEffect(() => { if (recipe?.id) recordOpened(recipe.id) }, [recipe?.id])
 
   useEffect(() => {
     let alive = true

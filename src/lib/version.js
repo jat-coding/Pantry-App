@@ -1,9 +1,18 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.29.0'
+export const APP_VERSION = '1.30.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.30.0',
+    date: '2026-10-19',
+    changes: [
+      'New Cook tab in the bottom bar, next to Grocery. Tap it to jump straight into Cook Mode for the recipe you opened last, so you never have to search for what you were just cooking.',
+      'If you haven\'t opened a recipe yet, Cook picks the one you hearted most recently. With no recipes at all it shows a short note and an Add a recipe button.',
+      'Exit Cook Mode works the same as always: the recipe stays on screen and the tab bar comes back.',
+    ],
+  },
   {
     version: '1.29.0',
     date: '2026-10-19',

@@ -6,6 +6,7 @@ import Layout from './components/Layout.jsx'
 import Auth from './pages/Auth.jsx'
 import Pantry from './pages/Pantry.jsx'
 import RecipeDetail from './pages/RecipeDetail.jsx'
+import CookLaunch from './pages/CookLaunch.jsx'
 import RecipeEditor from './pages/RecipeEditor.jsx'
 import GroceryList from './pages/GroceryList.jsx'
 import Friends from './pages/Friends.jsx'
@@ -39,6 +40,7 @@ export default function App() {
             <Route path="/recipe/:id" element={<RecipeDetail />} />
             <Route path="/recipe/:id/edit" element={<RecipeEditor />} />
             <Route path="/new" element={<RecipeEditor />} />
+            <Route path="/cook" element={<CookLaunch />} />
             <Route path="/grocery" element={<GroceryList />} />
             <Route path="/friends" element={<Friends />} />
             <Route path="/invite/:inviterId" element={<InviteAccept />} />

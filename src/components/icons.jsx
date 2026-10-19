@@ -4,7 +4,7 @@
 import {
   ShoppingCart, Users, User, LayoutGrid, List, Plus,
   HelpCircle, Search, UtensilsCrossed, Pencil, Trash2, Video, Camera, Link as LinkIconBase,
-  Egg, Sandwich, ChefHat, Cookie, Popcorn, CupSoda, Droplet, Heart as HeartIconBase, Share,
+  Egg, Sandwich, ChefHat, CookingPot, Cookie, Popcorn, CupSoda, Droplet, Heart as HeartIconBase, Share,
 } from 'lucide-react'
 
 const STROKE_WIDTH = 1.8
@@ -33,6 +33,10 @@ export function FriendsIcon({ className = 'h-6 w-6' }) {
 
 export function ProfileIcon({ className = 'h-6 w-6' }) {
   return <User className={className} strokeWidth={STROKE_WIDTH} aria-hidden="true" />
+}
+
+export function CookIcon({ className = 'h-6 w-6' }) {
+  return <CookingPot className={className} strokeWidth={STROKE_WIDTH} aria-hidden="true" />
 }
 
 export function GridIcon({ className = 'h-5 w-5' }) {
