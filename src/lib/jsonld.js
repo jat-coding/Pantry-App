@@ -58,7 +58,13 @@ export function parseIngredientLine(line) {
   }
   if (matched) qty = Math.round(acc * 100) / 100
   let unit = ''
-  if (tokens[idx] && UNITS.includes(tokens[idx].toLowerCase().replace(/\.$/, ''))) {
+  // "fl oz" / "fl. oz." / "fluid ounces" is two words; keep it as the volume unit
+  // instead of leaving "fl oz" stuck on the front of the name.
+  const two = `${tokens[idx] || ''} ${tokens[idx + 1] || ''}`.toLowerCase().replace(/\./g, '')
+  if (/^(fl|fluid) (oz|ounce|ounces)$/.test(two)) {
+    unit = 'fl oz'
+    idx += 2
+  } else if (tokens[idx] && UNITS.includes(tokens[idx].toLowerCase().replace(/\.$/, ''))) {
     unit = tokens[idx].replace(/\.$/, '')
     idx++
   }
@@ -115,5 +121,6 @@ export function extractRecipeFromHtml(html, pageUrl) {
     servings: Number.isFinite(servings) ? servings : 4,
     ingredients: asArray(recipeNode.recipeIngredient).map(parseIngredientLine),
     instructions: flattenInstructions(recipeNode.recipeInstructions),
+    sourceUrl: pageUrl || '',
   }
 }

@@ -125,11 +125,13 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
     toast('Import failed — see details')
   }
 
-  function handoffToEditor(recipe) {
+  // sourceUrl: the page or video link it was imported from (URL and Video tabs), so
+  // the saved recipe can link back to its original. Pasted text and files have none.
+  function handoffToEditor(recipe, sourceUrl = '') {
     // Importers (Claude paste/photo, JSON-LD, video) can return missing/null
     // fields or wrong types. Normalize to the exact shape the editor expects so
     // it never crashes to a blank screen on render.
-    const safe = sanitizeRecipe(recipe)
+    const safe = sanitizeRecipe({ ...recipe, sourceUrl: sourceUrl || recipe?.sourceUrl })
     if (!safe.imageUrl && thumbnailRef.current) safe.imageUrl = thumbnailRef.current
     localStorage.setItem(DRAFT_KEY, JSON.stringify(safe))
     onClose()
@@ -172,7 +174,7 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
       if (reason) {
         throw new Error(`Couldn't build a complete recipe — ${reason}. Try the Paste tab with the full recipe text.`)
       }
-      handoffToEditor(recipe)
+      handoffToEditor(recipe, target)
     } catch (err) {
       fail(err.message || 'Import failed', { deepReadable: !!err.deepReadable })
     } finally {
@@ -192,7 +194,7 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
       })
       const reason = unusableReason(recipe)
       if (reason) throw new Error(`Couldn't build a complete recipe from the video itself — ${reason}.`)
-      handoffToEditor(recipe)
+      handoffToEditor(recipe, videoUrl.trim())
     } catch (err) {
       fail(err.message || 'Could not read that video')
     } finally {
@@ -231,7 +233,7 @@ export default function ImportModal({ onClose, initialUrl = '' }) {
       e.deepReadable = true
       throw e
     }
-    handoffToEditor(recipe)
+    handoffToEditor(recipe, url)
   }
 
   async function importText() {

@@ -107,9 +107,12 @@ export default function Layout() {
   }
 
   // The active label always sits on the peach pill, so it stays dark in every look.
-  // Only the inactive labels/icons need to flip for the charcoal bar.
+  // Only the inactive labels/icons need to flip for the charcoal bar. Each tab is a
+  // rounded rect wide enough for its label, and the pill takes exactly its box, so
+  // the highlight covers icon + label with no gaps (a circle left gaps and let
+  // "Recipes" spill past its edges).
   const navItem = (isActive) =>
-    `relative z-10 flex w-14 flex-col items-center gap-0.5 rounded-full py-1.5 text-[10px] font-bold transition-colors duration-300 ${
+    `relative z-10 flex min-w-[3.75rem] flex-col items-center gap-0.5 rounded-2xl px-1.5 py-1.5 text-[10px] font-bold transition-colors duration-300 ${
       isActive ? 'text-warm' : nav.dark ? 'text-eggshell/85' : 'text-warm-soft/70'
     }`
   const navIcon = (isActive) =>
@@ -194,7 +197,7 @@ export default function Layout() {
           <div
             ref={pillRef}
             aria-hidden="true"
-            className="pointer-events-none absolute left-0 top-0 rounded-full border border-peach-dark/40 bg-peach opacity-0 shadow-[inset_0_1px_3px_rgba(44,36,22,0.12)] transition-[transform,width,height,opacity] duration-[380ms] ease-[cubic-bezier(.3,.8,.25,1)]"
+            className="pointer-events-none absolute left-0 top-0 rounded-2xl border border-peach-dark/40 bg-peach opacity-0 shadow-[inset_0_1px_3px_rgba(44,36,22,0.12)] transition-[transform,width,height,opacity] duration-[380ms] ease-[cubic-bezier(.3,.8,.25,1)]"
           />
           {TABS.slice(0, 2).map((t) => (
             <NavLink key={t.to} to={t.to} end={t.end} onClick={tap} className={({ isActive }) => navItem(isActive)}>

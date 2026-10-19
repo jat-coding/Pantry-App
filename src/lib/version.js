@@ -1,9 +1,21 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.25.1'
+export const APP_VERSION = '1.26.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.26.0',
+    date: '2026-10-19',
+    changes: [
+      'Recipe PDF is now a clean index card: no photo, just the title, a slim Serves/Prep/Cook line, Ingredients, numbered Method and, for imported recipes, the site it came from.',
+      'Imported recipes now remember where they came from. An Original button at the bottom of the recipe opens the page or video it was imported from. Recipes imported before this update, or written from scratch, don\'t show it.',
+      'Cook Mode shows the exact amounts each step needs right under that step, following your servings and units.',
+      'Cook Mode: the Prev/Next bar now sits right at the bottom of the screen instead of floating above an empty gap.',
+      'Ingredients measured in fluid ounces now show in cups, tablespoons or teaspoons by default, rounded to the nearest half. You can still switch back to fl oz.',
+      'The highlight on the selected bottom tab is now a rounded square that covers the whole icon and label.',
+    ],
+  },
   {
     version: '1.25.1',
     date: '2026-10-17',

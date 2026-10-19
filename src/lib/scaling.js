@@ -36,7 +36,8 @@ const UNIT_ABBR = {
   tablespoon: 'tbsp', tablespoons: 'tbsp', tbsp: 'tbsp',
   teaspoon: 'tsp', teaspoons: 'tsp', tsp: 'tsp',
   cup: 'cup', cups: 'cup',
-  ounce: 'oz', ounces: 'oz', oz: 'oz', 'fl oz': 'fl oz',
+  ounce: 'oz', ounces: 'oz', oz: 'oz', 'fl oz': 'fl oz', 'fl. oz': 'fl oz', 'fl oz.': 'fl oz',
+  'fluid ounce': 'fl oz', 'fluid ounces': 'fl oz',
   pound: 'lb', pounds: 'lb', lb: 'lb', lbs: 'lb',
   gram: 'g', grams: 'g', g: 'g', kilogram: 'kg', kilograms: 'kg', kg: 'kg',
   milliliter: 'ml', milliliters: 'ml', ml: 'ml',
@@ -68,7 +69,47 @@ function familyFor(unit) {
 // convert ("clove", "pkg", no unit at all) — those stay plain text.
 export function compatibleUnits(unit) {
   const f = familyFor(unit)
-  return f ? Object.keys(f.units) : []
+  if (!f) return []
+  const all = Object.keys(f.units)
+  // A fluid-ounce ingredient lists the kitchen measures first (they're what it
+  // defaults to, see defaultUnitFor), then fl oz itself and the rest.
+  return isFluidOunce(unit) ? [...KITCHEN_UNITS, ...all.filter((u) => !KITCHEN_UNITS.includes(u))] : all
+}
+
+// Fluid ounces read as cups/tbsp/tsp by default. Plain "oz" is weight here and is
+// left alone: weight and volume don't convert without knowing the ingredient.
+const KITCHEN_UNITS = ['cup', 'tbsp', 'tsp']
+
+export function isFluidOunce(unit) {
+  return abbreviateUnit(unit) === 'fl oz'
+}
+
+// The unit an ingredient is shown in before the reader picks one: its own unit,
+// except fl oz, which becomes the largest of cup/tbsp/tsp that reads as at least 1
+// (half-unit rounded). Worked out from the recipe's own quantity, not the scaled
+// one, so scaling or typing an amount never makes the unit jump.
+export function defaultUnitFor(qty, unit) {
+  const u = abbreviateUnit(unit)
+  if (!isFluidOunce(u)) return u
+  const n = Number(qty)
+  if (!Number.isFinite(n) || n <= 0) return 'cup'
+  return KITCHEN_UNITS.find((k) => roundHalf(convertQty(n, u, k)) >= 1) || 'tsp'
+}
+
+// Nearest 0.5, never showing a positive amount as 0.
+export function roundHalf(n) {
+  const r = Math.round(Number(n) * 2) / 2
+  return r === 0 && Number(n) > 0 ? 0.5 : r
+}
+
+// A quantity as the reader sees it in `to`: fl oz re-expressed as cup/tbsp/tsp is
+// rounded to the nearest half (no "0.899 cup"); everything else keeps 2 decimals.
+// Display only -- grocery math uses convertQty's full precision.
+export function displayQtyIn(qty, from, to) {
+  const n = Number(convertQty(qty, from, to))
+  if (!Number.isFinite(n)) return qty
+  if (isFluidOunce(from) && KITCHEN_UNITS.includes(abbreviateUnit(to))) return roundHalf(n)
+  return Math.round(n * 100) / 100
 }
 
 // Re-express a quantity in another unit of the same family. Returns qty

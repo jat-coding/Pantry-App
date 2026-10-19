@@ -2,11 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
-import { Check, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Check, X, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react'
 import { useCookMode } from '../contexts/CookModeContext.jsx'
 import { useGoBack } from '../lib/useGoBack.js'
 import { useToast } from '../components/Toast.jsx'
-import { formatIngredient, formatQty, abbreviateUnit, compatibleUnits, convertQty, parseQty } from '../lib/scaling.js'
+import { formatIngredient, formatQty, abbreviateUnit, compatibleUnits, convertQty, parseQty, defaultUnitFor, displayQtyIn } from '../lib/scaling.js'
+import { stepIngredientIndexes } from '../lib/stepIngredients.js'
 import { aisleFor, getCategories, primaryCategory } from '../lib/categories.js'
 import { EditIcon, TrashIcon, HeartIcon, CategoryIcon, ShareIcon } from '../components/icons.jsx'
 import { RecipeDetailSkeleton } from '../components/Skeleton.jsx'
@@ -128,9 +129,23 @@ export default function RecipeDetail() {
   const isOwner = user && recipe.authorId === user.uid
   const scaledServings = formatQty((recipe.servings || 1) * factor)
 
-  // The unit an ingredient is currently shown in, and its quantity in that unit.
-  const unitFor = (i) => units[i] || abbreviateUnit(recipe.ingredients[i]?.unit)
+  // The unit an ingredient is currently shown in, and its quantity in that unit
+  // (qtyIn: full precision, for math; shownQty: as displayed, fl oz -> cup/tbsp/tsp
+  // rounded to the nearest half). A fl oz ingredient starts in cup/tbsp/tsp.
+  const unitFor = (i) => units[i] || defaultUnitFor(recipe.ingredients[i]?.qty, recipe.ingredients[i]?.unit)
+  const autoConverted = (i) => !units[i] && unitFor(i) !== abbreviateUnit(recipe.ingredients[i]?.unit)
   const qtyIn = (i, qty) => convertQty(qty, recipe.ingredients[i]?.unit, unitFor(i))
+  const shownQty = (i, qty) => displayQtyIn(qty, recipe.ingredients[i]?.unit, unitFor(i))
+
+  // An ingredient's scaled amount as text, in the unit its row shows. `friendly`
+  // (the PDF) uses the auto unit from formatIngredient for a row the reader hasn't
+  // switched, the way the row's grey hint reads.
+  function amountText(ing, i, friendly) {
+    if (ing.qty === '' || ing.qty == null) return ''
+    if (!friendly || units[i] || autoConverted(i)) return `${formatQty(shownQty(i, ing.qty))} ${unitFor(i)}`.trim()
+    const pretty = formatIngredient(ing)
+    return [pretty.qtyLabel, abbreviateUnit(pretty.unit)].filter(Boolean).join(' ')
+  }
 
   // Edit one ingredient's quantity -> rescale everything. The field is free text
   // so it can be cleared; an empty or half-typed value just parks the draft and
@@ -171,10 +186,7 @@ export default function RecipeDetail() {
     return scaledIngredients
       .map((ing, i) => {
         if (!ing.name) return ''
-        if (ing.qty === '' || ing.qty == null) return ing.name
-        if (units[i]) return `${formatQty(qtyIn(i, ing.qty))} ${units[i]} ${ing.name}`
-        const pretty = formatIngredient(ing)
-        return [pretty.qtyLabel, abbreviateUnit(pretty.unit), ing.name].filter(Boolean).join(' ')
+        return [amountText(ing, i, true), ing.name].filter(Boolean).join(' ')
       })
       .filter(Boolean)
   }
@@ -359,7 +371,7 @@ export default function RecipeDetail() {
             const hasQty = !(ing.qty === '' || ing.qty == null)
             const value = qtyDraft?.index === i
               ? qtyDraft.text
-              : hasQty ? String(Math.round(Number(qtyIn(i, ing.qty)) * 100) / 100) : ''
+              : hasQty ? String(shownQty(i, ing.qty)) : ''
             return (
               <li key={i} className="flex items-center gap-3 p-3">
                 <button
@@ -387,7 +399,7 @@ export default function RecipeDetail() {
 
                 <span className={`min-w-0 flex-1 ${isChecked ? 'text-warm-soft line-through' : ''}`}>
                   {ing.name}
-                  {!units[i] && pretty.qtyLabel && (
+                  {!units[i] && !autoConverted(i) && pretty.qtyLabel && (
                     <span className="ml-1 text-xs text-warm-soft">({pretty.qtyLabel} {abbreviateUnit(pretty.unit)})</span>
                   )}
                 </span>
@@ -417,11 +429,17 @@ export default function RecipeDetail() {
       </section>
 
       {/* Instructions */}
-      <section className={cookMode ? 'pb-48' : ''}>
+      {/* No extra Cook Mode padding: <main> already reserves the tab bar's room at the
+          bottom, which clears the (shorter) Prev/Next bar. */}
+      <section>
         <h2 className="mb-2 text-xl font-extrabold">Instructions</h2>
         <ol className="space-y-3">
           {recipe.instructions.map((step, i) => {
             const active = cookMode && i === activeStep
+            // Cook Mode: the amounts this step calls for, under its text.
+            const needs = cookMode
+              ? stepIngredientIndexes(step, scaledIngredients).filter((k) => scaledIngredients[k].name)
+              : []
             return (
               <li
                 key={i}
@@ -434,17 +452,38 @@ export default function RecipeDetail() {
                 <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-extrabold ${
                   active ? 'bg-white text-warm' : 'bg-peach/40'
                 }`}>{i + 1}</span>
-                <span className={cookMode ? 'text-lg leading-relaxed' : ''}>{step}</span>
+                <div className="min-w-0 flex-1">
+                  <span className={cookMode ? 'text-lg leading-relaxed' : ''}>{step}</span>
+                  {needs.length > 0 && (
+                    <ul className={`mt-2 space-y-0.5 border-t pt-2 text-sm ${active ? 'border-warm/15' : 'border-warm/10'}`}>
+                      {needs.map((k) => (
+                        <li key={k} className="flex gap-2">
+                          <span className="shrink-0 font-extrabold">{amountText(scaledIngredients[k], k) || '\u2014'}</span>
+                          <span className="min-w-0">{scaledIngredients[k].name}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </li>
             )
           })}
         </ol>
+
+        {/* Where an imported recipe came from. Only the label, never the raw URL. */}
+        {/^https?:\/\//i.test(recipe.sourceUrl || '') && (
+          <button
+            onClick={() => window.open(recipe.sourceUrl, '_blank', 'noopener,noreferrer')}
+            className="btn-ghost mt-4 w-full"
+          ><ExternalLink className="h-4 w-4" strokeWidth={2.2} aria-hidden="true" /> Original</button>
+        )}
       </section>
 
-      {/* Cook-mode step controls — sit just above the mobile tab bar (and at the
-          bottom on desktop, where there's a sidebar instead of a tab bar). */}
+      {/* Cook-mode step controls, flush with the bottom of the screen: the mobile tab
+          bar is hidden in Cook Mode, so nothing sits under this. Its own padding
+          clears the home indicator. */}
       {cookMode && (
-        <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+6.5rem)] z-50 flex items-center gap-3 border-t border-warm/10 bg-white/95 p-3 backdrop-blur sm:bottom-0 sm:left-60">
+        <div className="fixed inset-x-0 bottom-0 z-50 flex items-center gap-3 border-t border-warm/10 bg-white/95 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur sm:left-60 sm:pb-3">
           <button
             onClick={() => setActiveStep((s) => Math.max(0, s - 1))}
             disabled={activeStep === 0}

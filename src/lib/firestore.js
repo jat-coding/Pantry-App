@@ -60,6 +60,8 @@ export async function createRecipe(data, user, extra = {}) {
     // silently dropped it — so every NEW video recipe (and every pocketed one) saved
     // with no video and an orphaned file in Storage.
     videoUrl: data.videoUrl || '',
+    // The page/video an imported recipe came from ("Original" on the recipe page).
+    sourceUrl: data.sourceUrl || '',
     isPublic: !!data.isPublic,
     authorId: user.uid,
     authorName: user.displayName || 'Me',

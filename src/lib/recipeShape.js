@@ -8,6 +8,11 @@
 
 import { CATEGORIES } from './categories.js'
 
+// Only a real web link is kept as a recipe's source; anything else is dropped.
+function asSourceUrl(u) {
+  return typeof u === 'string' && /^https?:\/\/\S+$/i.test(u.trim()) ? u.trim() : ''
+}
+
 function asTime(t, fallbackValue) {
   const unit = t && (t.unit === 'hr' || t.unit === 'min') ? t.unit : 'min'
   const value = t && Number.isFinite(Number(t.value)) ? Number(t.value) : fallbackValue
@@ -47,6 +52,7 @@ export function sanitizeRecipe(raw) {
     title: typeof r.title === 'string' ? r.title : '',
     imageUrl: typeof r.imageUrl === 'string' ? r.imageUrl : '',
     videoUrl: typeof r.videoUrl === 'string' ? r.videoUrl : '',
+    sourceUrl: asSourceUrl(r.sourceUrl),
     category,
     categories,
     prepTime: asTime(r.prepTime, 0),

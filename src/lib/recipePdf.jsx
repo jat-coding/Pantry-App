@@ -1,7 +1,7 @@
 // Recipe -> Letter-size PDF, client-side: measure the recipe's blocks off-screen, flow
 // them snake-wise through two columns per 8.5x11in page (flowColumns), render those
-// pages, snapshot each with html2canvas, paint the photo into its reserved box, and
-// add each to a jsPDF document (a long recipe flows onto more pages).
+// pages, snapshot each with html2canvas, and add each to a jsPDF document (a long
+// recipe flows onto more pages). No photo: the card is text only (2026-10-19).
 // Loaded on demand (dynamic import from RecipeDetail) so jspdf/html2canvas stay out of
 // the main bundle.
 import { createRoot } from 'react-dom/client'
@@ -9,15 +9,11 @@ import { flushSync } from 'react-dom'
 import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
 import { RecipePdfMeasure, RecipePdfPages, pdfBlocks, PDF_PAGE } from '../components/RecipePdfTemplate.jsx'
-import { primaryCategory } from './categories.js'
-import { isExternalImage } from './imageSnapshot.js'
-import { withTimeout } from './image.js'
 
 const PAGE_WIDTH = PDF_PAGE.width // CSS px = 8.5in at 96dpi -> 612pt PDF page width
 const PAGE_HEIGHT = PDF_PAGE.height // CSS px = 11in at 96dpi -> 792pt
 const PAGE_TOP = PDF_PAGE.top // top margin (page 1 has the header below it)
 const PAGE_BOTTOM = PDF_PAGE.bottom // a column ends this far above the page's bottom edge
-const PHOTO_RADIUS = 28 // the photo box's rounded-[28px]
 const BG = '#FAF4E8'
 const MAX_CANVAS_PIXELS = 16_000_000 // iOS Safari refuses canvases much bigger than this
 
@@ -34,76 +30,13 @@ function timeText(mins) {
   return m ? `${h} hr ${m} min` : `${h} hr`
 }
 
-// The photo as a decoded <img> read from its own bytes (a blob: URL), so drawing it
-// never taints the canvas. Snapshotted photos live in Firebase Storage, which sends
-// `access-control-allow-origin: *`, so a plain fetch works. A photo still on its
-// original site is read through our own /api/image-fetch (the same proxy the
-// snapshotter uses), then directly in case that site allows it (some block the proxy
-// but send CORS headers). Any failure -> null, and the PDF is drawn without a photo
-// rather than with a broken box; the reason is logged so a miss can be diagnosed.
-async function loadPhoto(url) {
-  if (!url) return null
-  const proxy = /^https?:\/\//i.test(url) ? `/api/image-fetch?url=${encodeURIComponent(url)}` : null
-  const sources = (isExternalImage(url) ? [proxy, url] : [url, proxy]).filter(Boolean)
-  const misses = []
-  for (const src of sources) {
-    let objectUrl = null
-    try {
-      const resp = await withTimeout(fetch(src, { referrerPolicy: 'no-referrer' }), 15000, 'photo timed out')
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-      const blob = await resp.blob()
-      if (!blob.type.startsWith('image/')) throw new Error(`not an image (${blob.type || 'no type'})`)
-      objectUrl = URL.createObjectURL(blob)
-      const img = new Image()
-      img.src = objectUrl
-      await withTimeout(img.decode(), 10000, 'photo decode timed out')
-      if (!img.naturalWidth || !img.naturalHeight) throw new Error('photo has no size')
-      return { img, release: () => URL.revokeObjectURL(objectUrl) }
-    } catch (err) {
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
-      misses.push(`${src.slice(0, 80)}: ${err?.message || err}`)
-    }
-  }
-  console.warn('Recipe PDF: drawn without the photo.', misses)
-  return null
-}
-
-// Paint the photo into the box the template reserved for it: cover-cropped and
-// centred (what bg-cover bg-center did), clipped to the rounded corners.
-function drawPhoto(ctx, img, box, scale) {
-  const x = box.x * scale
-  const y = box.y * scale
-  const w = box.w * scale
-  const h = box.h * scale
-  const r = Math.min(PHOTO_RADIUS * scale, w / 2, h / 2)
-  const iw = img.naturalWidth
-  const ih = img.naturalHeight
-  const k = Math.max(w / iw, h / ih)
-  const sw = w / k
-  const sh = h / k
-  ctx.save()
-  // html2canvas hands back its context still scaled and translated to the node's
-  // (off-screen) page position; draw in plain canvas pixels instead.
-  ctx.setTransform(1, 0, 0, 1, 0, 0)
-  ctx.beginPath()
-  ctx.moveTo(x + r, y)
-  ctx.arcTo(x + w, y, x + w, y + h, r)
-  ctx.arcTo(x + w, y + h, x, y + h, r)
-  ctx.arcTo(x, y + h, x, y, r)
-  ctx.arcTo(x, y, x + w, y, r)
-  ctx.closePath()
-  ctx.clip()
-  ctx.drawImage(img, (iw - sw) / 2, (ih - sh) / 2, sw, sh, x, y, w, h)
-  ctx.restore()
-}
-
 // The snake flow. Blocks go down the left column, then the right, then the next
 // page's left, and so on, never split. Page 1's columns start under the header
 // (firstTop); later pages start at PAGE_TOP. Method always opens a fresh column (the
 // one after wherever Ingredients ended), and a heading never sits alone at the
 // bottom of a column without its first line. Returns pages[p] = [{ i, col, y }].
 function gapBefore(prev, b) {
-  if (b.type === 'heading' || prev.type === 'photo') return 32
+  if (b.type === 'heading') return 32
   if (prev.type === 'heading') return 12
   return b.type === 'step' ? 12 : 6
 }
@@ -136,6 +69,15 @@ export function flowColumns(blocks, heights, firstTop) {
   return pages
 }
 
+// "Source: allrecipes.com" for an imported recipe; nothing for one written here.
+function sourceCredit(url) {
+  try {
+    return url ? `Source: ${new URL(url).hostname.replace(/^www\./, '')}` : ''
+  } catch {
+    return ''
+  }
+}
+
 function fileName(title) {
   const slug = (title || 'recipe').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
   return `${slug || 'recipe'}.pdf`
@@ -146,19 +88,16 @@ function fileName(title) {
 // Returns the PDF file plus each page as the JPEG data URL that went into it, so the
 // in-app preview shows exactly what gets shared (iOS can't scroll a PDF in a page).
 export async function buildRecipePdf({ recipe, ingredients, servings }) {
-  const photo = await loadPhoto(recipe.imageUrl)
   const prep = minutes(recipe.prepTime)
   const cook = minutes(recipe.cookTime)
 
   const steps = recipe.instructions.filter((st) => st && st.trim())
-  const blocks = pdfBlocks({ ingredients, steps, hasPhoto: !!photo })
+  const blocks = pdfBlocks({ ingredients, steps })
   const header = {
-    eyebrow: primaryCategory(recipe),
     title: recipe.title,
     servings,
     prep: timeText(prep),
     cook: timeText(cook),
-    total: timeText(prep + cook),
   }
 
   const host = document.createElement('div')
@@ -177,8 +116,8 @@ export async function buildRecipePdf({ recipe, ingredients, servings }) {
     flushSync(() => root.render(<RecipePdfMeasure header={header} blocks={blocks} />))
     // The serif title must be in Fraunces, not a fallback face, before measuring.
     await Promise.all([
-      document.fonts.load('600 44px Fraunces'),
-      document.fonts.load('600 24px Fraunces'),
+      document.fonts.load('600 34px Fraunces'),
+      document.fonts.load('600 20px Fraunces'),
       document.fonts.load('800 15px Nunito'),
       document.fonts.load('400 15px Nunito'),
     ]).catch(() => {})
@@ -190,7 +129,7 @@ export async function buildRecipePdf({ recipe, ingredients, servings }) {
     const layout = flowColumns(blocks, heights, firstTop)
 
     // Pass 2: the real pages, each block placed where the flow put it.
-    flushSync(() => root.render(<RecipePdfPages header={header} blocks={blocks} pages={layout} />))
+    flushSync(() => root.render(<RecipePdfPages header={header} blocks={blocks} pages={layout} credit={sourceCredit(recipe.sourceUrl)} />))
     const pageEls = [...host.querySelectorAll('[data-pdf-page]')]
 
     // 1 CSS px = 0.75pt, so an 816px-wide sheet is a true 8.5x11in page: text prints
@@ -212,13 +151,6 @@ export async function buildRecipePdf({ recipe, ingredients, servings }) {
         height: PAGE_HEIGHT,
         windowWidth: PAGE_WIDTH,
       })
-      const photoEl = node.querySelector('[data-pdf-photo]')
-      if (photo && photoEl) {
-        const o = node.getBoundingClientRect()
-        const r = photoEl.getBoundingClientRect()
-        const box = { x: r.left - o.left, y: r.top - o.top, w: r.width, h: r.height }
-        drawPhoto(canvas.getContext('2d'), photo.img, box, canvas.width / PAGE_WIDTH)
-      }
       if (p) pdf.addPage([wPt, hPt], 'portrait')
       const jpeg = canvas.toDataURL('image/jpeg', 0.92)
       pdf.addImage(jpeg, 'JPEG', 0, 0, wPt, hPt, undefined, 'FAST')
@@ -232,6 +164,5 @@ export async function buildRecipePdf({ recipe, ingredients, servings }) {
     probeFix.remove()
     root.unmount()
     host.remove()
-    photo?.release()
   }
 }
