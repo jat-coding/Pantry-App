@@ -285,7 +285,7 @@ export default function RecipeDetail() {
             } />
         )}
         <button
-          onClick={() => goBack('/recipes')}
+          onClick={() => goBack('/')}
           className="absolute left-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-card backdrop-blur"
           aria-label="Back"
         ><ChevronLeft className="h-5 w-5 text-warm" strokeWidth={2.2} aria-hidden="true" /></button>

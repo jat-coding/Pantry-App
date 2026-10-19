@@ -24,7 +24,7 @@ const recipesCol = collection(db, 'recipes')
 // ---------- Recipes ----------
 
 export function listenMyRecipes(uid, cb) {
-  // All Recipes = everything this user owns (created or pocketed).
+  // Everything this user owns (created or pocketed): the Pantry screen lists all of it.
   const ordered = query(recipesCol, where('authorId', '==', uid), orderBy('createdAt', 'desc'))
   const unordered = query(recipesCol, where('authorId', '==', uid))
   const emit = (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() })))

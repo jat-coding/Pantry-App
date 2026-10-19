@@ -1,9 +1,9 @@
-import { GroceryIcon, RecipesIcon, PantryIcon, FriendsIcon, LinkIcon, MealIcon, PlusIcon } from './icons.jsx'
+import { GroceryIcon, PantryIcon, FriendsIcon, LinkIcon, MealIcon, PlusIcon } from './icons.jsx'
 import { X } from 'lucide-react'
 import { useScrollLock } from '../lib/useScrollLock.js'
 
 const STEPS = [
-  { Icon: PantryIcon, title: 'Your Pantry', body: 'Tap the heart on any recipe to save it to My Pantry.' },
+  { Icon: PantryIcon, title: 'Your Pantry', body: 'All your recipes live here, by category. Tap the heart on one to keep it at the top.' },
   { Icon: PlusIcon, title: 'Add a recipe', body: 'Tap the + in the bottom bar to create or import one.' },
   { Icon: LinkIcon, title: 'Import from anywhere', body: 'Link, text, photo, PDF/Word, or an Instagram/TikTok post.' },
   { Icon: GroceryIcon, title: 'Grocery list', body: 'Send ingredients to your list, or try “What Can I Make?”.' },

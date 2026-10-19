@@ -5,7 +5,6 @@ import { CookModeProvider } from './contexts/CookModeContext.jsx'
 import Layout from './components/Layout.jsx'
 import Auth from './pages/Auth.jsx'
 import Pantry from './pages/Pantry.jsx'
-import AllRecipes from './pages/AllRecipes.jsx'
 import RecipeDetail from './pages/RecipeDetail.jsx'
 import RecipeEditor from './pages/RecipeEditor.jsx'
 import GroceryList from './pages/GroceryList.jsx'
@@ -37,7 +36,6 @@ export default function App() {
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<Pantry />} />
-            <Route path="/recipes" element={<AllRecipes />} />
             <Route path="/recipe/:id" element={<RecipeDetail />} />
             <Route path="/recipe/:id/edit" element={<RecipeEditor />} />
             <Route path="/new" element={<RecipeEditor />} />

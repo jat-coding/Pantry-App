@@ -1,9 +1,19 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.26.1'
+export const APP_VERSION = '1.27.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.27.0',
+    date: '2026-10-19',
+    changes: [
+      'Pantry and All Recipes are now one screen. My Pantry shows every recipe you have, grouped by category, with the ones you have hearted at the top of each category.',
+      'Each category shows up to 4 recipes you haven\'t hearted yet, with a See all button for the rest. Search shows every match. Sort, the grid/list switch and the category chips work across the whole screen.',
+      'A recipe in more than one category shows up once, under its first category.',
+      'The bottom bar is down to three tabs: Grocery, Pantry and Friends. The separate Recipes tab is gone.',
+    ],
+  },
   {
     version: '1.26.1',
     date: '2026-10-19',

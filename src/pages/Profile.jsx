@@ -129,7 +129,7 @@ export default function Profile() {
           </div>
           <div className="card flex flex-col items-center py-4">
             <span className="text-2xl font-extrabold">{pantryRecipes.length}</span>
-            <span className="text-sm text-warm-soft">In Pantry</span>
+            <span className="text-sm text-warm-soft">Hearted</span>
           </div>
         </div>
       )}

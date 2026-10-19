@@ -4,15 +4,23 @@ import { useData } from '../contexts/DataContext.jsx'
 import RecipeCard from '../components/RecipeCard.jsx'
 import HelpModal from '../components/HelpModal.jsx'
 import { CategoryFilter, SearchBar, matchesQuery, matchesCategories } from '../components/Filters.jsx'
-import { getCategories, primaryCategory } from '../lib/categories.js'
+import { CATEGORIES, getCategories, primaryCategory } from '../lib/categories.js'
 import { GridSkeleton } from '../components/Skeleton.jsx'
-import { GridIcon, ListIcon, PantryIcon, CategoryIcon, HelpIcon } from '../components/icons.jsx'
+import { GridIcon, ListIcon, PantryIcon, CategoryIcon, HelpIcon, HeartIcon } from '../components/icons.jsx'
 import SafeImage from '../components/SafeImage.jsx'
 
 const VIEW_KEY = 'pantry-view'
 const ONBOARDED_KEY = 'pantry-onboarded'
+// Session-only, so opening a recipe and coming back keeps the sections you opened.
+const EXPANDED_KEY = 'pantry-expanded'
 
 const SORTS = { newest: 'Newest', az: 'A–Z', time: 'Cook time' }
+
+// How many not-yet-liked recipes a category shows before its "See all" button.
+const PREVIEW_COUNT = 4
+// Recipes whose stored category isn't one of CATEGORIES (very old data) still
+// need a home, so they land in this section after the real ones.
+const OTHER = 'Other'
 
 function totalMin(r) {
   const toMin = (t) => (t ? (t.unit === 'hr' ? t.value * 60 : t.value) : 0)
@@ -29,13 +37,17 @@ function totalTime(recipe) {
 }
 
 export default function Pantry() {
-  const { pantryRecipes, loadingRecipes } = useData()
+  const { recipes, pantryIds, loadingRecipes } = useData()
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [cats, setCats] = useState([])
   const [sort, setSort] = useState('newest')
   const [view, setView] = useState(() => localStorage.getItem(VIEW_KEY) || 'grid')
   const [showHelp, setShowHelp] = useState(false)
+  // Categories whose "See all" has been tapped.
+  const [expanded, setExpanded] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem(EXPANDED_KEY)) || [] } catch { return [] }
+  })
 
   // Show the rundown automatically the first time someone opens the app.
   useEffect(() => {
@@ -54,8 +66,16 @@ export default function Pantry() {
     setCats((s) => (s.includes(c) ? s.filter((x) => x !== c) : [...s, c]))
   }
 
+  function toggleExpanded(c) {
+    setExpanded((s) => {
+      const next = s.includes(c) ? s.filter((x) => x !== c) : [...s, c]
+      sessionStorage.setItem(EXPANDED_KEY, JSON.stringify(next))
+      return next
+    })
+  }
+
   const filtered = useMemo(() => {
-    const list = pantryRecipes.filter(
+    const list = recipes.filter(
       (r) => matchesCategories(r, cats) && matchesQuery(r, query),
     )
     const sorted = [...list]
@@ -63,14 +83,35 @@ export default function Pantry() {
     else if (sort === 'time') sorted.sort((a, b) => totalMin(a) - totalMin(b))
     else sorted.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
     return sorted
-  }, [pantryRecipes, query, cats, sort])
+  }, [recipes, query, cats, sort])
+
+  // One section per category, in CATEGORIES order. Each recipe goes in its
+  // primary category only, so a Snacks + Lunch recipe never shows up twice.
+  // Liked recipes lead each section; both halves keep the chosen sort.
+  const likedIds = useMemo(() => new Set(pantryIds), [pantryIds])
+  const isLiked = (id) => likedIds.has(id)
+  const sections = useMemo(() => {
+    const byCat = new Map([...CATEGORIES, OTHER].map((c) => [c, { liked: [], rest: [] }]))
+    for (const r of filtered) {
+      const p = primaryCategory(r)
+      const bucket = byCat.get(CATEGORIES.includes(p) ? p : OTHER)
+      ;(likedIds.has(r.id) ? bucket.liked : bucket.rest).push(r)
+    }
+    return [...byCat]
+      .filter(([, b]) => b.liked.length + b.rest.length > 0)
+      .map(([category, b]) => ({ category, ...b }))
+  }, [filtered, likedIds])
+
+  // While searching, show every match instead of hiding some behind "See all".
+  const searching = query.trim() !== ''
+  const openRecipe = (id) => navigate(`/recipe/${id}`, { state: { from: '/' } })
 
   return (
     <div className="animate-fadein space-y-5">
       <header className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-3xl font-extrabold">My Pantry</h1>
-          <p className="text-warm-soft">The recipes you love, all in one place.</p>
+          <p className="text-warm-soft">Every recipe you have, with the ones you love up top.</p>
         </div>
         <button
           onClick={() => setShowHelp(true)}
@@ -89,6 +130,7 @@ export default function Pantry() {
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value)}
+          aria-label="Sort recipes"
           className="rounded-2xl border border-warm/15 bg-white px-3 py-2 text-sm font-bold outline-none"
         >
           {Object.entries(SORTS).map(([k, v]) => (
@@ -101,17 +143,45 @@ export default function Pantry() {
 
       {loadingRecipes ? (
         <GridSkeleton />
-      ) : pantryRecipes.length === 0 ? (
-        <EmptyState onBrowse={() => navigate('/recipes')} />
-      ) : filtered.length === 0 ? (
+      ) : recipes.length === 0 ? (
+        <EmptyState onCreate={() => navigate('/new')} />
+      ) : sections.length === 0 ? (
         <p className="py-16 text-center text-warm-soft">No recipes match your search.</p>
-      ) : view === 'list' ? (
-        <RecipeListView recipes={filtered} onOpen={(id) => navigate(`/recipe/${id}`, { state: { from: '/' } })} />
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((r) => (
-            <RecipeCard key={r.id} recipe={r} />
-          ))}
+        <div className="space-y-8">
+          {sections.map(({ category, liked, rest }) => {
+            const open = searching || expanded.includes(category)
+            const shownRest = open ? rest : rest.slice(0, PREVIEW_COUNT)
+            const hidden = rest.length - PREVIEW_COUNT
+            const shown = [...liked, ...shownRest]
+            return (
+              <section key={category} data-category={category} className="space-y-3">
+                <h2 className="flex items-center gap-2 text-xl font-extrabold">
+                  <CategoryIcon category={category} className="h-5 w-5 text-zinc-800" />
+                  {category}
+                  <span className="text-sm font-bold text-warm-soft">{liked.length + rest.length}</span>
+                </h2>
+                {view === 'list' ? (
+                  <RecipeListView recipes={shown} isLiked={isLiked} onOpen={openRecipe} />
+                ) : (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {shown.map((r) => (
+                      <RecipeCard key={r.id} recipe={r} />
+                    ))}
+                  </div>
+                )}
+                {!searching && hidden > 0 && (
+                  <button
+                    onClick={() => toggleExpanded(category)}
+                    aria-expanded={open}
+                    className="w-full rounded-2xl border border-warm/15 bg-white py-2.5 text-sm font-bold text-warm shadow-card transition active:scale-[.98] hover:bg-eggshell"
+                  >
+                    {open ? 'Show fewer' : `See all ${category} (${hidden} more)`}
+                  </button>
+                )}
+              </section>
+            )
+          })}
         </div>
       )}
 
@@ -141,7 +211,7 @@ function ViewToggle({ view, onChange }) {
   )
 }
 
-function RecipeListView({ recipes, onOpen }) {
+function RecipeListView({ recipes, isLiked, onOpen }) {
   return (
     <div className="overflow-hidden rounded-2xl bg-white shadow-card">
       {/* Column header (hidden on the smallest screens) */}
@@ -164,7 +234,10 @@ function RecipeListView({ recipes, onOpen }) {
                       fallback={<CategoryIcon category={primaryCategory(r)} className="h-6 w-6" />} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-bold">{r.title}</span>
+                  <span className="flex items-center gap-1.5">
+                    {isLiked(r.id) && <span aria-label="Liked" className="shrink-0"><HeartIcon filled className="h-4 w-4" /></span>}
+                    <span className="truncate font-bold">{r.title}</span>
+                  </span>
                   <span className="block truncate text-xs text-warm-soft">
                     {r.pocketedFromName ? `Pocketed from ${r.pocketedFromName}` : `by ${r.authorName}`}
                   </span>
@@ -184,16 +257,16 @@ function RecipeListView({ recipes, onOpen }) {
   )
 }
 
-function EmptyState({ onBrowse }) {
+function EmptyState({ onCreate }) {
   return (
     <div className="card flex flex-col items-center gap-3 px-6 py-16 text-center">
       <PantryIcon className="h-16 w-16 text-zinc-800" />
       <h2 className="text-xl font-extrabold">Your pantry is empty</h2>
       <p className="max-w-xs text-warm-soft">
-        Start collecting recipes you love — tap the heart on any recipe to keep it here.
+        Import a recipe from a link with the + button, or write one yourself. Hearted recipes show first in their category.
       </p>
-      <button className="btn-peach mt-2" onClick={onBrowse}>
-        Browse all recipes
+      <button className="btn-peach mt-2" onClick={onCreate}>
+        Write a recipe
       </button>
     </div>
   )

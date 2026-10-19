@@ -195,7 +195,7 @@ export default function RecipeEditor() {
         toast('Recipe added to your library')
         // Back to wherever you started the new recipe from (the screen you tapped +
         // on, or where you imported it).
-        goBack('/recipes')
+        goBack('/')
       }
     } catch {
       toast('Could not save recipe')

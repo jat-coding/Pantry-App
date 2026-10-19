@@ -2,7 +2,7 @@
 // callers control color with Tailwind text-* classes; strokeWidth matched to
 // the app's previous hand-drawn weight (1.8) for visual consistency.
 import {
-  ShoppingCart, BookOpen, Users, User, LayoutGrid, List, Plus,
+  ShoppingCart, Users, User, LayoutGrid, List, Plus,
   HelpCircle, Search, UtensilsCrossed, Pencil, Trash2, Video, Camera, Link as LinkIconBase,
   Egg, Sandwich, ChefHat, Cookie, Popcorn, CupSoda, Droplet, Heart as HeartIconBase, Share,
 } from 'lucide-react'
@@ -11,10 +11,6 @@ const STROKE_WIDTH = 1.8
 
 export function GroceryIcon({ className = 'h-6 w-6' }) {
   return <ShoppingCart className={className} strokeWidth={STROKE_WIDTH} aria-hidden="true" />
-}
-
-export function RecipesIcon({ className = 'h-6 w-6' }) {
-  return <BookOpen className={className} strokeWidth={STROKE_WIDTH} aria-hidden="true" />
 }
 
 // Line-art version of the app icon (cabinet: three top cubbies, split doors, handles).

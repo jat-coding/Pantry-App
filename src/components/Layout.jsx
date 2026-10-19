@@ -8,14 +8,13 @@ import ScrollMemory from './ScrollMemory.jsx'
 import { useNavStyle } from '../lib/navStyle.js'
 import { tap } from '../lib/haptics.js'
 import {
-  GroceryIcon, RecipesIcon, PantryIcon, FriendsIcon, ProfileIcon, PlusIcon, LinkIcon, EditIcon,
+  GroceryIcon, PantryIcon, FriendsIcon, ProfileIcon, PlusIcon, LinkIcon, EditIcon,
 } from './icons.jsx'
 
-// Bottom-bar order: Grocery, Recipes, [+ add], Pantry, Friends.
+// Bottom-bar order: Grocery, [+ add], Pantry, Friends.
 // Profile is reached from the top-right of the Friends screen.
 const TABS = [
   { to: '/grocery', label: 'Grocery', Icon: GroceryIcon },
-  { to: '/recipes', label: 'Recipes', Icon: RecipesIcon },
   { to: '/', label: 'Pantry', Icon: PantryIcon, end: true },
   { to: '/friends', label: 'Friends', Icon: FriendsIcon },
 ]
@@ -147,7 +146,7 @@ export default function Layout() {
               }
             >
               <t.Icon className="h-6 w-6 text-zinc-800" />
-              {t.label === 'Pantry' ? 'My Pantry' : t.label === 'Recipes' ? 'All Recipes' : t.label === 'Grocery' ? 'Grocery List' : t.label}
+              {t.label === 'Pantry' ? 'My Pantry' : t.label === 'Grocery' ? 'Grocery List' : t.label}
             </NavLink>
           ))}
         </nav>
@@ -199,7 +198,7 @@ export default function Layout() {
             aria-hidden="true"
             className="pointer-events-none absolute left-0 top-0 rounded-2xl border border-peach-dark/40 bg-peach opacity-0 shadow-[inset_0_1px_3px_rgba(44,36,22,0.12)] transition-[transform,width,height,opacity] duration-[380ms] ease-[cubic-bezier(.3,.8,.25,1)]"
           />
-          {TABS.slice(0, 2).map((t) => (
+          {TABS.slice(0, 1).map((t) => (
             <NavLink key={t.to} to={t.to} end={t.end} onClick={tap} className={({ isActive }) => navItem(isActive)}>
               {({ isActive }) => (
                 <>
@@ -219,7 +218,7 @@ export default function Layout() {
             <PlusIcon className="h-7 w-7" />
           </button>
 
-          {TABS.slice(2).map((t) => (
+          {TABS.slice(1).map((t) => (
             <NavLink key={t.to} to={t.to} end={t.end} onClick={tap} className={({ isActive }) => navItem(isActive)}>
               {({ isActive }) => (
                 <>
