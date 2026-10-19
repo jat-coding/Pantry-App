@@ -19,6 +19,21 @@ const TABS = [
   { to: '/friends', label: 'Friends', Icon: FriendsIcon },
 ]
 
+// Small count bubble on the Friends tab for unanswered incoming requests. "9+" past 9.
+function RequestBadge({ count, className = '' }) {
+  if (!count) return null
+  const text = count > 9 ? '9+' : String(count)
+  return (
+    <span
+      data-request-badge
+      aria-label={`${count} friend request${count === 1 ? '' : 's'}`}
+      className={`pointer-events-none flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-cta px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white ${className}`}
+    >
+      {text}
+    </span>
+  )
+}
+
 function OfflineBanner() {
   const [offline, setOffline] = useState(!navigator.onLine)
   useEffect(() => {
@@ -41,7 +56,7 @@ function OfflineBanner() {
 
 export default function Layout() {
   const navigate = useNavigate()
-  const { canWrite } = useData()
+  const { canWrite, incomingRequestCount } = useData()
   const { cookMode } = useCookMode()
   const toast = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -145,7 +160,10 @@ export default function Layout() {
                 }`
               }
             >
-              <t.Icon className="h-6 w-6 text-zinc-800" />
+              <span className="relative">
+                <t.Icon className="h-6 w-6 text-zinc-800" />
+                {t.to === '/friends' && <RequestBadge count={incomingRequestCount} className="absolute -right-2.5 -top-1.5" />}
+              </span>
               {t.label === 'Pantry' ? 'My Pantry' : t.label === 'Grocery' ? 'Grocery List' : t.label}
             </NavLink>
           ))}
@@ -222,7 +240,10 @@ export default function Layout() {
             <NavLink key={t.to} to={t.to} end={t.end} onClick={tap} className={({ isActive }) => navItem(isActive)}>
               {({ isActive }) => (
                 <>
-                  <t.Icon className={navIcon(isActive)} />
+                  <span className="relative">
+                    <t.Icon className={navIcon(isActive)} />
+                    {t.to === '/friends' && <RequestBadge count={incomingRequestCount} className="absolute -right-2.5 -top-1.5" />}
+                  </span>
                   {t.label}
                 </>
               )}

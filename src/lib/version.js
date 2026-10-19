@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.27.0'
+export const APP_VERSION = '1.28.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.28.0',
+    date: '2026-10-19',
+    changes: [
+      'The Friends tab now shows a small number when someone has sent you a friend request, so you can see it from any screen without opening Friends. It shows 9+ past nine, updates the moment a request comes in, and goes away once you accept or decline them all.',
+    ],
+  },
   {
     version: '1.27.0',
     date: '2026-10-19',

@@ -26,6 +26,7 @@ export function DataProvider({ children }) {
   const [loadingGrocery, setLoadingGrocery] = useState(true)
   const [friends, setFriends] = useState([])
   const [friendsLoaded, setFriendsLoaded] = useState(false)
+  const [incomingRequests, setIncomingRequests] = useState([])
 
   // ----- Recipes -----
   useEffect(() => {
@@ -113,6 +114,13 @@ export function DataProvider({ children }) {
     })
   }, [user, guest, myFriendIds])
 
+  // Live pending friend requests to me, so the nav can badge the Friends tab from any
+  // screen. The Friends page keeps its own listener for the list itself.
+  useEffect(() => {
+    if (guest || !user) { setIncomingRequests([]); return }
+    return fs.listenIncomingRequests(user.uid, setIncomingRequests)
+  }, [user, guest])
+
   const pantryIds = guest ? guestPantry : profile?.pantryIds || []
 
   const actions = useMemo(
@@ -146,6 +154,7 @@ export function DataProvider({ children }) {
     grocery,
     friends,
     friendsLoaded,
+    incomingRequestCount: incomingRequests.length,
     pantryIds,
     pantryRecipes: recipes.filter((r) => pantryIds.includes(r.id)),
     loadingRecipes,
