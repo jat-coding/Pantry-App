@@ -5,8 +5,9 @@
 // and so on, plus a small source credit in the last page's bottom margin. No photo:
 // it's a card to cook from, not a picture of the dish.
 // Only ever rendered off-screen by lib/recipePdf.jsx and snapshotted into a PDF --
-// never shown in the UI. Fixed pixel sizes on purpose: each page is a fixed 816x1056px
-// (8.5x11in @ 96dpi) sheet.
+// never shown in the UI. Fixed pixel sizes on purpose, one set per paper size in
+// PDF_SIZES: a full page is a fixed 816x1056px (8.5x11in @ 96dpi) sheet, an index
+// card a 576x384px (6x4in) card with the same layout at card-sized type.
 // Two passes: <RecipePdfMeasure> stacks every body block in a single column so
 // lib/recipePdf.jsx can read their real heights, decide which column each lands in
 // (flowColumns there), and then <RecipePdfPages> draws the finished pages with each
@@ -18,31 +19,56 @@ import { Users, Timer, CookingPot } from 'lucide-react'
 
 const ROSE = '#B9837A' // dusty-rose accent from the reference card
 
-export const PDF_PAGE = { width: 816, height: 1056, side: 56, top: 48, bottom: 56 }
-export const PDF_COL_GAP = 40
-export const PDF_COL_WIDTH = (PDF_PAGE.width - 2 * PDF_PAGE.side - PDF_COL_GAP) / 2 // 332
+// Every size-dependent number and type size, per paper size. `page` is the original
+// Letter sheet and must stay exactly as it was; `card` is a standard 4x6in recipe
+// card, held landscape (6in wide) like a real one. A 3x5 card would just be
+// width 480 x height 288 here plus a smaller type scale.
+// gaps: space above a block, see gapBefore in lib/recipePdf.jsx.
+export const PDF_SIZES = {
+  page: {
+    width: 816, height: 1056, side: 56, top: 48, bottom: 56, colGap: 40, creditBottom: 24,
+    gaps: { heading: 32, afterHeading: 12, step: 12, ingredient: 6 },
+    type: {
+      title: 'text-[34px] leading-[1.1]', stats: 'mt-2 gap-6', stat: 'gap-1.5', icon: 'h-3.5 w-3.5',
+      statLabel: 'text-[11px] tracking-[0.14em]', statValue: 'text-[13px]', rule: 'mt-3 h-[2px]', body: 'mt-6',
+      heading: 'text-[15px] tracking-[0.18em]', ingredient: 'gap-2 text-[15px]', step: 'gap-3',
+      stepNum: 'w-7 text-[20px]', stepText: 'text-[15px]', credit: 'text-[13px]',
+    },
+  },
+  card: {
+    width: 576, height: 384, side: 24, top: 20, bottom: 26, colGap: 20, creditBottom: 10,
+    gaps: { heading: 14, afterHeading: 6, step: 6, ingredient: 3 },
+    type: {
+      title: 'text-[20px] leading-[1.15]', stats: 'mt-1 gap-4', stat: 'gap-1', icon: 'h-2.5 w-2.5',
+      statLabel: 'text-[8px] tracking-[0.12em]', statValue: 'text-[10px]', rule: 'mt-2 h-[1.5px]', body: 'mt-3',
+      heading: 'text-[10px] tracking-[0.16em]', ingredient: 'gap-1.5 text-[11px]', step: 'gap-2',
+      stepNum: 'w-5 text-[14px]', stepText: 'text-[11px]', credit: 'text-[9px]',
+    },
+  },
+}
+for (const z of Object.values(PDF_SIZES)) z.colWidth = (z.width - 2 * z.side - z.colGap) / 2 // page: 332, card: 254
 
-function Stat({ icon: Icon, label, value }) {
+function Stat({ icon: Icon, label, value, t }) {
   return (
-    <span className="flex items-center gap-1.5 whitespace-nowrap">
-      <Icon className="h-3.5 w-3.5" color={ROSE} strokeWidth={2} />
-      <span className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-warm">{label}</span>
-      <span className="text-[13px] font-semibold text-warm-soft">{value}</span>
+    <span className={`flex items-center ${t.stat} whitespace-nowrap`}>
+      <Icon className={t.icon} color={ROSE} strokeWidth={2} />
+      <span className={`${t.statLabel} font-extrabold uppercase text-warm`}>{label}</span>
+      <span className={`${t.statValue} font-semibold text-warm-soft`}>{value}</span>
     </span>
   )
 }
 
-function Header({ title, servings, prep, cook }) {
+function Header({ title, servings, prep, cook, t }) {
   return (
     <div>
-      <h1 className="font-display text-[34px] font-semibold leading-[1.1] text-warm">{title}</h1>
-      <div className="mt-2 flex items-center gap-6">
-        <Stat icon={Users} label="Serves" value={servings} />
-        <Stat icon={Timer} label="Prep" value={prep} />
-        <Stat icon={CookingPot} label="Cook" value={cook} />
+      <h1 className={`font-display ${t.title} font-semibold text-warm`}>{title}</h1>
+      <div className={`${t.stats} flex items-center`}>
+        <Stat icon={Users} label="Serves" value={servings} t={t} />
+        <Stat icon={Timer} label="Prep" value={prep} t={t} />
+        <Stat icon={CookingPot} label="Cook" value={cook} t={t} />
       </div>
       {/* The card's ruled header line */}
-      <div className="mt-3 h-[2px] w-full" style={{ background: ROSE }} />
+      <div className={`${t.rule} w-full`} style={{ background: ROSE }} />
     </div>
   )
 }
@@ -57,41 +83,41 @@ export function pdfBlocks({ ingredients, steps }) {
   ]
 }
 
-function Block({ block }) {
+function Block({ block, t }) {
   if (block.type === 'heading') {
-    return <h2 className="text-[15px] font-extrabold uppercase leading-[1.3] tracking-[0.18em] text-warm">{block.text}</h2>
+    return <h2 className={`${t.heading} font-extrabold uppercase leading-[1.3] text-warm`}>{block.text}</h2>
   }
   if (block.type === 'ingredient') {
     return (
-      <div className="flex gap-2 text-[15px] leading-snug">
+      <div className={`flex ${t.ingredient} leading-snug`}>
         <span className="shrink-0">&bull;</span>
         <span>{block.text}</span>
       </div>
     )
   }
   return (
-    <div className="flex gap-3">
-      <span className="w-7 shrink-0 font-display text-[20px] font-semibold leading-none" style={{ color: ROSE }}>
+    <div className={`flex ${t.step}`}>
+      <span className={`${t.stepNum} shrink-0 font-display font-semibold leading-none`} style={{ color: ROSE }}>
         {String(block.n).padStart(2, '0')}
       </span>
-      <span className="text-[15px] leading-snug">{block.text}</span>
+      <span className={`${t.stepText} leading-snug`}>{block.text}</span>
     </div>
   )
 }
 
 const sheet = 'relative bg-surface-2 font-sans text-warm'
-const pad = { paddingLeft: PDF_PAGE.side, paddingRight: PDF_PAGE.side, paddingTop: PDF_PAGE.top }
+const pad = (z) => ({ paddingLeft: z.side, paddingRight: z.side, paddingTop: z.top })
 
 // Pass 1: the page-1 header, then every block stacked in one column-wide strip.
-// data-pdf-body marks where the columns start on page 1.
-export function RecipePdfMeasure({ header, blocks }) {
+// data-pdf-body marks where the columns start on page 1. size: a PDF_SIZES entry.
+export function RecipePdfMeasure({ header, blocks, size: z }) {
   return (
-    <div className={sheet} style={{ ...pad, width: PDF_PAGE.width }}>
-      <Header {...header} />
-      <div data-pdf-body className="mt-6" style={{ width: PDF_COL_WIDTH }}>
+    <div className={sheet} style={{ ...pad(z), width: z.width }}>
+      <Header {...header} t={z.type} />
+      <div data-pdf-body className={z.type.body} style={{ width: z.colWidth }}>
         {blocks.map((b, i) => (
           <div key={i} data-pdf-block>
-            <Block block={b} />
+            <Block block={b} t={z.type} />
           </div>
         ))}
       </div>
@@ -102,7 +128,7 @@ export function RecipePdfMeasure({ header, blocks }) {
 // Pass 2: pages[p] = [{ i, col, y }] -- block i in column col (0 left, 1 right) at y
 // CSS px from the page's top edge. credit: "Source: site.com" or '' -- drawn in the
 // last page's bottom margin (outside the columns, so it never costs a page).
-export function RecipePdfPages({ header, blocks, pages, credit }) {
+export function RecipePdfPages({ header, blocks, pages, credit, size: z }) {
   return (
     <div>
       {pages.map((placed, p) => (
@@ -110,20 +136,20 @@ export function RecipePdfPages({ header, blocks, pages, credit }) {
           key={p}
           data-pdf-page
           className={`${sheet} overflow-hidden`}
-          style={{ ...pad, width: PDF_PAGE.width, height: PDF_PAGE.height }}
+          style={{ ...pad(z), width: z.width, height: z.height }}
         >
-          {p === 0 && <Header {...header} />}
+          {p === 0 && <Header {...header} t={z.type} />}
           {placed.map(({ i, col, y }) => (
             <div
               key={i}
               className="absolute"
-              style={{ top: y, left: PDF_PAGE.side + col * (PDF_COL_WIDTH + PDF_COL_GAP), width: PDF_COL_WIDTH }}
+              style={{ top: y, left: z.side + col * (z.colWidth + z.colGap), width: z.colWidth }}
             >
-              <Block block={blocks[i]} />
+              <Block block={blocks[i]} t={z.type} />
             </div>
           ))}
           {credit && p === pages.length - 1 && (
-            <p className="absolute text-[13px] italic leading-none text-warm-soft" style={{ left: PDF_PAGE.side, bottom: 24 }}>
+            <p className={`absolute ${z.type.credit} italic leading-none text-warm-soft`} style={{ left: z.side, bottom: z.creditBottom }}>
               {credit}
             </p>
           )}

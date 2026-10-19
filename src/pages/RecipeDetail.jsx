@@ -50,12 +50,15 @@ export default function RecipeDetail() {
   const [checked, setChecked] = useState(() => new Set())
   const { cookMode, setCookMode } = useCookMode()
   const [activeStep, setActiveStep] = useState(0)
-  // PDF share: `sharing` while it's being built; `readyPdf` keeps the built file (and
-  // its page images) for the current view so a second tap opens it straight away;
-  // `previewPdf` is the one on screen in the preview (see sharePdf).
+  // PDF share: `sharing` is the size ('page' | 'card') being built right now;
+  // `readyPdfs` keeps each size's built file (and its page images) for the current
+  // view so a second tap opens it straight away; `previewPdf` is the one on screen in
+  // the preview (see openPdf). `pdfSize` is the reader's paper-size pick, full page
+  // unless they switch it in the preview.
   const [sharing, setSharing] = useState(false)
-  const [readyPdf, setReadyPdf] = useState(null)
+  const [readyPdfs, setReadyPdfs] = useState({})
   const [previewPdf, setPreviewPdf] = useState(null)
+  const [pdfSize, setPdfSize] = useState('page')
   const wakeRef = useRef(null)
   const stepRefs = useRef([])
 
@@ -206,25 +209,27 @@ export default function RecipeDetail() {
       .filter(Boolean)
   }
 
-  // Build the PDF for the current view (or reuse the one already built for it) and
-  // open it in the preview; the preview's own Share button does the actual share.
-  async function sharePdf() {
+  // Build the PDF for the current view at `size` (or reuse the one already built for
+  // it) and open it in the preview; the preview's own Share button does the actual
+  // share, and its size switch calls this again with the other size.
+  async function openPdf(size) {
     if (sharing) return
     const viewKey = JSON.stringify([recipe, factor, units])
-    let pdf = readyPdf?.key === viewKey ? readyPdf : null
+    let pdf = readyPdfs[size]?.key === viewKey ? readyPdfs[size] : null
     if (!pdf) {
-      setSharing(true)
+      setSharing(size)
       try {
         const { buildRecipePdf } = await import('../lib/recipePdf.jsx')
-        const { file, pages } = await buildRecipePdf({ recipe, ingredients: pdfIngredientLines(), servings: scaledServings })
-        pdf = { key: viewKey, file, pages }
-        setReadyPdf(pdf)
+        const { file, pages, aspect } = await buildRecipePdf({ recipe, ingredients: pdfIngredientLines(), servings: scaledServings, size })
+        pdf = { key: viewKey, size, file, pages, aspect }
+        setReadyPdfs((m) => ({ ...m, [size]: pdf }))
       } catch {
         return toast('Could not create the PDF')
       } finally {
         setSharing(false)
       }
     }
+    setPdfSize(size)
     setPreviewPdf(pdf)
   }
 
@@ -306,12 +311,12 @@ export default function RecipeDetail() {
         ><ChevronLeft className="h-5 w-5 text-warm" strokeWidth={2.2} aria-hidden="true" /></button>
         <div className="absolute right-3 top-3 flex gap-2">
           <button
-            onClick={sharePdf}
-            disabled={sharing}
+            onClick={() => openPdf(pdfSize)}
+            disabled={!!sharing}
             className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-zinc-800 shadow-card backdrop-blur active:scale-90"
             aria-label={sharing ? 'Creating PDF' : 'Share recipe as PDF'}
-            aria-busy={sharing}
-          >{sharing
+            aria-busy={!!sharing}
+          >{sharing && !previewPdf
             ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-warm/20 border-t-peach-dark" aria-hidden="true" />
             : <ShareIcon className="h-5 w-5" />}</button>
           {isOwner && (
@@ -522,6 +527,10 @@ export default function RecipeDetail() {
         <PdfPreview
           file={previewPdf.file}
           pages={previewPdf.pages}
+          size={previewPdf.size}
+          aspect={previewPdf.aspect}
+          building={sharing}
+          onSizeChange={openPdf}
           title={recipe.title}
           onClose={() => setPreviewPdf(null)}
         />

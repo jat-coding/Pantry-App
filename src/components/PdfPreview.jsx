@@ -9,7 +9,12 @@ import { useStandaloneBottomGap } from '../lib/useStandaloneBottomGap.js'
 // exact image that was put into the PDF (an <iframe> of the PDF only ever shows page
 // one on iOS and can't be scrolled), and its Share button is a fresh tap, so iOS
 // lets it open the share sheet even when building the PDF took a while.
-export default function PdfPreview({ file, pages, title, onClose }) {
+// size / onSizeChange: the Full page vs Index card choice; `building` is the size
+// being built right now (the current pages stay up, dimmed, until it's ready).
+// aspect: the pages' width / height, e.g. '816 / 1056'.
+const SIZES = [['page', 'Full page'], ['card', 'Index card']]
+
+export default function PdfPreview({ file, pages, title, size, aspect, building, onSizeChange, onClose }) {
   useScrollLock()
   const bottomGap = useStandaloneBottomGap()
   const toast = useToast()
@@ -54,15 +59,29 @@ export default function PdfPreview({ file, pages, title, onClose }) {
           <X className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
         </button>
       </div>
+      <div className="border-b border-warm/10 bg-white/95 px-4 py-2">
+        <div className="mx-auto flex max-w-2xl rounded-2xl bg-eggshell p-1" role="group" aria-label="PDF size">
+          {SIZES.map(([s, label]) => {
+            const on = (building || size) === s
+            return (
+              <button key={s} type="button" aria-pressed={on} disabled={!!building} onClick={() => s !== size && onSizeChange(s)}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2 text-sm font-bold ${on ? 'bg-peach text-warm' : 'text-warm-soft'}`}>
+                {building === s && <span className="h-4 w-4 animate-spin rounded-full border-2 border-warm/20 border-t-peach-dark" aria-hidden="true" />}
+                {label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
       <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
-        <div className="mx-auto flex max-w-2xl flex-col gap-4">
+        <div className={`mx-auto flex max-w-2xl flex-col gap-4 transition-opacity ${building ? 'opacity-40' : ''}`} data-pdf-size={size}>
           {pages.map((src, i) => (
             <img
               key={i}
               src={src}
               alt={pages.length > 1 ? `Page ${i + 1} of ${pages.length}` : 'Recipe PDF'}
               className="w-full rounded-lg bg-white shadow-card"
-              style={{ aspectRatio: '816 / 1056' }}
+              style={{ aspectRatio: aspect }}
             />
           ))}
         </div>

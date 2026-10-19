@@ -1,9 +1,18 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.30.0'
+export const APP_VERSION = '1.31.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.31.0',
+    date: '2026-10-19',
+    changes: [
+      'Recipe PDFs now come in two sizes. In the PDF preview, pick Full page (the same sheet as before) or Index card, a real 4x6 inch recipe card you can print and keep in a recipe box.',
+      'The index card keeps the same look: title, serves/prep/cook, ingredients and numbered steps, sized to fit the card. A long recipe carries on onto a second or third card instead of getting cut off or shrunk.',
+      'Full page is still the default, and switching back and forth is instant once each size has been made.',
+    ],
+  },
   {
     version: '1.30.0',
     date: '2026-10-19',
