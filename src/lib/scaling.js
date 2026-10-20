@@ -142,9 +142,67 @@ const DENSITY_KEYS = Object.keys(GRAMS_PER_CUP).sort((a, b) => b.length - a.leng
 
 // Grams per cup for an ingredient name, or null when it isn't in the table.
 export function gramsPerCup(name) {
-  const words = wordsOf(name)
-  const key = DENSITY_KEYS.find((k) => words.includes(` ${k} `))
+  const key = matchKey(DENSITY_KEYS, name)
   return key ? GRAMS_PER_CUP[key] : null
+}
+
+// Liquids a recipe saved before v1.31.1 may list in plain "oz" (the import
+// prompt wrote "oz" for everything until then). Same words the import prompt in
+// api/_lib/recipe.js now tags "fl oz", plus buttermilk. A plain-oz ingredient
+// whose name matches reads as fl oz: an exact volume conversion, no density.
+// Matched like GRAMS_PER_CUP (whole words, longest wins); null marks names that
+// contain a liquid word but aren't one, so they stay weight.
+const LIQUIDS = {
+  milk: true,
+  buttermilk: true,
+  broth: true,
+  stock: true,
+  water: true,
+  juice: true,
+  oil: true,
+  cream: true,
+  wine: true,
+  vinegar: true,
+  'half and half': true,
+  'cream cheese': null,
+  'sour cream': null,
+  'ice cream': null,
+  'whipped cream': null,
+  'cream of': null,
+  'condensed milk': null,
+  'powdered milk': null,
+  'milk powder': null,
+  'dry milk': null,
+  'milk chocolate': null,
+  'stock cube': null,
+  'stock cubes': null,
+  'water chestnuts': null,
+  'in water': null,
+  'in oil': null,
+  'oil packed': null,
+  'in juice': null,
+}
+
+const LIQUID_KEYS = Object.keys(LIQUIDS).sort((a, b) => b.length - a.length)
+
+// Longest whole-word key of `keys` found in `name`, or undefined.
+function matchKey(keys, name) {
+  const words = wordsOf(name)
+  return keys.find((k) => words.includes(` ${k} `))
+}
+
+// A name in the density table (even a not-convertible null entry) is never a
+// liquid, so the weight-oz behaviour for those names can't change.
+export function isLiquidName(name) {
+  if (matchKey(DENSITY_KEYS, name)) return false
+  const key = matchKey(LIQUID_KEYS, name)
+  return key ? LIQUIDS[key] === true : false
+}
+
+// The unit the conversion code works from: plain oz of a liquid is fl oz.
+function effectiveUnit(unit, name) {
+  const u = abbreviateUnit(unit)
+  return u === 'oz' && isLiquidName(name) ? 'fl oz' : u
 }
 
 function isWeight(unit) {
@@ -158,7 +216,8 @@ function weightToKitchen(unit, name) {
 
 // The units a quantity can be re-expressed in. Empty for anything we can't
 // convert ("clove", "pkg", no unit at all) — those stay plain text.
-export function compatibleUnits(unit, name) {
+export function compatibleUnits(rawUnit, name) {
+  const unit = effectiveUnit(rawUnit, name)
   const f = familyFor(unit)
   if (!f) return []
   const all = Object.keys(f.units)
@@ -186,7 +245,7 @@ export function isFluidOunce(unit) {
 // from the recipe's own quantity, not the scaled one, so scaling or typing an
 // amount never makes the unit jump.
 export function defaultUnitFor(qty, unit, name) {
-  const u = abbreviateUnit(unit)
+  const u = effectiveUnit(unit, name)
   if (!isFluidOunce(u) && !weightToKitchen(u, name)) return u
   const n = Number(qty)
   if (!Number.isFinite(n) || n <= 0) return 'cup'
@@ -213,7 +272,7 @@ export function roundCup(n) {
 // Whether displayQtyIn rounds this pairing to kitchen measures (fl oz, or a
 // weight with a known density, shown as cup/tbsp/tsp).
 export function isKitchenRounded(from, to, name) {
-  return (isFluidOunce(from) || weightToKitchen(from, name)) && KITCHEN_UNITS.includes(abbreviateUnit(to))
+  return (isFluidOunce(effectiveUnit(from, name)) || weightToKitchen(from, name)) && KITCHEN_UNITS.includes(abbreviateUnit(to))
 }
 
 // A quantity as the reader sees it in `to`: fl oz or a weight re-expressed as
@@ -234,11 +293,11 @@ export function displayQtyIn(qty, from, to, name) {
 export function convertQty(qty, from, to, name) {
   const n = Number(qty)
   if (!Number.isFinite(n)) return qty
-  const f = familyFor(from)
-  const t = familyFor(to)
+  const a = effectiveUnit(from, name)
+  const b = effectiveUnit(to, name)
+  const f = familyFor(a)
+  const t = familyFor(b)
   if (!f || !t) return qty
-  const a = abbreviateUnit(from)
-  const b = abbreviateUnit(to)
   if (f === t) return round((n * f.units[a]) / t.units[b], 4)
   const density = gramsPerCup(name)
   if (density == null) return qty

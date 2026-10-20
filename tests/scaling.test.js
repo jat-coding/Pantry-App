@@ -1,7 +1,7 @@
 // Unit-conversion checks for src/lib/scaling.js. Run: npm test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { compatibleUnits, defaultUnitFor, convertQty, displayQtyIn, gramsPerCup, roundCup, formatQty } from '../src/lib/scaling.js'
+import { compatibleUnits, defaultUnitFor, convertQty, displayQtyIn, gramsPerCup, roundCup, formatQty, isLiquidName, isKitchenRounded } from '../src/lib/scaling.js'
 
 const OZ = 28.3495
 
@@ -92,4 +92,49 @@ test('cups snap to quarters and thirds; tbsp/tsp stay half-rounded', () => {
   assert.equal(displayQtyIn(7.88, 'oz', 'cup', 'brown sugar'), 1)
   // same-family volume rows picked as cup keep 2 decimals (not kitchen-rounded)
   assert.equal(displayQtyIn(5, 'tbsp', 'cup'), 0.31)
+})
+
+test('plain-oz liquids (pre-v1.31.1 imports) read as fl oz', () => {
+  // 8 oz milk = 8 fl oz = 1 cup, exactly the fl oz path
+  assert.equal(defaultUnitFor(8, 'oz', 'whole milk'), 'cup')
+  assert.equal(displayQtyIn(8, 'oz', 'cup', 'whole milk'), 1)
+  assert.deepEqual(compatibleUnits('oz', 'milk'), compatibleUnits('fl oz'))
+  assert.equal(defaultUnitFor(1.5, 'oz', 'olive oil'), 'tbsp')
+  assert.equal(displayQtyIn(1.5, 'oz', 'tbsp', 'olive oil'), 3)
+  assert.equal(defaultUnitFor(0.3, 'oz', 'lemon juice'), 'tsp')
+  assert.equal(formatQty(displayQtyIn(32, 'oz', 'cup', 'low-sodium chicken broth')), '4')
+  assert.equal(convertQty(3, 'oz', 'cup', 'chicken stock'), convertQty(3, 'fl oz', 'cup'))
+  assert.equal(convertQty(1, 'cup', 'oz', 'heavy cream'), 8)
+  assert.ok(isKitchenRounded('oz', 'cup', 'dry white wine'))
+  for (const n of ['water', 'red wine vinegar', 'half-and-half', 'coconut milk', 'Ounces of vegetable oil']) assert.equal(isLiquidName(n), true, n)
+  assert.equal(defaultUnitFor(12, 'ounces', 'buttermilk'), 'cup')
+})
+
+test('buttermilk is a liquid, butter stays in the density table', () => {
+  assert.equal(isLiquidName('buttermilk'), true)
+  assert.equal(gramsPerCup('buttermilk'), null)
+  assert.equal(displayQtyIn(6, 'oz', 'cup', 'buttermilk'), 0.75) // 6 fl oz = 3/4 cup
+  assert.equal(isLiquidName('unsalted butter'), false)
+  assert.equal(displayQtyIn(6, 'oz', 'cup', 'butter'), 0.75) // 170.1 g / 227 by density
+  assert.equal(convertQty(6, 'oz', 'g', 'butter'), 170.097) // still weight oz
+})
+
+test('false friends with a liquid word stay weight', () => {
+  for (const n of ['cream cheese, softened', 'sour cream', 'cream of tartar', 'cream of mushroom soup', 'sweetened condensed milk',
+    'milk chocolate, chopped', 'milk chocolate chips', 'water chestnuts', 'tuna in oil', 'oil-packed sun-dried tomatoes', 'creamy peanut butter', 'ice cream'])
+    assert.equal(isLiquidName(n), false, n)
+  assert.deepEqual(compatibleUnits('oz', 'cream cheese'), ['g', 'kg', 'oz', 'lb'])
+  assert.equal(defaultUnitFor(8, 'oz', 'cream cheese'), 'oz')
+  assert.equal(convertQty(8, 'oz', 'g', 'cream cheese'), 226.796)
+  // density-table liquids keep their density, never the fl oz shortcut
+  for (const n of ['maple syrup', 'honey', 'molasses', 'vanilla extract']) assert.equal(isLiquidName(n), false, n)
+  assert.equal(displayQtyIn(7.88, 'oz', 'cup', 'brown sugar'), 1)
+})
+
+test('only plain oz is relabelled, other units of a liquid are untouched', () => {
+  assert.deepEqual(compatibleUnits('g', 'milk'), ['g', 'kg', 'oz', 'lb'])
+  assert.equal(defaultUnitFor(200, 'g', 'milk'), 'g')
+  assert.equal(defaultUnitFor(1, 'lb', 'water'), 'lb')
+  assert.equal(defaultUnitFor(2, 'cup', 'milk'), 'cup')
+  assert.equal(defaultUnitFor(8, 'fl oz', 'milk'), 'cup')
 })

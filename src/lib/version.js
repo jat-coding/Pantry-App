@@ -1,9 +1,17 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.32.1'
+export const APP_VERSION = '1.32.2'
 
 export const CHANGELOG = [
+  {
+    version: '1.32.2',
+    date: '2026-10-19',
+    changes: [
+      'Older recipes that list a liquid in plain "oz" (milk, buttermilk, broth, stock, water, juice, oil, cream, half and half, wine, vinegar) now treat it as fluid ounces, so 8 oz of milk shows as 1 cup and you can switch it to tbsp, tsp, fl oz or ml. Nothing in the recipe is changed or re-saved.',
+      'Things that only sound like a liquid (cream cheese, sour cream, condensed milk, milk chocolate, tuna in oil) stay in weight.',
+    ],
+  },
   {
     version: '1.32.1',
     date: '2026-10-19',
