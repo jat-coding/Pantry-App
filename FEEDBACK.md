@@ -22,3 +22,20 @@ build):
   loads it didn't throw."
 - Generate a PDF for a recipe with a long instructions list (15+ steps) and confirm the
   method text is not clipped/overlapping and continues onto a second page.
+
+## 2026-10-19 — oz -> cup/tbsp/tsp only covered fluid ounces (v1.26.0)
+
+Task cards: `tasks/2026-10-19-recipe-card-cookmode-units.md` (original),
+`tasks/2026-10-19-weight-oz-density-conversion.md` (correction, v1.32.0).
+
+**What he asked for:** "Allow the user to convert oz into cups and teaspoons
+tablespoons. Those should be default and rounded to the nearest half unit."
+
+**What came back wrong:** only "fl oz" ingredients converted. The card put weight oz in
+"Not doing", so his cookie recipe in Cook Mode (butter, brown sugar, flour, baking soda,
+salt, vanilla paste, molasses, all weight oz) still only offered g/kg/oz/lb.
+
+**Checks that would have caught it** (added to VERIFY.md, Ingredient units section):
+- A weighed baking staple must offer and default to cup/tbsp/tsp; an unknown weighed
+  ingredient must stay weight-only.
+- Don't narrow his literal instruction in "Not doing" without asking: "oz" meant all oz.

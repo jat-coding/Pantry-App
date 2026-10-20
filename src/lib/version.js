@@ -1,9 +1,17 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.31.1'
+export const APP_VERSION = '1.32.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.32.0',
+    date: '2026-10-19',
+    changes: [
+      'Ingredients measured by weight in ounces or grams (butter, flour, sugar, brown sugar, baking soda, baking powder, salt, cocoa, oats, vanilla, molasses, honey and other common baking staples) now show in cups, tablespoons or teaspoons by default, rounded to the nearest half. Tap the unit to switch back to oz, lb, g or kg.',
+      'Works on every recipe you already have, no re-import needed. Ingredients Pantry can\'t convert reliably (fruit, meat, kosher salt, which weighs twice as much in one brand as another) stay in weight.',
+    ],
+  },
   {
     version: '1.31.1',
     date: '2026-10-19',

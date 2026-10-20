@@ -5,9 +5,9 @@ How to check work on this project for real.
 ## Build
 
 - `npm run build` (Vite) must succeed with no new console errors/warnings.
-- No test runner exists in this project yet (no `test` script in package.json) — don't
-  claim test coverage; a task card's "Done when" checks are the verification until one
-  is added.
+- `npm test` (node:test, `tests/*.test.js`, added 2026-10-19) covers only the unit
+  conversion logic in `src/lib/scaling.js`. Nothing else has test coverage — don't claim
+  it does; a task card's "Done when" checks are the verification for everything else.
 
 ## Run locally
 
@@ -52,3 +52,15 @@ How to check work on this project for real.
 - Generate a PDF for a recipe with a long instructions list (15+ steps) and confirm the
   method text isn't clipped/overlapping and flows onto a second PDF page rather than
   being squeezed onto one.
+
+## Ingredient units / conversion (`src/lib/scaling.js`) — added after a 2026-10-19 send-back
+
+- A weight-unit (oz/g/lb) ingredient with a recognizable name (butter, flour, sugar,
+  baking soda, salt...) must offer and default to cup/tbsp/tsp on Recipe Detail and in
+  Cook Mode. Check a real cookie-style recipe, not just a liquid one: v1.26.0 only
+  handled fl oz and left the common case (weighed baking staples) on g/kg/oz/lb.
+- An unrecognized weighed ingredient (e.g. banana) must stay weight-only — no guessed
+  conversion.
+- Run `npm test` after any change to scaling.js; add a case for the new behavior.
+- Read his original instruction literally before scoping something out in "Not doing":
+  if he said "oz", that means every oz, not only the subset that's easy.

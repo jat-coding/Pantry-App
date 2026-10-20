@@ -149,11 +149,13 @@ export default function RecipeDetail() {
 
   // The unit an ingredient is currently shown in, and its quantity in that unit
   // (qtyIn: full precision, for math; shownQty: as displayed, fl oz -> cup/tbsp/tsp
-  // rounded to the nearest half). A fl oz ingredient starts in cup/tbsp/tsp.
-  const unitFor = (i) => units[i] || defaultUnitFor(recipe.ingredients[i]?.qty, recipe.ingredients[i]?.unit)
+  // rounded to the nearest half). A fl oz ingredient, or a weighed one whose name
+  // is in the density table (butter, flour, sugar...), starts in cup/tbsp/tsp.
+  const nameOf = (i) => recipe.ingredients[i]?.name
+  const unitFor = (i) => units[i] || defaultUnitFor(recipe.ingredients[i]?.qty, recipe.ingredients[i]?.unit, nameOf(i))
   const autoConverted = (i) => !units[i] && unitFor(i) !== abbreviateUnit(recipe.ingredients[i]?.unit)
-  const qtyIn = (i, qty) => convertQty(qty, recipe.ingredients[i]?.unit, unitFor(i))
-  const shownQty = (i, qty) => displayQtyIn(qty, recipe.ingredients[i]?.unit, unitFor(i))
+  const qtyIn = (i, qty) => convertQty(qty, recipe.ingredients[i]?.unit, unitFor(i), nameOf(i))
+  const shownQty = (i, qty) => displayQtyIn(qty, recipe.ingredients[i]?.unit, unitFor(i), nameOf(i))
 
   // An ingredient's scaled amount as text, in the unit its row shows. `friendly`
   // (the PDF) uses the auto unit from formatIngredient for a row the reader hasn't
@@ -175,7 +177,7 @@ export default function RecipeDetail() {
     const orig = Number(recipe.ingredients[index].qty)
     if (!orig || orig <= 0) return
     // Typed in the display unit; convert back to the recipe's own unit to scale.
-    const inBase = convertQty(typed, unitFor(index), recipe.ingredients[index].unit)
+    const inBase = convertQty(typed, unitFor(index), recipe.ingredients[index].unit, nameOf(index))
     setFactor(Number(inBase) / orig)
   }
 
@@ -386,7 +388,7 @@ export default function RecipeDetail() {
           {scaledIngredients.map((ing, i) => {
             const isChecked = checked.has(i)
             const unit = unitFor(i)
-            const options = compatibleUnits(recipe.ingredients[i]?.unit)
+            const options = compatibleUnits(recipe.ingredients[i]?.unit, nameOf(i))
             const hasQty = !(ing.qty === '' || ing.qty == null)
             const value = qtyDraft?.index === i
               ? qtyDraft.text

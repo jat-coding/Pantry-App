@@ -65,19 +65,114 @@ function familyFor(unit) {
   return UNIT_FAMILIES.find((f) => u in f.units) || null
 }
 
+const VOLUME = UNIT_FAMILIES[0]
+const WEIGHT = UNIT_FAMILIES[1]
+
+// Grams per US cup, from King Arthur Baking's ingredient weight chart (vanilla
+// paste from a product label: 20 g/tbsp). Lets a weighed ingredient read in
+// cup/tbsp/tsp. Keys are matched as whole words against the ingredient name and
+// the longest match wins, so "brown sugar" beats "sugar" and "peanut butter"
+// beats "butter". A null entry means "looks like a match but isn't safely
+// convertible" (kosher salt is 2x denser in one brand than another; flour
+// tortillas aren't flour) -- those stay weight-only.
+const GRAMS_PER_CUP = {
+  butter: 227,
+  'peanut butter': 270,
+  sugar: 198,
+  'granulated sugar': 198,
+  'white sugar': 198,
+  'cane sugar': 198,
+  'brown sugar': 213,
+  'powdered sugar': 113,
+  'confectioners sugar': 113,
+  'icing sugar': 113,
+  'coconut sugar': 154,
+  flour: 120,
+  'all purpose flour': 120,
+  'plain flour': 120,
+  'bread flour': 120,
+  'cake flour': 120,
+  'whole wheat flour': 113,
+  'whole wheat pastry flour': 96,
+  'almond flour': 96,
+  'coconut flour': 128,
+  'rice flour': 142,
+  'baking soda': 288,
+  'baking powder': 192,
+  salt: 288,
+  'table salt': 288,
+  cocoa: 84,
+  'cocoa powder': 84,
+  oats: 89,
+  'rolled oats': 89,
+  'old fashioned oats': 89,
+  'quick oats': 89,
+  'steel cut oats': 140,
+  'vanilla extract': 224,
+  'vanilla paste': 320,
+  'vanilla bean paste': 320,
+  molasses: 340,
+  honey: 336,
+  'maple syrup': 312,
+  cornstarch: 112,
+  'chocolate chips': 170,
+  'chocolate chip': 170,
+  'mini chocolate chips': 177,
+  // Not convertible: brand/shape-dependent, or not the ingredient the word suggests.
+  'kosher salt': null,
+  'sea salt': null,
+  'flaky salt': null,
+  'flaky sea salt': null,
+  'almond butter': null,
+  'cashew butter': null,
+  'nut butter': null,
+  'apple butter': null,
+  'cocoa butter': null,
+  'butter beans': null,
+  'butter lettuce': null,
+  'flour tortilla': null,
+  'flour tortillas': null,
+}
+
+function wordsOf(text) {
+  return ` ${(text || '').toLowerCase().replace(/['\u2019]/g, '').replace(/[^a-z]+/g, ' ').trim()} `
+}
+
+const DENSITY_KEYS = Object.keys(GRAMS_PER_CUP).sort((a, b) => b.length - a.length)
+
+// Grams per cup for an ingredient name, or null when it isn't in the table.
+export function gramsPerCup(name) {
+  const words = wordsOf(name)
+  const key = DENSITY_KEYS.find((k) => words.includes(` ${k} `))
+  return key ? GRAMS_PER_CUP[key] : null
+}
+
+function isWeight(unit) {
+  return familyFor(unit) === WEIGHT
+}
+
+// A weighed ingredient we know the density of reads in kitchen measures too.
+function weightToKitchen(unit, name) {
+  return isWeight(unit) && gramsPerCup(name) != null
+}
+
 // The units a quantity can be re-expressed in. Empty for anything we can't
 // convert ("clove", "pkg", no unit at all) — those stay plain text.
-export function compatibleUnits(unit) {
+export function compatibleUnits(unit, name) {
   const f = familyFor(unit)
   if (!f) return []
   const all = Object.keys(f.units)
   // A fluid-ounce ingredient lists the kitchen measures first (they're what it
-  // defaults to, see defaultUnitFor), then fl oz itself and the rest.
-  return isFluidOunce(unit) ? [...KITCHEN_UNITS, ...all.filter((u) => !KITCHEN_UNITS.includes(u))] : all
+  // defaults to, see defaultUnitFor), then fl oz itself and the rest. A weighed
+  // ingredient in the density table gets them in front of its weight units.
+  if (isFluidOunce(unit)) return [...KITCHEN_UNITS, ...all.filter((u) => !KITCHEN_UNITS.includes(u))]
+  if (weightToKitchen(unit, name)) return [...KITCHEN_UNITS, ...all]
+  return all
 }
 
-// Fluid ounces read as cups/tbsp/tsp by default. Plain "oz" is weight here and is
-// left alone: weight and volume don't convert without knowing the ingredient.
+// Fluid ounces, and weights of ingredients in GRAMS_PER_CUP, read as
+// cups/tbsp/tsp by default. Any other weight is left alone: weight and volume
+// don't convert without knowing the ingredient.
 const KITCHEN_UNITS = ['cup', 'tbsp', 'tsp']
 
 export function isFluidOunce(unit) {
@@ -85,15 +180,16 @@ export function isFluidOunce(unit) {
 }
 
 // The unit an ingredient is shown in before the reader picks one: its own unit,
-// except fl oz, which becomes the largest of cup/tbsp/tsp that reads as at least 1
-// (half-unit rounded). Worked out from the recipe's own quantity, not the scaled
-// one, so scaling or typing an amount never makes the unit jump.
-export function defaultUnitFor(qty, unit) {
+// except fl oz (or a weight with a known density), which becomes the largest of
+// cup/tbsp/tsp that reads as at least 1 (half-unit rounded). Worked out from the
+// recipe's own quantity, not the scaled one, so scaling or typing an amount
+// never makes the unit jump.
+export function defaultUnitFor(qty, unit, name) {
   const u = abbreviateUnit(unit)
-  if (!isFluidOunce(u)) return u
+  if (!isFluidOunce(u) && !weightToKitchen(u, name)) return u
   const n = Number(qty)
   if (!Number.isFinite(n) || n <= 0) return 'cup'
-  return KITCHEN_UNITS.find((k) => roundHalf(convertQty(n, u, k)) >= 1) || 'tsp'
+  return KITCHEN_UNITS.find((k) => roundHalf(convertQty(n, u, k, name)) >= 1) || 'tsp'
 }
 
 // Nearest 0.5, never showing a positive amount as 0.
@@ -102,25 +198,34 @@ export function roundHalf(n) {
   return r === 0 && Number(n) > 0 ? 0.5 : r
 }
 
-// A quantity as the reader sees it in `to`: fl oz re-expressed as cup/tbsp/tsp is
-// rounded to the nearest half (no "0.899 cup"); everything else keeps 2 decimals.
-// Display only -- grocery math uses convertQty's full precision.
-export function displayQtyIn(qty, from, to) {
-  const n = Number(convertQty(qty, from, to))
+// A quantity as the reader sees it in `to`: fl oz or a weight re-expressed as
+// cup/tbsp/tsp is rounded to the nearest half (no "0.899 cup"); everything else
+// keeps 2 decimals. Display only -- grocery math uses convertQty's full precision.
+export function displayQtyIn(qty, from, to, name) {
+  const n = Number(convertQty(qty, from, to, name))
   if (!Number.isFinite(n)) return qty
-  if (isFluidOunce(from) && KITCHEN_UNITS.includes(abbreviateUnit(to))) return roundHalf(n)
+  if ((isFluidOunce(from) || weightToKitchen(from, name)) && KITCHEN_UNITS.includes(abbreviateUnit(to))) return roundHalf(n)
   return Math.round(n * 100) / 100
 }
 
-// Re-express a quantity in another unit of the same family. Returns qty
-// untouched if either side is unknown or they measure different things.
-export function convertQty(qty, from, to) {
+// Re-express a quantity in another unit of the same family, or between weight
+// and volume when the ingredient's density is known (grams -> cups -> unit).
+// Returns qty untouched if either side is unknown or they measure different
+// things with no density to bridge them.
+export function convertQty(qty, from, to, name) {
   const n = Number(qty)
   if (!Number.isFinite(n)) return qty
   const f = familyFor(from)
   const t = familyFor(to)
-  if (!f || f !== t) return qty
-  return round((n * f.units[abbreviateUnit(from)]) / t.units[abbreviateUnit(to)], 4)
+  if (!f || !t) return qty
+  const a = abbreviateUnit(from)
+  const b = abbreviateUnit(to)
+  if (f === t) return round((n * f.units[a]) / t.units[b], 4)
+  const density = gramsPerCup(name)
+  if (density == null) return qty
+  const tspPerCup = VOLUME.units.cup
+  if (f === WEIGHT) return round(((n * f.units[a]) / density) * tspPerCup / t.units[b], 4)
+  return round(((n * f.units[a]) / tspPerCup) * density / t.units[b], 4)
 }
 
 // Unicode fraction glyphs people paste or type.
