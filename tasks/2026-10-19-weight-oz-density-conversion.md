@@ -99,3 +99,54 @@ RecipeDetail driven with mocked data at 390x844, Chromium + WebKit, 10/10 each:
 - [x] 8 APP_VERSION 1.31.1 -> 1.32.0 + dated CHANGELOG entry.
 
 Not verified: a real iPhone or real Firestore recipes (no Firebase keys here).
+
+## Follow-up — cup rounding granularity (2026-10-19 9:36pm)
+
+v1.32.0's "Need from you" flagged one side effect: `roundHalf`'s nearest-0.5 rounding
+means a borderline cup value (e.g. 6 oz butter = 0.749 cup) fails the `>= 1` threshold
+`defaultUnitFor` uses to pick cup, and falls through to tbsp (12 tbsp) instead of
+showing 3/4 cup. He answered: **yes, allow quarter and third cups** (so 1/4, 1/3, 3/4
+read naturally, not just whole/half).
+
+9. **Cup rounding**: for the cup unit specifically, replace `roundHalf`'s nearest-0.5
+   with a nearest-common-fraction rounding (quarters and thirds — reuse the existing
+   `COMMON_FRACTIONS`/`nearestFraction` machinery `formatQty` already uses, rather than
+   inventing a second fraction table) in both `displayQtyIn`'s output and the threshold
+   `defaultUnitFor` uses to decide cup vs. tbsp/tsp. tbsp/tsp keep nearest-half — he
+   scoped this to cups only. Acceptance: 6 oz butter now reads **3/4 cup** (not 12
+   tbsp); the existing whole/half cases (8 fl oz = 1 cup, 7.88 oz brown sugar = 1 cup)
+   are unchanged; re-run `npm test` and the UI harness from the first round to confirm
+   no regression.
+
+## Result: follow-up, cup rounding (2026-10-19, v1.32.1, local commit only, not pushed)
+
+Built in 1 try. New `roundCup` in scaling.js snaps cup amounts to whole + quarter/third,
+using `CUP_FRACTIONS` = `COMMON_FRACTIONS` filtered to quarters/thirds (no second table;
+`nearestFraction` and `roundCup` share one `closestFraction` helper). Eighths are left
+out on purpose: he said quarter and third cups, and 3/8 or 5/8 cup isn't a measuring cup.
+`defaultUnitFor` picks cup when the snapped cup value is >= 1/2, else tbsp/tsp with the
+old half-rounding >= 1 rule. The amount field on a converted cup row now shows the
+fraction ("3/4", not "0.75"); parseQty already reads it back. Evidence:
+`/home/roni/agent/artifacts/pantry-cup-rounding-2026-10-19/` (run.mjs reused from the
+first round, harness/, PNGs, *-results.json). Report:
+`/home/roni/agent/artifacts/build-20261019-213815-2841924.md`.
+
+- [x] 9a 6 oz butter defaults to 3/4 cup — PASS. Unit test + harness row "3/4 cup
+  softened unsalted butter" (Chromium + WebKit), Cook Mode text shows "3/4 cup".
+- [x] 9b Nothing else on the page moved — PASS. Harness diffs every row against the
+  v1.32.0 run's rows-default.json: only the butter row differs. Brown sugar 1 cup, white
+  sugar 5.5 tbsp, flour 2 cup, soda/salt 0.5 tsp, vanilla paste/molasses 1 tsp, banana
+  12 oz weight-only, volume rows unchanged, butter -> g 170.1, typed 2 cup brown sugar
+  still rescales flour to 4 cup and banana to 22.9 oz.
+- [x] 9c tbsp/tsp keep nearest-half — PASS. Butter picked as tbsp still 12; white sugar
+  2.4 oz in tbsp 5.5; fl oz 8 = cup, 1.5 = 3 tbsp, 0.3 = 2 tsp unchanged (unit tests).
+- [x] 9d npm test — PASS 8/8 (one new test; one old expectation changed, see below).
+- [x] 9e npm run build — PASS, 0 warnings; 0 console warnings/errors in harness, 15/15
+  checks per engine.
+- [x] 9f APP_VERSION 1.32.0 -> 1.32.1 + dated CHANGELOG entry.
+
+Intended side effect: a cup value between halves now lands on the closer quarter/third,
+e.g. 10 oz flour (2.36 cup) reads 2 1/3 cup, was 2 1/2. The unit test for that case was
+updated. Typing the shown "3/4" back into the butter field scales the recipe by
+0.75/0.749 (about 0.1%), the same kind of drift typing a rounded tbsp value already had.
+Not verified: a real iPhone or real Firestore recipes.

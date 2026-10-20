@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.32.0'
+export const APP_VERSION = '1.32.1'
 
 export const CHANGELOG = [
+  {
+    version: '1.32.1',
+    date: '2026-10-19',
+    changes: [
+      'Cups now round to the nearest quarter or third (1/4, 1/3, 1/2, 2/3, 3/4) instead of the nearest half, so 6 oz of butter shows as 3/4 cup instead of 12 tbsp. Anything half a cup or more defaults to cups; smaller amounts still show in tablespoons or teaspoons, rounded to the nearest half as before.',
+    ],
+  },
   {
     version: '1.32.0',
     date: '2026-10-19',

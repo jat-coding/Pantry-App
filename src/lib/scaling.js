@@ -180,16 +180,18 @@ export function isFluidOunce(unit) {
 }
 
 // The unit an ingredient is shown in before the reader picks one: its own unit,
-// except fl oz (or a weight with a known density), which becomes the largest of
-// cup/tbsp/tsp that reads as at least 1 (half-unit rounded). Worked out from the
-// recipe's own quantity, not the scaled one, so scaling or typing an amount
-// never makes the unit jump.
+// except fl oz (or a weight with a known density), which becomes cup if it reads
+// as at least 1/2 cup (quarter/third rounded, so 0.749 cup is 3/4 cup), else the
+// larger of tbsp/tsp that reads as at least 1 (half-unit rounded). Worked out
+// from the recipe's own quantity, not the scaled one, so scaling or typing an
+// amount never makes the unit jump.
 export function defaultUnitFor(qty, unit, name) {
   const u = abbreviateUnit(unit)
   if (!isFluidOunce(u) && !weightToKitchen(u, name)) return u
   const n = Number(qty)
   if (!Number.isFinite(n) || n <= 0) return 'cup'
-  return KITCHEN_UNITS.find((k) => roundHalf(convertQty(n, u, k, name)) >= 1) || 'tsp'
+  if (roundCup(convertQty(n, u, 'cup', name)) >= 0.5) return 'cup'
+  return ['tbsp', 'tsp'].find((k) => roundHalf(convertQty(n, u, k, name)) >= 1) || 'tsp'
 }
 
 // Nearest 0.5, never showing a positive amount as 0.
@@ -198,13 +200,30 @@ export function roundHalf(n) {
   return r === 0 && Number(n) > 0 ? 0.5 : r
 }
 
+// Nearest whole, quarter or third (1/4, 1/3, 1/2, 2/3, 3/4: the cups in a
+// measuring set), never showing a positive amount as 0.
+export function roundCup(n) {
+  const x = Number(n)
+  const whole = Math.floor(x)
+  const [val] = closestFraction(x - whole, [[0, ''], ...CUP_FRACTIONS, [1, '']])
+  const r = whole + val
+  return r === 0 && x > 0 ? 0.25 : r
+}
+
+// Whether displayQtyIn rounds this pairing to kitchen measures (fl oz, or a
+// weight with a known density, shown as cup/tbsp/tsp).
+export function isKitchenRounded(from, to, name) {
+  return (isFluidOunce(from) || weightToKitchen(from, name)) && KITCHEN_UNITS.includes(abbreviateUnit(to))
+}
+
 // A quantity as the reader sees it in `to`: fl oz or a weight re-expressed as
-// cup/tbsp/tsp is rounded to the nearest half (no "0.899 cup"); everything else
-// keeps 2 decimals. Display only -- grocery math uses convertQty's full precision.
+// cup is rounded to the nearest quarter/third, as tbsp/tsp to the nearest half
+// (no "0.899 cup"); everything else keeps 2 decimals. Display only -- grocery
+// math uses convertQty's full precision.
 export function displayQtyIn(qty, from, to, name) {
   const n = Number(convertQty(qty, from, to, name))
   if (!Number.isFinite(n)) return qty
-  if ((isFluidOunce(from) || weightToKitchen(from, name)) && KITCHEN_UNITS.includes(abbreviateUnit(to))) return roundHalf(n)
+  if (isKitchenRounded(from, to, name)) return abbreviateUnit(to) === 'cup' ? roundCup(n) : roundHalf(n)
   return Math.round(n * 100) / 100
 }
 
@@ -327,19 +346,22 @@ const COMMON_FRACTIONS = [
   [7 / 8, '7/8'],
 ]
 
+// The subset of COMMON_FRACTIONS a cup amount snaps to: quarters and thirds.
+const CUP_FRACTIONS = COMMON_FRACTIONS.filter(([val]) => Number.isInteger(val * 4) || Number.isInteger(val * 3))
+
+// The [value, label] entry in `fractions` closest to `frac`.
+function closestFraction(frac, fractions) {
+  let best = fractions[0]
+  for (const entry of fractions) {
+    if (Math.abs(frac - entry[0]) < Math.abs(frac - best[0])) best = entry
+  }
+  return best
+}
+
 function nearestFraction(frac) {
   if (frac < 0.06) return ''       // round down to whole
   if (frac > 0.94) return ''       // caller should treat as next whole
-  let best = ''
-  let bestDiff = Infinity
-  for (const [val, str] of COMMON_FRACTIONS) {
-    const d = Math.abs(frac - val)
-    if (d < bestDiff) {
-      bestDiff = d
-      best = str
-    }
-  }
-  return best
+  return closestFraction(frac, COMMON_FRACTIONS)[1]
 }
 
 // Convenience: format an ingredient for display (qty + smart unit).

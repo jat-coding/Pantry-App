@@ -1,7 +1,7 @@
 // Unit-conversion checks for src/lib/scaling.js. Run: npm test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { compatibleUnits, defaultUnitFor, convertQty, displayQtyIn, gramsPerCup } from '../src/lib/scaling.js'
+import { compatibleUnits, defaultUnitFor, convertQty, displayQtyIn, gramsPerCup, roundCup, formatQty } from '../src/lib/scaling.js'
 
 const OZ = 28.3495
 
@@ -43,8 +43,8 @@ test('cookie recipe weights land on sane kitchen measures', () => {
   // 1 oz baking soda... small amounts: 0.21 oz = 5.95 g = ~1 tsp (6 g/tsp)
   assert.equal(defaultUnitFor(0.21, 'oz', 'baking soda'), 'tsp')
   assert.equal(displayQtyIn(0.21, 'oz', 'tsp', 'baking soda'), 1)
-  // 10 oz flour = 283.5 g / 120 = 2.36 cup -> 2.5
-  assert.equal(displayQtyIn(10, 'oz', 'cup', 'flour'), 2.5)
+  // 10 oz flour = 283.5 g / 120 = 2.36 cup -> 2 1/3 (was 2.5 under nearest-half)
+  assert.equal(formatQty(displayQtyIn(10, 'oz', 'cup', 'flour')), '2 1/3')
   // 0.5 oz vanilla paste = 14.17 g; 20 g/tbsp -> 0.71 tbsp, 2.13 tsp -> tsp, shown 2
   assert.equal(defaultUnitFor(0.5, 'oz', 'vanilla paste'), 'tsp')
   assert.equal(displayQtyIn(0.5, 'oz', 'tsp', 'vanilla paste'), 2)
@@ -66,4 +66,30 @@ test('fl oz and same-family conversion unchanged', () => {
   assert.equal(convertQty(6, 'oz', 'g'), 170.097)
   assert.equal(convertQty(1, 'cup', 'tbsp'), 16)
   assert.equal(convertQty(1, 'clove', 'g', 'butter'), 1)
+})
+
+test('cups snap to quarters and thirds; tbsp/tsp stay half-rounded', () => {
+  // 6 oz butter = 170.1 g / 227 = 0.749 cup -> 3/4 cup, not 12 tbsp
+  assert.equal(defaultUnitFor(6, 'oz', 'softened unsalted butter'), 'cup')
+  assert.equal(displayQtyIn(6, 'oz', 'cup', 'softened unsalted butter'), 0.75)
+  assert.equal(formatQty(displayQtyIn(6, 'oz', 'cup', 'butter')), '3/4')
+  // 2.4 oz white sugar = 68 g / 198 = 0.34 cup -> 1/3 cup when cup is picked,
+  // but below the 1/2-cup default threshold, so it still defaults to tbsp
+  assert.equal(formatQty(displayQtyIn(2.4, 'oz', 'cup', 'white sugar')), '1/3')
+  assert.equal(defaultUnitFor(2.4, 'oz', 'white sugar'), 'tbsp')
+  // 5.33 fl oz = 2/3 cup; 1.25 cup reads 1 1/4
+  assert.equal(formatQty(displayQtyIn(5.33, 'fl oz', 'cup')), '2/3')
+  assert.equal(formatQty(displayQtyIn(10, 'fl oz', 'cup')), '1 1/4')
+  assert.equal(roundCup(0.01), 0.25)
+  assert.equal(roundCup(2.1), 2)
+  // tbsp keeps nearest half: 5.5 tbsp, not a fraction snap
+  assert.equal(displayQtyIn(2.4, 'oz', 'tbsp', 'white sugar'), 5.5)
+  // whole/half cases from earlier rounds unchanged
+  assert.equal(defaultUnitFor(8, 'fl oz'), 'cup')
+  assert.equal(defaultUnitFor(1.5, 'fl oz'), 'tbsp')
+  assert.equal(displayQtyIn(1.5, 'fl oz', 'tbsp'), 3)
+  assert.equal(defaultUnitFor(0.3, 'fl oz'), 'tsp')
+  assert.equal(displayQtyIn(7.88, 'oz', 'cup', 'brown sugar'), 1)
+  // same-family volume rows picked as cup keep 2 decimals (not kitchen-rounded)
+  assert.equal(displayQtyIn(5, 'tbsp', 'cup'), 0.31)
 })

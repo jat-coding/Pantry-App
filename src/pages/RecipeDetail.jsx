@@ -7,7 +7,7 @@ import { useCookMode } from '../contexts/CookModeContext.jsx'
 import { useGoBack } from '../lib/useGoBack.js'
 import { recordOpened } from '../lib/cookLaunch.js'
 import { useToast } from '../components/Toast.jsx'
-import { formatIngredient, formatQty, abbreviateUnit, compatibleUnits, convertQty, parseQty, defaultUnitFor, displayQtyIn } from '../lib/scaling.js'
+import { formatIngredient, formatQty, abbreviateUnit, compatibleUnits, convertQty, parseQty, defaultUnitFor, displayQtyIn, isKitchenRounded } from '../lib/scaling.js'
 import { stepIngredientIndexes } from '../lib/stepIngredients.js'
 import { aisleFor, getCategories, primaryCategory } from '../lib/categories.js'
 import { EditIcon, TrashIcon, HeartIcon, CategoryIcon, ShareIcon } from '../components/icons.jsx'
@@ -148,14 +148,20 @@ export default function RecipeDetail() {
   const scaledServings = formatQty((recipe.servings || 1) * factor)
 
   // The unit an ingredient is currently shown in, and its quantity in that unit
-  // (qtyIn: full precision, for math; shownQty: as displayed, fl oz -> cup/tbsp/tsp
-  // rounded to the nearest half). A fl oz ingredient, or a weighed one whose name
-  // is in the density table (butter, flour, sugar...), starts in cup/tbsp/tsp.
+  // (qtyIn: full precision, for math; shownQty: as displayed, fl oz -> cup rounded
+  // to the nearest quarter/third, tbsp/tsp to the nearest half). A fl oz
+  // ingredient, or a weighed one whose name is in the density table (butter,
+  // flour, sugar...), starts in cup/tbsp/tsp.
   const nameOf = (i) => recipe.ingredients[i]?.name
   const unitFor = (i) => units[i] || defaultUnitFor(recipe.ingredients[i]?.qty, recipe.ingredients[i]?.unit, nameOf(i))
   const autoConverted = (i) => !units[i] && unitFor(i) !== abbreviateUnit(recipe.ingredients[i]?.unit)
   const qtyIn = (i, qty) => convertQty(qty, recipe.ingredients[i]?.unit, unitFor(i), nameOf(i))
   const shownQty = (i, qty) => displayQtyIn(qty, recipe.ingredients[i]?.unit, unitFor(i), nameOf(i))
+  // A converted cup amount reads as a fraction in the field ("3/4", not "0.75");
+  // parseQty reads it back when typed over.
+  const qtyFieldText = (i, qty) => unitFor(i) === 'cup' && isKitchenRounded(recipe.ingredients[i]?.unit, 'cup', nameOf(i))
+    ? formatQty(shownQty(i, qty))
+    : String(shownQty(i, qty))
 
   // An ingredient's scaled amount as text, in the unit its row shows. `friendly`
   // (the PDF) uses the auto unit from formatIngredient for a row the reader hasn't
@@ -392,7 +398,7 @@ export default function RecipeDetail() {
             const hasQty = !(ing.qty === '' || ing.qty == null)
             const value = qtyDraft?.index === i
               ? qtyDraft.text
-              : hasQty ? String(shownQty(i, ing.qty)) : ''
+              : hasQty ? qtyFieldText(i, ing.qty) : ''
             return (
               <li key={i} className="flex items-center gap-3 p-3">
                 <button
