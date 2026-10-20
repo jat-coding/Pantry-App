@@ -69,11 +69,14 @@ const RECIPE_SCHEMA = {
 const INSTRUCTIONS =
   'Parse this recipe into the required structured fields. If a field is unknown ' +
   'use a sensible default (0, "", or null). qty must be a number (use 0 if none). ' +
-  'Use short/abbreviated units where possible (tbsp, tsp, cup, oz, lb, g, kg, ml, L). ' +
-  'For weight, prefer oz and lb over grams and kilograms when the result is a ' +
-  'reasonable cooking amount (e.g. 227 g -> 8 oz, 500 g -> ~1 lb); keep the metric ' +
-  'unit only when converting would give an awkward value. Convert the qty to match ' +
-  'whatever unit you choose. A US "stick" of butter is exactly 1/2 cup (8 tbsp, 4 oz, ' +
+  'Use short/abbreviated units where possible (tbsp, tsp, cup, fl oz, oz, lb, g, kg, ml, L). ' +
+  'oz is WEIGHT (meat, cheese, flour, etc.) and fl oz is VOLUME (milk, water, broth, ' +
+  'stock, juice, oil, cream, wine, vinegar, any pourable liquid) -- never write plain ' +
+  '"oz" for a liquid ingredient, always "fl oz". For weight, prefer oz and lb over ' +
+  'grams and kilograms when the result is a reasonable cooking amount (e.g. 227 g -> ' +
+  '8 oz, 500 g -> ~1 lb); keep the metric unit only when converting would give an ' +
+  'awkward value. Convert the qty to match whatever unit you choose. A US "stick" of ' +
+  'butter is exactly 1/2 cup (8 tbsp, 4 oz, ' +
   '113 g) -- never 1/4 cup. When a source gives butter in sticks, either keep unit ' +
   '"stick" with that qty, or convert using 1 stick = 0.5 cup. ' +
   'Clean up each ingredient name so it reads as it would in a cookbook: keep the ' +
