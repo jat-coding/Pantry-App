@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Check, ChevronLeft } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Check, ChevronLeft, Menu } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
@@ -202,6 +202,11 @@ function FriendProfile({ friend, onClose, onPocket, onRemove, me, myFriendIds, i
   // filled in on the first frame; the fetch below still runs and replaces it.
   const [recipes, setRecipes] = useState(() => fs.peekFriendRecipes(friend.id))
   const [confirmingRemove, setConfirmingRemove] = useState(false)
+  // Remove and their friends list both sit behind the header menu; the page opens on
+  // just the recipes.
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [showFriends, setShowFriends] = useState(false)
+  const friendsRef = useRef(null)
   useEffect(() => {
     setRecipes(fs.peekFriendRecipes(friend.id))
     let alive = true
@@ -212,6 +217,10 @@ function FriendProfile({ friend, onClose, onPocket, onRemove, me, myFriendIds, i
   }, [friend.id])
   // Keep the page behind still; scrolling here shouldn't move it.
   useScrollLock()
+  // The section sits below every recipe, so bring it into view once it's revealed.
+  useEffect(() => {
+    if (showFriends) friendsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [showFriends])
 
   // Portaled to <body>: a `position: fixed` overlay nested inside the page inherits
   // any transform/filter an ancestor has (the page's fade-in animation is one), which
@@ -233,10 +242,40 @@ function FriendProfile({ friend, onClose, onPocket, onRemove, me, myFriendIds, i
             <ChevronLeft className="h-5 w-5" strokeWidth={2.2} aria-hidden="true" />
           </button>
           <span className="min-w-0 flex-1 truncate text-center font-extrabold">{friend.displayName}</span>
-          <button onClick={() => setConfirmingRemove(true)}
-            className="shrink-0 rounded-full px-3 py-2 text-sm font-bold text-red-600 transition active:scale-95">Remove</button>
+          <button
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-label="More options"
+            aria-expanded={menuOpen}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-warm shadow-card transition active:scale-90"
+          >
+            <Menu className="h-5 w-5" strokeWidth={2.2} aria-hidden="true" />
+          </button>
         </div>
       </header>
+
+      {/* Same popover as the mobile add menu in Layout: tap outside to close. The inner
+          row mirrors the header's width and padding so the menu lines up under the icon
+          on a wide screen too, not at the window's edge. */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)}>
+          <div className="mx-auto flex max-w-3xl justify-end pt-[calc(env(safe-area-inset-top)+4.25rem)] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]">
+            <div
+              role="menu"
+              className="w-56 animate-fadein space-y-1 rounded-2xl bg-white p-2 shadow-card-hover"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button role="menuitem" className="flex w-full items-center rounded-xl px-4 py-3 text-left font-bold hover:bg-eggshell"
+                onClick={() => { setMenuOpen(false); setShowFriends(true); friendsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}>
+                See their friends
+              </button>
+              <button role="menuitem" className="flex w-full items-center rounded-xl px-4 py-3 text-left font-bold text-red-600 hover:bg-eggshell"
+                onClick={() => { setMenuOpen(false); setConfirmingRemove(true) }}>
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mx-auto max-w-3xl pt-5 pb-[calc(env(safe-area-inset-bottom)+2rem)] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]">
         <div className="mb-6 flex items-center gap-4">
@@ -259,7 +298,14 @@ function FriendProfile({ friend, onClose, onPocket, onRemove, me, myFriendIds, i
           </div>
         )}
 
-        <FriendsOfFriend friend={friend} me={me} myFriendIds={myFriendIds} incoming={incoming} onRespond={onRespond} />
+        {showFriends && (
+          // Room for a full screen below the heading: the list loads after the scroll
+          // starts, and at the very end of the page the heading would otherwise stop
+          // near the bottom of the screen instead of under the header.
+          <div ref={friendsRef} className="min-h-[calc(100dvh-6rem)] scroll-mt-24">
+            <FriendsOfFriend friend={friend} me={me} myFriendIds={myFriendIds} incoming={incoming} onRespond={onRespond} />
+          </div>
+        )}
       </div>
 
       {confirmingRemove && (

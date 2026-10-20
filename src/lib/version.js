@@ -1,9 +1,17 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.32.3'
+export const APP_VERSION = '1.33.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.33.0',
+    date: '2026-10-19',
+    changes: [
+      'A friend\'s pantry now opens on just their recipes. The Remove button and their friends list moved into a menu: tap the three lines at the top right, then pick See their friends or Remove.',
+      'Remove still asks "Remove this friend?" before doing anything, and their friends list works the same as before (Add, Requested, Accept, Friends).',
+    ],
+  },
   {
     version: '1.32.3',
     date: '2026-10-19',
