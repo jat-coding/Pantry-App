@@ -150,3 +150,53 @@ e.g. 10 oz flour (2.36 cup) reads 2 1/3 cup, was 2 1/2. The unit test for that c
 updated. Typing the shown "3/4" back into the butter field scales the recipe by
 0.75/0.749 (about 0.1%), the same kind of drift typing a rounded tbsp value already had.
 Not verified: a real iPhone or real Firestore recipes.
+
+## Follow-up — lower the cup threshold to 1/4 cup (2026-10-19 10:24pm)
+
+The 9c report asked where cups should start: right now `defaultUnitFor` only picks cup
+when the snapped value is >= 1/2 cup, below that it defaults to tbsp/tsp — flagged
+specifically because lowering it to 1/4 naively breaks an exact case: 1.5 fl oz (which
+must stay "3 tbsp") is 0.1875 cup, and the nearest quarter/third fraction to that is 1/4
+cup (0.25) — a real, visible error (33% off), not just a smaller number. He answered:
+**use cups from 1/4 cup up.**
+
+10. **Lower the threshold, keep the accuracy guard**: pick cup starting at 1/4 cup
+    (snapped value >= 1/4, not 1/2) — but only when the quarter/third-snapped cup value
+    is actually close to the true value. Add an error tolerance (e.g. the snapped cup
+    amount, converted back to tsp, must be within some small absolute drift of the real
+    tsp amount — pick a number that keeps 1.5 fl oz as 3 tbsp exactly, since 1/4 cup
+    would be visibly wrong for it, but does let genuinely-close amounts like a real 1/4
+    or 1/3 cup show as cup). Below that tolerance, fall back to tbsp/tsp as today.
+    Acceptance: a value that's genuinely close to 1/4 or 1/3 cup now defaults to cup
+    instead of tbsp; 1.5 fl oz still reads exactly "3 tbsp", not an inaccurate "1/4 cup";
+    everything from the first two rounds (butter 3/4 cup, brown sugar 1 cup, etc.) is
+    unchanged. Re-run `npm test` and the UI harness.
+
+## Result: follow-up, cup from 1/4 cup (2026-10-19, v1.32.3, local commit only, not pushed)
+
+Built in 1 try. `defaultUnitFor` still picks cup for anything that snaps to >= 1/2 cup,
+exactly as before. New: a snapped 1/4 or 1/3 cup is also picked, but only if it is within
+`SMALL_CUP_TOLERANCE_TSP` = 1 tsp of the true amount (|snapped cup - true cup| x 48 <= 1).
+Otherwise it falls back to tbsp/tsp as before. 1 tsp is about 8% of 1/4 cup and 6% of
+1/3 cup, smaller than a packed-vs-loose scoop; it rejects 1.5 fl oz (3 tsp off 1/4 cup)
+with a wide margin. The guard is scoped to the new 1/4-1/2 band only: applied to bigger
+amounts it would flip 7.88 oz brown sugar (2.3 tsp off 1 cup) to tbsp, a regression.
+Evidence: `/home/roni/agent/artifacts/pantry-cup-quarter-2026-10-19/` (run.mjs + harness/
+copied from the liquid round, new "quarter" mock, *-baseline-* rows from the old code,
+PNGs, *-results.json). Report: `/home/roni/agent/artifacts/build-20261019-222548-2926748.md`.
+
+- [x] 10a near 1/4 or 1/3 cup now defaults to cup — PASS. 2.4 oz white sugar 1/3 cup (was
+  5.5 tbsp), 2 fl oz cream 1/4 cup (was 4 tbsp), 2.7 oz milk 1/3 cup (was 5.5 tbsp), 2 oz
+  butter 1/4 cup (was 4 tbsp). Unit tests + harness R/L (Chromium + WebKit) + Cook Mode T.
+- [x] 10b 1.5 fl oz stays exactly 3 tbsp — PASS (fl oz and plain-oz olive oil; unit test +
+  harness K/L/R). Also held: 1.75 fl oz 3.5 tbsp, 3 fl oz 6 tbsp, 2.5 oz sugar 5.5 tbsp.
+- [x] 10c no regression from earlier rounds — PASS. Harness diffs rows against the v1.32.2
+  run: cookie recipe identical (A2), fl oz sauce identical (K), pot pie differs only in the
+  2 oz butter row (L2). Baseline run on the old code failed only R/T/L/L2 (the new behavior).
+- [x] 10d npm test — PASS 14/14 (two new tests; the old "2.4 oz sugar defaults to tbsp"
+  assertion moved to the new test as cup).
+- [x] 10e npm run build — PASS, 0 warnings; harness 26/26 per engine, 0 console warnings.
+- [x] 10f APP_VERSION 1.32.2 -> 1.32.3 + dated CHANGELOG entry.
+
+Side effect to know about: half a stick of butter (2 oz) now reads 1/4 cup, not 4 tbsp.
+Not verified: a real iPhone or real Firestore recipes.

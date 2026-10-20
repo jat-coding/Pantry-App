@@ -73,10 +73,8 @@ test('cups snap to quarters and thirds; tbsp/tsp stay half-rounded', () => {
   assert.equal(defaultUnitFor(6, 'oz', 'softened unsalted butter'), 'cup')
   assert.equal(displayQtyIn(6, 'oz', 'cup', 'softened unsalted butter'), 0.75)
   assert.equal(formatQty(displayQtyIn(6, 'oz', 'cup', 'butter')), '3/4')
-  // 2.4 oz white sugar = 68 g / 198 = 0.34 cup -> 1/3 cup when cup is picked,
-  // but below the 1/2-cup default threshold, so it still defaults to tbsp
+  // 2.4 oz white sugar = 68 g / 198 = 0.34 cup -> 1/3 cup
   assert.equal(formatQty(displayQtyIn(2.4, 'oz', 'cup', 'white sugar')), '1/3')
-  assert.equal(defaultUnitFor(2.4, 'oz', 'white sugar'), 'tbsp')
   // 5.33 fl oz = 2/3 cup; 1.25 cup reads 1 1/4
   assert.equal(formatQty(displayQtyIn(5.33, 'fl oz', 'cup')), '2/3')
   assert.equal(formatQty(displayQtyIn(10, 'fl oz', 'cup')), '1 1/4')
@@ -137,4 +135,39 @@ test('only plain oz is relabelled, other units of a liquid are untouched', () =>
   assert.equal(defaultUnitFor(1, 'lb', 'water'), 'lb')
   assert.equal(defaultUnitFor(2, 'cup', 'milk'), 'cup')
   assert.equal(defaultUnitFor(8, 'fl oz', 'milk'), 'cup')
+})
+
+test('cup is the default from 1/4 cup, only when the 1/4 or 1/3 reading is within 1 tsp', () => {
+  // 2.4 oz white sugar = 0.3434 cup (16.48 tsp); 1/3 cup = 16 tsp, 0.48 tsp off -> cup (was 5.5 tbsp)
+  assert.equal(defaultUnitFor(2.4, 'oz', 'white sugar'), 'cup')
+  // 2 fl oz = 12 tsp = exactly 1/4 cup (was 4 tbsp); 2.7 fl oz = 16.2 tsp -> 1/3 cup (was 5.5 tbsp)
+  assert.equal(defaultUnitFor(2, 'fl oz'), 'cup')
+  assert.equal(formatQty(displayQtyIn(2, 'fl oz', 'cup')), '1/4')
+  assert.equal(defaultUnitFor(2.7, 'oz', 'whole milk'), 'cup')
+  assert.equal(formatQty(displayQtyIn(2.7, 'oz', 'cup', 'whole milk')), '1/3')
+  // 2 oz butter (half a stick) = 0.2498 cup -> 1/4 cup (was 4 tbsp)
+  assert.equal(defaultUnitFor(2, 'oz', 'unsalted butter'), 'cup')
+  assert.equal(formatQty(displayQtyIn(2, 'oz', 'cup', 'unsalted butter')), '1/4')
+})
+
+test('the 1 tsp guard keeps amounts a 1/4 or 1/3 cup would misstate in tbsp/tsp', () => {
+  // 1.5 fl oz = 9 tsp; 1/4 cup would be 12 tsp, 3 tsp (33%) too much -> stays exactly 3 tbsp
+  assert.equal(defaultUnitFor(1.5, 'fl oz'), 'tbsp')
+  assert.equal(displayQtyIn(1.5, 'fl oz', 'tbsp'), 3)
+  assert.equal(defaultUnitFor(1.5, 'oz', 'olive oil'), 'tbsp')
+  // 1.75 fl oz = 10.5 tsp, 1.5 tsp under 1/4 cup -> 3.5 tbsp
+  assert.equal(defaultUnitFor(1.75, 'fl oz'), 'tbsp')
+  assert.equal(displayQtyIn(1.75, 'fl oz', 'tbsp'), 3.5)
+  // 3 fl oz = 18 tsp, 2 tsp over 1/3 cup -> 6 tbsp
+  assert.equal(defaultUnitFor(3, 'fl oz'), 'tbsp')
+  // 2.5 oz white sugar = 0.358 cup (17.18 tsp), 1.18 tsp over 1/3 cup -> 5.5 tbsp
+  assert.equal(defaultUnitFor(2.5, 'oz', 'white sugar'), 'tbsp')
+  // tiny amounts roundCup lifts to 1/4 cup are far off it -> tsp
+  assert.equal(defaultUnitFor(0.21, 'oz', 'baking soda'), 'tsp')
+  assert.equal(defaultUnitFor(0.5, 'oz', 'vanilla paste'), 'tsp')
+  assert.equal(defaultUnitFor(0.3, 'fl oz'), 'tsp')
+  // the guard is only for the new 1/4-1/2 cup band: 7.88 oz brown sugar is
+  // 2.3 tsp off 1 cup and still defaults to cup, as before
+  assert.equal(defaultUnitFor(7.88, 'oz', 'brown sugar'), 'cup')
+  assert.equal(defaultUnitFor(6, 'oz', 'butter'), 'cup')
 })

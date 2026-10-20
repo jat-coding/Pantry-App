@@ -238,9 +238,15 @@ export function isFluidOunce(unit) {
   return abbreviateUnit(unit) === 'fl oz'
 }
 
+// How far (in tsp) a 1/4 or 1/3 cup reading may be from the true amount and
+// still be the default. Without it 1.5 fl oz (9 tsp, exactly 3 tbsp) would read
+// 1/4 cup (12 tsp), a third too much.
+const SMALL_CUP_TOLERANCE_TSP = 1
+
 // The unit an ingredient is shown in before the reader picks one: its own unit,
 // except fl oz (or a weight with a known density), which becomes cup if it reads
-// as at least 1/2 cup (quarter/third rounded, so 0.749 cup is 3/4 cup), else the
+// as at least 1/2 cup (quarter/third rounded, so 0.749 cup is 3/4 cup), or as
+// 1/4 or 1/3 cup within SMALL_CUP_TOLERANCE_TSP of the true amount; else the
 // larger of tbsp/tsp that reads as at least 1 (half-unit rounded). Worked out
 // from the recipe's own quantity, not the scaled one, so scaling or typing an
 // amount never makes the unit jump.
@@ -249,7 +255,10 @@ export function defaultUnitFor(qty, unit, name) {
   if (!isFluidOunce(u) && !weightToKitchen(u, name)) return u
   const n = Number(qty)
   if (!Number.isFinite(n) || n <= 0) return 'cup'
-  if (roundCup(convertQty(n, u, 'cup', name)) >= 0.5) return 'cup'
+  const cups = convertQty(n, u, 'cup', name)
+  const snapped = roundCup(cups)
+  if (snapped >= 0.5) return 'cup'
+  if (snapped >= 0.25 && Math.abs(snapped - cups) * VOLUME.units.cup <= SMALL_CUP_TOLERANCE_TSP) return 'cup'
   return ['tbsp', 'tsp'].find((k) => roundHalf(convertQty(n, u, k, name)) >= 1) || 'tsp'
 }
 

@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.32.2'
+export const APP_VERSION = '1.32.3'
 
 export const CHANGELOG = [
+  {
+    version: '1.32.3',
+    date: '2026-10-19',
+    changes: [
+      'Cups now start at 1/4 cup instead of 1/2: an amount that really is about 1/4 or 1/3 cup shows in cups (2 oz of butter is 1/4 cup, 2.4 oz of sugar is 1/3 cup). It only switches when the cup reading is within a teaspoon of the real amount, so 1.5 fl oz still shows as exactly 3 tbsp instead of a too-big 1/4 cup.',
+    ],
+  },
   {
     version: '1.32.2',
     date: '2026-10-19',
