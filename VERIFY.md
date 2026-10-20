@@ -14,6 +14,15 @@ How to check work on this project for real.
 - `npm run dev` — Vite dev server. Check `vite.config.js` / terminal output for the
   actual port each run (not fixed across sessions); report both the Mac/desktop-local
   URL and the Tailscale URL for any "done" local-preview report (standing rule).
+- **This machine has no real `.env`/Firebase keys** (only `.env.example`). The dev
+  server loads and the HTTP response is a real 200, but the React app throws an
+  uncaught `Firebase: Error (auth/invalid-api-key)` before it ever mounts, so the page
+  is BLANK/WHITE on any real device, Mr. Roni's phone included — confirmed 2026-10-20
+  by reproducing it headlessly (`page.on('pageerror')`), not a network/Tailscale
+  problem. Don't hand him this dev-server link expecting a working click-through;
+  verify UI work with the mocked-Firebase harness pattern used throughout 2026-10-19's
+  Pantry tasks instead, and offer a real Vercel preview deploy or a prod push as the
+  only ways he can actually tap through a build on his phone.
 - Client app only — Firebase (auth/data) + `/api/*` Vercel serverless functions
   (recipe-extraction AI, etc.) are the two moving parts; most UI work only touches the
   client.
