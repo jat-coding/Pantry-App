@@ -217,8 +217,8 @@ function RecipeListView({ recipes, isLiked, onOpen }) {
       {/* Column header (hidden on the smallest screens) */}
       <div className="hidden items-center gap-3 border-b border-warm/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-warm-soft sm:flex">
         <span className="flex-1">Title</span>
-        <span className="w-20 text-right">Time</span>
         <span className="w-24 text-right">Category</span>
+        <span className="w-14 text-right">Time</span>
       </div>
       <ul className="divide-y divide-warm/10">
         {recipes.map((r) => {
@@ -234,19 +234,19 @@ function RecipeListView({ recipes, isLiked, onOpen }) {
                       fallback={<CategoryIcon category={primaryCategory(r)} className="h-6 w-6" />} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-1.5">
-                    {isLiked(r.id) && <span aria-label="Liked" className="shrink-0"><HeartIcon filled className="h-4 w-4" /></span>}
-                    <span className="truncate font-bold">{r.title}</span>
+                  <span className="flex items-start gap-1.5">
+                    {isLiked(r.id) && <span aria-label="Liked" className="mt-0.5 shrink-0"><HeartIcon filled className="h-4 w-4" /></span>}
+                    <span className="line-clamp-2 font-bold leading-snug">{r.title}</span>
                   </span>
                   <span className="block truncate text-xs text-warm-soft">
                     {r.pocketedFromName ? `Pocketed from ${r.pocketedFromName}` : `by ${r.authorName}`}
                   </span>
                 </span>
-                <span className="w-20 text-right text-xs font-semibold text-warm-soft">
-                  {time || '—'}
-                </span>
-                <span className="flex w-24 flex-wrap justify-end gap-1">
+                <span className="flex w-24 shrink-0 flex-wrap justify-end gap-1">
                   {getCategories(r).map((c) => <span key={c} className="pill-peach">{c}</span>)}
+                </span>
+                <span className="w-14 shrink-0 text-right text-xs font-semibold text-warm-soft">
+                  {time || '—'}
                 </span>
               </button>
             </li>
