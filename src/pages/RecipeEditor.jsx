@@ -9,6 +9,11 @@ import { snapshotImage } from '../lib/imageSnapshot.js'
 import { CATEGORIES } from '../lib/categories.js'
 import { parseQty } from '../lib/scaling.js'
 import { sanitizeRecipe } from '../lib/recipeShape.js'
+import { stepIngredientIndexes } from '../lib/stepIngredients.js'
+import {
+  keepMap, remapStepLinks, explicitStepLink, toggleStepLink, clearStepLink,
+  linksAfterRemoveIngredient, linksAfterRemoveStep, linksAfterSwapSteps,
+} from '../lib/stepLinks.js'
 import { uploadImage, uploadVideo } from '../lib/storage.js'
 import { PantryIcon, CameraIcon } from '../components/icons.jsx'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
@@ -28,6 +33,7 @@ function blankRecipe() {
     servings: 4,
     ingredients: [{ qty: '', unit: '', name: '' }],
     instructions: [''],
+    stepIngredientLinks: {},
     isPublic: false,
   }
 }
@@ -143,21 +149,47 @@ export default function RecipeEditor() {
     })
   }
   function addIngredient() { setForm((f) => ({ ...f, ingredients: [...f.ingredients, { qty: '', unit: '', name: '' }] })) }
-  function removeIngredient(i) { setForm((f) => ({ ...f, ingredients: f.ingredients.filter((_, idx) => idx !== i) })) }
+  // Step links point at ingredients by position, so removing one re-points them.
+  function removeIngredient(i) {
+    setForm((f) => ({
+      ...f,
+      ingredients: f.ingredients.filter((_, idx) => idx !== i),
+      stepIngredientLinks: linksAfterRemoveIngredient(f.stepIngredientLinks, i),
+    }))
+  }
 
   function setStep(i, value) {
     setForm((f) => ({ ...f, instructions: f.instructions.map((s, idx) => (idx === i ? value : s)) }))
   }
   function addStep() { setForm((f) => ({ ...f, instructions: [...f.instructions, ''] })) }
-  function removeStep(i) { setForm((f) => ({ ...f, instructions: f.instructions.filter((_, idx) => idx !== i) })) }
+  // Step links are keyed by step position: they move and renumber with the steps.
+  function removeStep(i) {
+    setForm((f) => ({
+      ...f,
+      instructions: f.instructions.filter((_, idx) => idx !== i),
+      stepIngredientLinks: linksAfterRemoveStep(f.stepIngredientLinks, i),
+    }))
+  }
   function moveStep(i, dir) {
     setForm((f) => {
       const arr = [...f.instructions]
       const j = i + dir
       if (j < 0 || j >= arr.length) return f
       ;[arr[i], arr[j]] = [arr[j], arr[i]]
-      return { ...f, instructions: arr }
+      return { ...f, instructions: arr, stepIngredientLinks: linksAfterSwapSteps(f.stepIngredientLinks, i, j) }
     })
+  }
+
+  // What a step shows in Cook Mode: his picks if he's made any, else the ingredients
+  // its text names. The chips show the same thing, so tapping one starts from there.
+  function stepIngredientsFor(f, i) {
+    return explicitStepLink(f.stepIngredientLinks, i) ?? stepIngredientIndexes(f.instructions[i], f.ingredients)
+  }
+  function toggleStepIngredient(i, k) {
+    setForm((f) => ({ ...f, stepIngredientLinks: toggleStepLink(f.stepIngredientLinks, i, k, stepIngredientsFor(f, i)) }))
+  }
+  function resetStepIngredients(i) {
+    setForm((f) => ({ ...f, stepIngredientLinks: clearStepLink(f.stepIngredientLinks, i) }))
   }
 
   async function handleSave() {
@@ -166,6 +198,10 @@ export default function RecipeEditor() {
     const categories = (Array.isArray(form.categories) && form.categories.length)
       ? form.categories
       : [form.category || 'Dinner']
+    // Blank ingredient rows and steps are dropped below, which renumbers both lists;
+    // carry the step links through the same drop so they still point at the right ones.
+    const ingredientMap = keepMap(form.ingredients, (i) => i.name.trim())
+    const stepMap = keepMap(form.instructions, (s) => s.trim())
     const clean = {
       ...form,
       categories,
@@ -177,6 +213,7 @@ export default function RecipeEditor() {
         .filter((i) => i.name.trim())
         .map((i) => ({ qty: parseQty(i.qty), unit: i.unit.trim(), name: i.name.trim() })),
       instructions: form.instructions.map((s) => s.trim()).filter(Boolean),
+      stepIngredientLinks: remapStepLinks(form.stepIngredientLinks, stepMap, ingredientMap),
     }
     setSaving(true)
     setDirty(false) // clear the unsaved-changes guard before navigating
@@ -326,8 +363,17 @@ export default function RecipeEditor() {
           {form.instructions.map((step, i) => (
             <div key={i} className="flex items-start gap-2">
               <span className="mt-3 w-5 shrink-0 text-center font-extrabold text-warm-soft">{i + 1}</span>
-              <textarea className="input min-h-[3rem] flex-1" rows={2} value={step}
-                placeholder="Describe this step…" onChange={(e) => setStep(i, e.target.value)} />
+              <div className="min-w-0 flex-1">
+                <textarea className="input min-h-[3rem] w-full" rows={2} value={step}
+                  placeholder="Describe this step…" onChange={(e) => setStep(i, e.target.value)} />
+                <StepIngredientChips
+                  ingredients={form.ingredients}
+                  selected={stepIngredientsFor(form, i)}
+                  manual={!!explicitStepLink(form.stepIngredientLinks, i)}
+                  onToggle={(k) => toggleStepIngredient(i, k)}
+                  onReset={() => resetStepIngredients(i)}
+                />
+              </div>
               <div className="flex flex-col">
                 <button onClick={() => moveStep(i, -1)} className="px-1 text-warm-soft" aria-label="Move up"><ChevronUp className="h-4 w-4" strokeWidth={2} aria-hidden="true" /></button>
                 <button onClick={() => moveStep(i, 1)} className="px-1 text-warm-soft" aria-label="Move down"><ChevronDown className="h-4 w-4" strokeWidth={2} aria-hidden="true" /></button>
@@ -362,6 +408,37 @@ export default function RecipeEditor() {
           onCancel={() => setConfirmingDiscard(false)}
         />
       )}
+    </div>
+  )
+}
+
+// The ingredients a step uses in Cook Mode, as chips under the step (same chip style
+// as Categories). Until he taps one, they follow the step's text automatically.
+function StepIngredientChips({ ingredients, selected, manual, onToggle, onReset }) {
+  const named = ingredients.map((ing, k) => ({ k, name: ing.name.trim() })).filter((x) => x.name)
+  if (!named.length) return null
+  return (
+    <div className="mt-2">
+      <p className="mb-1.5 text-xs text-warm-soft">
+        {manual ? 'Ingredients for this step, picked by you. ' : 'Ingredients for this step, matched from its text. Tap to change.'}
+        {manual && (
+          <button type="button" onClick={onReset} className="font-bold underline">Match from text</button>
+        )}
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {named.map(({ k, name }) => {
+          const active = selected.includes(k)
+          return (
+            <button key={k} type="button" onClick={() => onToggle(k)}
+              aria-pressed={active}
+              className={`rounded-full border px-3 py-1 text-sm font-bold shadow-card transition ${
+                active
+                  ? 'border-peach-dark bg-peach text-warm'
+                  : 'border-warm/15 bg-white text-warm-soft hover:bg-eggshell'
+              }`}><span className="inline-flex items-center gap-1">{active && <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" />}{name}</span></button>
+          )
+        })}
+      </div>
     </div>
   )
 }

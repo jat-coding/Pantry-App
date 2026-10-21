@@ -7,6 +7,7 @@
 // here makes the editor crash-proof no matter what the importer returned.
 
 import { CATEGORIES } from './categories.js'
+import { cleanStepLinks, keepMap, remapStepLinks } from './stepLinks.js'
 
 // Only a real web link is kept as a recipe's source; anything else is dropped.
 function asSourceUrl(u) {
@@ -43,9 +44,17 @@ export function sanitizeRecipe(raw) {
   const categories = asCategories(r)
   const category = categories[0]
   const ingredients = Array.isArray(r.ingredients) ? r.ingredients.map(asIngredient) : []
-  const instructions = Array.isArray(r.instructions)
-    ? r.instructions.map((s) => (typeof s === 'string' ? s : String(s ?? ''))).filter(Boolean)
+  const rawSteps = Array.isArray(r.instructions)
+    ? r.instructions.map((s) => (typeof s === 'string' ? s : String(s ?? '')))
     : []
+  const instructions = rawSteps.filter(Boolean)
+  // Manual step -> ingredient picks are keyed by step position, so re-point them past
+  // any empty steps dropped just above. Recipes saved before they existed get {}.
+  const stepIngredientLinks = remapStepLinks(
+    cleanStepLinks(r.stepIngredientLinks, rawSteps.length, ingredients.length),
+    keepMap(rawSteps, Boolean),
+    ingredients.map((_, i) => i),
+  )
 
   return {
     ...r,
@@ -60,6 +69,7 @@ export function sanitizeRecipe(raw) {
     servings: Number.isFinite(Number(r.servings)) && Number(r.servings) > 0 ? Number(r.servings) : 1,
     ingredients: ingredients.length ? ingredients : [{ qty: '', unit: '', name: '' }],
     instructions: instructions.length ? instructions : [''],
+    stepIngredientLinks,
     isPublic: !!r.isPublic,
   }
 }

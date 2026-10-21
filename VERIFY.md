@@ -20,7 +20,9 @@ How to check work on this project for real.
   somewhere, which was already true from an unrelated import).
 - `npm test` (node:test, `tests/*.test.js`, added 2026-10-19) covers the unit conversion
   logic in `src/lib/scaling.js` and the JSX-import checker itself
-  (`tests/check-jsx-imports.test.js`, added 2026-10-20). Nothing else has test coverage —
+  (`tests/check-jsx-imports.test.js`, added 2026-10-20), and the step -> ingredient link
+  re-pointing in `src/lib/stepLinks.js` (`tests/stepLinks.test.js`, added 2026-10-21).
+  Nothing else has test coverage —
   don't claim it does; a task card's "Done when" checks are the verification for everything
   else.
 
@@ -101,3 +103,22 @@ How to check work on this project for real.
   (not a short test fixture) at 390px width, and the full title must read within its
   allotted lines — wrapping/line-clamp alone doesn't fix a title that's unreadable if a
   fixed-width sibling column (category pills, etc.) is still eating most of the row.
+
+## Step -> ingredient links (`stepIngredientLinks`, `src/lib/stepLinks.js`) — added 2026-10-21 (v1.34.0)
+
+- `stepIngredientLinks` is keyed by step position and holds ingredient positions. Any new
+  code that removes, reorders, inserts mid-list, filters or merges `ingredients` or
+  `instructions` (editor, save, `sanitizeRecipe`, an importer reshaping a saved recipe, a
+  migration) must re-point it through `stepLinks.js` (`remapStepLinks` + `keepMap`, or the
+  `linksAfter*` helpers), and get a case in `tests/stepLinks.test.js`. A screenshot of the
+  happy path will not catch a stale index: the wrong ingredient just shows under a step.
+- `createRecipe` in `src/lib/firestore.js` writes an explicit field list: a new recipe
+  field must be added there too or new recipes silently drop it (edits don't, since
+  `updateRecipe` passes the object through). Check both create and edit paths.
+- Cook Mode check: one step with explicit picks shows exactly those; a step without picks
+  still shows the text-matched ingredients (`stepIngredientIndexes`, unchanged).
+- Browser click-through without a login: Browse as Guest, then client-side navigate
+  (`history.pushState` + `popstate`) to `/recipe/guest-0/edit` or `/new`. Guests can't
+  save to Firestore; `/new` autosaves the form to `localStorage['pantry-draft-new']`, which
+  is the readable proof of what Save would send. Script used:
+  `/home/roni/agent/artifacts/pantry-step-links/click-through.mjs`.

@@ -52,6 +52,8 @@ export async function createRecipe(data, user, extra = {}) {
     categories,
     ingredients: data.ingredients || [],
     instructions: data.instructions || [],
+    // Manual step -> ingredient picks from the editor (see src/lib/stepLinks.js).
+    stepIngredientLinks: data.stepIngredientLinks || {},
     prepTime: data.prepTime || { value: 0, unit: 'min' },
     cookTime: data.cookTime || { value: 0, unit: 'min' },
     servings: Number(data.servings) || 1,

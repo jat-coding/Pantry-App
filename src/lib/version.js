@@ -1,9 +1,18 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.33.3'
+export const APP_VERSION = '1.34.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.34.0',
+    date: '2026-10-21',
+    changes: [
+      'Recipe editor: each step now has a row of ingredient chips under it. Tap the ingredients that step uses and Cook Mode shows exactly those under the step, with their amounts. Works on recipes you create, edit, or import.',
+      'Until you tap one, a step keeps matching its ingredients from the step text like before (the chips show what it found). "Match from text" puts a step back on automatic.',
+      'Deleting or moving a step, or deleting an ingredient, keeps every step pointing at the right ingredients.',
+    ],
+  },
   {
     version: '1.33.3',
     date: '2026-10-21',

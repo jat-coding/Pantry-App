@@ -9,6 +9,7 @@ import { recordOpened } from '../lib/cookLaunch.js'
 import { useToast } from '../components/Toast.jsx'
 import { formatIngredient, formatQty, abbreviateUnit, compatibleUnits, convertQty, parseQty, defaultUnitFor, displayQtyIn, isKitchenRounded } from '../lib/scaling.js'
 import { stepIngredientIndexes } from '../lib/stepIngredients.js'
+import { cleanStepLinks, explicitStepLink } from '../lib/stepLinks.js'
 import { aisleFor, getCategories, primaryCategory } from '../lib/categories.js'
 import { EditIcon, TrashIcon, HeartIcon, CategoryIcon, ShareIcon } from '../components/icons.jsx'
 import { RecipeDetailSkeleton } from '../components/Skeleton.jsx'
@@ -144,6 +145,7 @@ export default function RecipeDetail() {
   if (!recipe) return <div className="py-20 text-center text-warm-soft">Recipe not found.</div>
 
   const inPantry = isInPantry(recipe.id)
+  const stepLinks = cleanStepLinks(recipe.stepIngredientLinks, recipe.instructions.length, scaledIngredients.length)
   const isOwner = user && recipe.authorId === user.uid
   const scaledServings = formatQty((recipe.servings || 1) * factor)
 
@@ -460,9 +462,11 @@ export default function RecipeDetail() {
         <ol className="space-y-3">
           {recipe.instructions.map((step, i) => {
             const active = cookMode && i === activeStep
-            // Cook Mode: the amounts this step calls for, under its text.
+            // Cook Mode: the amounts this step calls for, under its text. His own picks
+            // from the editor when the step has any, else the ones its text names.
             const needs = cookMode
-              ? stepIngredientIndexes(step, scaledIngredients).filter((k) => scaledIngredients[k].name)
+              ? (explicitStepLink(stepLinks, i) ?? stepIngredientIndexes(step, scaledIngredients))
+                  .filter((k) => scaledIngredients[k].name)
               : []
             return (
               <li
