@@ -39,3 +39,21 @@ salt, vanilla paste, molasses, all weight oz) still only offered g/kg/oz/lb.
 - A weighed baking staple must offer and default to cup/tbsp/tsp; an unknown weighed
   ingredient must stay weight-only.
 - Don't narrow his literal instruction in "Not doing" without asking: "oz" meant all oz.
+
+## 2026-10-21 — List-view title still unreadable after "wrap, not truncate" (v1.33.1)
+
+Task card: `tasks/2026-10-21-list-view-remove-category-pills.md`.
+
+**What he asked for (10/20):** titles get priority in list view, wrap instead of
+truncate, time moves to the far right (v1.33.1, commit 37c8bba).
+
+**What came back wrong** (photo, 10/21): `line-clamp-2` was added, but the fixed-width
+`w-24` category-pills column still eats ~96px+gap out of the row, so a longer title
+("Maple Sea Salt...") still clips to "Maple / Sea Salt..." across its 2 allowed lines.
+Wrapping alone didn't fix it — the row still doesn't have enough width for the title.
+His follow-up: "Remove the little pills for their categories so you can have more space
+for the title. We still can't read the title of the recipes."
+
+**Check that would have caught it** (added to VERIFY.md): a recipe-list visual check
+must use a genuinely long real title (not a short test fixture) and confirm it reads in
+full within 2 lines at 390px width before calling a list-row layout change done.

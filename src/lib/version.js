@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.33.0'
+export const APP_VERSION = '1.33.1'
 
 export const CHANGELOG = [
+  {
+    version: '1.33.1',
+    date: '2026-10-21',
+    changes: [
+      'List view: removed the category pills from each recipe row so the title has the full width of the row. Wrapping to 2 lines alone wasn\'t enough room for a longer title — this is the actual fix.',
+    ],
+  },
   {
     version: '1.33.0',
     date: '2026-10-19',

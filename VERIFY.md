@@ -4,10 +4,25 @@ How to check work on this project for real.
 
 ## Build
 
-- `npm run build` (Vite) must succeed with no new console errors/warnings.
-- `npm test` (node:test, `tests/*.test.js`, added 2026-10-19) covers only the unit
-  conversion logic in `src/lib/scaling.js`. Nothing else has test coverage — don't claim
-  it does; a task card's "Done when" checks are the verification for everything else.
+- `npm run build` (Vite) must succeed with no new console errors/warnings. **Vite/esbuild
+  does not catch a component used in JSX with no import** (confirmed 2026-09-19: v1.17.1
+  shipped to prod with `RecipeCard` using `SafeImage` with no import, crashing live for
+  him, and a clean `npm run build` the whole time). Before any push: `node
+  scripts/check-jsx-imports.mjs` must also pass (exit 0) -- it flags exactly that class of
+  bug. It's a regex-based stopgap, not a real parser (no ESLint dependency in this repo
+  yet); false positives are possible on an unusual pattern, but it has zero on the real
+  `src/` tree as of 2026-10-20.
+- Any scripted multi-file edit (a sed/python replace run across several files, not a
+  hand-edit) should run through `scripts/assert-edit-hash.sh <file...> -- <command...>`
+  (repo root) -- it asserts each named file's content actually changed, catching a no-op
+  substitution whose pattern silently matched nothing (the other half of the 2026-09-19
+  incident: the scripted import-replace's own assert only checked the new name appeared
+  somewhere, which was already true from an unrelated import).
+- `npm test` (node:test, `tests/*.test.js`, added 2026-10-19) covers the unit conversion
+  logic in `src/lib/scaling.js` and the JSX-import checker itself
+  (`tests/check-jsx-imports.test.js`, added 2026-10-20). Nothing else has test coverage —
+  don't claim it does; a task card's "Done when" checks are the verification for everything
+  else.
 
 ## Run locally
 
@@ -73,3 +88,10 @@ How to check work on this project for real.
 - Run `npm test` after any change to scaling.js; add a case for the new behavior.
 - Read his original instruction literally before scoping something out in "Not doing":
   if he said "oz", that means every oz, not only the subset that's easy.
+
+## Recipe list-view row layout (`src/pages/Pantry.jsx`, `RecipeListView`) — added after a 2026-10-21 send-back
+
+- Any list-row layout change must be checked against a genuinely long real recipe title
+  (not a short test fixture) at 390px width, and the full title must read within its
+  allotted lines — wrapping/line-clamp alone doesn't fix a title that's unreadable if a
+  fixed-width sibling column (category pills, etc.) is still eating most of the row.
