@@ -48,3 +48,20 @@ none (phone screenshot of his own live list view is the bar — matches it minus
 ## Open questions
 
 none — instruction is unambiguous.
+
+## Result (2026-10-21)
+
+- Category pills removed from `RecipeListView` (header + row), `getCategories` import
+  dropped (no longer used). Title span now spans the full row next to the thumbnail,
+  Time only. **Done.**
+- Verified via a local mocked-Firebase harness (list view, 390px) with his real recipe
+  title "Maple Sea Salt Banana Bread" — now reads in full across 2 lines with no
+  clipping. Screenshot: `artifacts/pantry-remove-pills-2026-10-21/list-390-real-title.png`.
+  **Done.**
+- Time stayed at the far right. **Done.**
+- `npm run build`, `node scripts/check-jsx-imports.mjs`, `npm test` all pass clean.
+  **Done.**
+- v1.33.1 bumped in `src/lib/version.js` with a changelog entry (the prior "v1.33.1"
+  commit message never actually bumped the in-code version, so this is the first real
+  1.33.1). Committed locally as `8b5c52d`, **not pushed** — prod push needs his go-ahead
+  per standing rule.
