@@ -29,15 +29,21 @@ How to check work on this project for real.
 - `npm run dev` — Vite dev server. Check `vite.config.js` / terminal output for the
   actual port each run (not fixed across sessions); report both the Mac/desktop-local
   URL and the Tailscale URL for any "done" local-preview report (standing rule).
-- **This machine has no real `.env`/Firebase keys** (only `.env.example`). The dev
-  server loads and the HTTP response is a real 200, but the React app throws an
-  uncaught `Firebase: Error (auth/invalid-api-key)` before it ever mounts, so the page
-  is BLANK/WHITE on any real device, Mr. Roni's phone included — confirmed 2026-10-20
-  by reproducing it headlessly (`page.on('pageerror')`), not a network/Tailscale
-  problem. Don't hand him this dev-server link expecting a working click-through;
-  verify UI work with the mocked-Firebase harness pattern used throughout 2026-10-19's
-  Pantry tasks instead, and offer a real Vercel preview deploy or a prod push as the
-  only ways he can actually tap through a build on his phone.
+- **Fixed 2026-10-21**: a real `.env` now exists on this machine (desktop), pulled from
+  the live production JS bundle — the six `VITE_FIREBASE_*` values are public
+  client-side config (not secret; Vercel's own env store marks them "sensitive"
+  write-only, so they can't be read back via API, but they're already shipped in every
+  visitor's browser). The standing dev/preview server at `:8091` now actually mounts
+  instead of white-screening on `auth/invalid-api-key`. If `.env` goes missing again
+  (new machine, wiped worktree), re-pull it: `curl` the prod `index.html`, grab the
+  `/assets/index-*.js` hash, `grep -oE '(apiKey|authDomain|projectId|storageBucket
+  |messagingSenderId|appId):"[^"]*"' bundle.js`. `ANTHROPIC_API_KEY` is NOT in `.env` —
+  that one's a real secret, not needed just to render the UI; recipe-import parsing
+  will fail gracefully without it, same as before.
+- Still true for anything that needs a before-2026-10-21 state check: the HTTP 200
+  from the dev server was never proof the app mounted — always confirm Firebase
+  actually initializes (screenshot or `page.on('pageerror')`), don't just check the
+  status code.
 - Client app only — Firebase (auth/data) + `/api/*` Vercel serverless functions
   (recipe-extraction AI, etc.) are the two moving parts; most UI work only touches the
   client.
