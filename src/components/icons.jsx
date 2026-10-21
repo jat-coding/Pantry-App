@@ -104,15 +104,15 @@ export function CategoryIcon({ category, className = 'h-6 w-6' }) {
   return <Icon className={className} strokeWidth={STROKE_WIDTH} aria-hidden="true" />
 }
 
-export function HeartIcon({ filled, className = 'h-5 w-5' }) {
+export function HeartIcon({ filled, className = 'h-5 w-5', emptyFill = 'none', emptyStroke = 'currentColor' }) {
   // Filled uses the warm peach accent, matching the previous hand-drawn heart.
   return (
     <HeartIconBase
       className={className}
       aria-hidden="true"
       strokeWidth={1.8}
-      fill={filled ? '#FFCBA4' : 'none'}
-      stroke={filled ? '#F2A977' : 'currentColor'}
+      fill={filled ? '#FFCBA4' : emptyFill}
+      stroke={filled ? '#F2A977' : emptyStroke}
     />
   )
 }

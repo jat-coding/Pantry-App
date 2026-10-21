@@ -8,7 +8,7 @@ export const CHANGELOG = [
     version: '1.33.2',
     date: '2026-10-21',
     changes: [
-      'List view: moved the heart off the title row and above the time, and it now always shows (outline when not liked) so a liked row and an unliked row line up exactly the same.',
+      'List view: moved the heart off the title row and above the time, and it now always shows (cream outline, lighter cream fill when not liked) so a liked row and an unliked row line up exactly the same.',
     ],
   },
   {

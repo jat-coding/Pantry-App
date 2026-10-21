@@ -239,7 +239,7 @@ function RecipeListView({ recipes, isLiked, onOpen }) {
                   </span>
                 </span>
                 <span className="flex w-14 shrink-0 flex-col items-end gap-1">
-                  <HeartIcon filled={isLiked(r.id)} className="h-4 w-4 text-warm-soft/40" />
+                  <HeartIcon filled={isLiked(r.id)} className="h-4 w-4" emptyFill="#FAF4E8" emptyStroke="#F0EAD6" />
                   <span className="text-xs font-semibold text-warm-soft">{time || '—'}</span>
                 </span>
               </button>
