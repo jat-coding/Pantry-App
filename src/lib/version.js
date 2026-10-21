@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.33.1'
+export const APP_VERSION = '1.33.2'
 
 export const CHANGELOG = [
+  {
+    version: '1.33.2',
+    date: '2026-10-21',
+    changes: [
+      'List view: moved the heart off the title row and above the time, and it now always shows (outline when not liked) so a liked row and an unliked row line up exactly the same.',
+    ],
+  },
   {
     version: '1.33.1',
     date: '2026-10-21',

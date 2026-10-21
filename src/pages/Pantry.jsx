@@ -233,16 +233,14 @@ function RecipeListView({ recipes, isLiked, onOpen }) {
                       fallback={<CategoryIcon category={primaryCategory(r)} className="h-6 w-6" />} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-start gap-1.5">
-                    {isLiked(r.id) && <span aria-label="Liked" className="mt-0.5 shrink-0"><HeartIcon filled className="h-4 w-4" /></span>}
-                    <span className="line-clamp-2 font-bold leading-snug">{r.title}</span>
-                  </span>
+                  <span className="line-clamp-2 font-bold leading-snug">{r.title}</span>
                   <span className="block truncate text-xs text-warm-soft">
                     {r.pocketedFromName ? `Pocketed from ${r.pocketedFromName}` : `by ${r.authorName}`}
                   </span>
                 </span>
-                <span className="w-14 shrink-0 text-right text-xs font-semibold text-warm-soft">
-                  {time || '—'}
+                <span className="flex w-14 shrink-0 flex-col items-end gap-1">
+                  <HeartIcon filled={isLiked(r.id)} className="h-4 w-4 text-warm-soft/40" />
+                  <span className="text-xs font-semibold text-warm-soft">{time || '—'}</span>
                 </span>
               </button>
             </li>
