@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { PantryIcon } from '../components/icons.jsx'
 
@@ -12,6 +12,8 @@ export default function Auth() {
   const [displayName, setDisplayName] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -77,26 +79,46 @@ export default function Auth() {
           autoComplete="email"
           required
         />
-        <input
-          className="input"
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-          required
-        />
-        {mode === 'signup' && (
+        <div className="relative">
           <input
-            className={`input ${confirm && confirm !== password ? 'border-red-400 focus:border-red-400' : ''}`}
-            type="password"
-            placeholder="Confirm password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            autoComplete="new-password"
-            aria-invalid={!!confirm && confirm !== password}
+            className="input pr-11"
+            type={showPassword ? 'text' : 'password'}
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
             required
           />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-soft/70 hover:text-warm"
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+          >
+            {showPassword ? <EyeOff className="h-5 w-5" strokeWidth={2.2} /> : <Eye className="h-5 w-5" strokeWidth={2.2} />}
+          </button>
+        </div>
+        {mode === 'signup' && (
+          <div className="relative">
+            <input
+              className={`input pr-11 ${confirm && confirm !== password ? 'border-red-400 focus:border-red-400' : ''}`}
+              type={showConfirm ? 'text' : 'password'}
+              placeholder="Confirm password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              autoComplete="new-password"
+              aria-invalid={!!confirm && confirm !== password}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirm((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-soft/70 hover:text-warm"
+              aria-label={showConfirm ? 'Hide password' : 'Show password'}
+            >
+              {showConfirm ? <EyeOff className="h-5 w-5" strokeWidth={2.2} /> : <Eye className="h-5 w-5" strokeWidth={2.2} />}
+            </button>
+          </div>
         )}
         {mode === 'signup' && confirm && confirm !== password && (
           <p className="-mt-1 text-xs font-semibold text-red-600">Passwords don\u2019t match yet.</p>
