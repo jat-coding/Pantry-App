@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
-import { X, ChevronUp, ChevronDown, Check, ListChecks } from 'lucide-react'
+import { X, ChevronUp, ChevronDown, Check } from 'lucide-react'
 import { useToast } from '../components/Toast.jsx'
 import SafeImage from '../components/SafeImage.jsx'
 import { snapshotImage } from '../lib/imageSnapshot.js'
@@ -51,7 +51,7 @@ export default function RecipeEditor() {
   const [loaded, setLoaded] = useState(!isEdit)
   const [saving, setSaving] = useState(false)
   const [confirmingDiscard, setConfirmingDiscard] = useState(false)
-  const [linkingStep, setLinkingStep] = useState(null) // index of the step whose ingredient picker is open, or null
+  const [linkingStep, setLinkingStep] = useState(null) // index of the step whose editor popup (text + ingredients) is open, or null
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [uploadingVideo, setUploadingVideo] = useState(false)
   const initial = useRef(true)
@@ -361,37 +361,25 @@ export default function RecipeEditor() {
       {/* Instructions */}
       <Field label="Instructions">
         <div className="space-y-2">
-          {form.instructions.map((step, i) => {
-            const manual = !!explicitStepLink(form.stepIngredientLinks, i)
-            const count = stepIngredientsFor(form, i).length
-            return (
-              <div key={i} className="flex items-start gap-2">
-                <span className="mt-3 w-5 shrink-0 text-center font-extrabold text-warm-soft">{i + 1}</span>
-                <textarea className="input min-h-[3rem] w-full flex-1" rows={2} value={step}
-                  placeholder="Describe this step…" onChange={(e) => setStep(i, e.target.value)} />
-                <div className="flex flex-col items-center gap-1">
-                  <button onClick={() => moveStep(i, -1)} className="px-1 text-warm-soft" aria-label="Move up"><ChevronUp className="h-4 w-4" strokeWidth={2} aria-hidden="true" /></button>
-                  <button
-                    onClick={() => setLinkingStep(i)}
-                    className={`relative flex h-7 w-7 items-center justify-center rounded-full border shadow-card transition ${
-                      manual ? 'border-peach-dark bg-peach text-warm' : 'border-warm/15 bg-white text-warm-soft hover:bg-eggshell'
-                    }`}
-                    aria-label={`Link ingredients to step ${i + 1}`}
-                  >
-                    <ListChecks className="h-4 w-4" strokeWidth={2.2} aria-hidden="true" />
-                    {count > 0 && (
-                      <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-cta px-1 text-[10px] font-extrabold text-white">
-                        {count}
-                      </span>
-                    )}
-                  </button>
-                  <button onClick={() => moveStep(i, 1)} className="px-1 text-warm-soft" aria-label="Move down"><ChevronDown className="h-4 w-4" strokeWidth={2} aria-hidden="true" /></button>
-                </div>
-                <button onClick={() => removeStep(i)} className="mt-2 px-1 text-warm-soft hover:text-red-600"
-                  aria-label="Remove"><X className="h-4 w-4" strokeWidth={2} aria-hidden="true" /></button>
+          {form.instructions.map((step, i) => (
+            <div key={i} className="flex items-start gap-2">
+              <span className="mt-3 w-5 shrink-0 text-center font-extrabold text-warm-soft">{i + 1}</span>
+              {/* Tapping the step opens the editor popup (text + ingredient picker together) --
+                  not a plain textarea: editing and ingredient-linking live in one place now. */}
+              <button type="button" onClick={() => setLinkingStep(i)}
+                className="input min-h-[3rem] w-full flex-1 text-left">
+                <span className={`line-clamp-2 ${step ? '' : 'text-warm-soft/60'}`}>
+                  {step || 'Describe this step…'}
+                </span>
+              </button>
+              <div className="flex flex-col">
+                <button onClick={() => moveStep(i, -1)} className="px-1 text-warm-soft" aria-label="Move up"><ChevronUp className="h-4 w-4" strokeWidth={2} aria-hidden="true" /></button>
+                <button onClick={() => moveStep(i, 1)} className="px-1 text-warm-soft" aria-label="Move down"><ChevronDown className="h-4 w-4" strokeWidth={2} aria-hidden="true" /></button>
               </div>
-            )
-          })}
+              <button onClick={() => removeStep(i)} className="mt-2 px-1 text-warm-soft hover:text-red-600"
+                aria-label="Remove"><X className="h-4 w-4" strokeWidth={2} aria-hidden="true" /></button>
+            </div>
+          ))}
         </div>
         <button onClick={addStep} className="btn-ghost mt-2 w-full py-2 text-sm">+ Add step</button>
       </Field>
@@ -420,8 +408,10 @@ export default function RecipeEditor() {
       )}
 
       {linkingStep !== null && (
-        <StepIngredientPicker
+        <StepEditor
           stepNumber={linkingStep + 1}
+          text={form.instructions[linkingStep] ?? ''}
+          onText={(v) => setStep(linkingStep, v)}
           ingredients={form.ingredients}
           selected={stepIngredientsFor(form, linkingStep)}
           manual={!!explicitStepLink(form.stepIngredientLinks, linkingStep)}
@@ -434,25 +424,27 @@ export default function RecipeEditor() {
   )
 }
 
-// The ingredients a step uses in Cook Mode, as chips under the step (same chip style
-// as Categories). Until he taps one, they follow the step's text automatically.
-// Popup opened by the ListChecks button between a step's up/down arrows -- picking which
-// ingredients that step uses no longer lives inline (a chip row under every single step
-// was too much text/buttons between steps, per his 2026-10-21 6:10pm send-back).
-function StepIngredientPicker({ stepNumber, ingredients, selected, manual, onToggle, onReset, onClose }) {
+// Tapping a step opens this: the step's own text, editable, plus which ingredients it
+// uses, in one place (his 2026-10-21 7:11pm send-back -- a separate ListChecks button
+// between the arrows, from the 6:10pm round, was one tap too many; this replaces it).
+function StepEditor({ stepNumber, text, onText, ingredients, selected, manual, onToggle, onReset, onClose }) {
   const named = ingredients.map((ing, k) => ({ k, name: ing.name.trim() })).filter((x) => x.name)
   return (
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-warm/40 p-6" onClick={onClose}>
       <div className="card w-full max-w-sm space-y-3 p-6" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-lg font-extrabold">Ingredients for step {stepNumber}</h3>
-        {named.length ? (
-          <>
-            <p className="text-xs text-warm-soft">
-              {manual ? 'Picked by you. ' : 'Matched automatically from the step text. Tap to pick by hand instead.'}
-              {manual && (
-                <button type="button" onClick={onReset} className="font-bold underline">Match from text</button>
-              )}
-            </p>
+        <h3 className="text-lg font-extrabold">Step {stepNumber}</h3>
+        <textarea className="input min-h-[6rem] w-full" rows={4} value={text} autoFocus
+          placeholder="Describe this step…" onChange={(e) => onText(e.target.value)} />
+        <div>
+          <p className="mb-1.5 text-xs text-warm-soft">
+            {named.length === 0
+              ? 'Ingredients for this step:'
+              : manual ? 'Ingredients for this step, picked by you. ' : 'Ingredients for this step, matched from its text. Tap to change.'}
+            {manual && (
+              <button type="button" onClick={onReset} className="font-bold underline">Match from text</button>
+            )}
+          </p>
+          {named.length ? (
             <div className="flex flex-wrap gap-1.5">
               {named.map(({ k, name }) => {
                 const active = selected.includes(k)
@@ -467,10 +459,10 @@ function StepIngredientPicker({ stepNumber, ingredients, selected, manual, onTog
                 )
               })}
             </div>
-          </>
-        ) : (
-          <p className="text-sm text-warm-soft">Add some named ingredients above first.</p>
-        )}
+          ) : (
+            <p className="text-sm text-warm-soft">Add some named ingredients above first.</p>
+          )}
+        </div>
         <button onClick={onClose} className="btn-peach w-full">Done</button>
       </div>
     </div>

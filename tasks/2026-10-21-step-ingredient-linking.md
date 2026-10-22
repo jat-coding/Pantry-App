@@ -161,3 +161,31 @@ buttons in between the steps." FEEDBACK.md entry added.
 
 Not verified: real click-through on-device (same gap as the original build — needs his
 login, not something this session can do).
+
+## Revision 2 — 2026-10-21 7:11pm: text field itself opens the combined popup
+
+His words (voice memo): "keep the up arrow in the down arrow spaced where it is, and
+remove that button and make it so if you tap on the text field or the free field text
+for each step, it opens up that pop-up window that we showed all the ingredients to
+choose to incorporate with, and editable field for the step, just so we can have it all
+in one place." FEEDBACK.md entry added.
+
+- [x] `ListChecks` icon button removed from between the arrows; up/down column back to
+  its original two-button layout (no count badge either — it only existed on that
+  button).
+- [x] The step's textarea replaced with a `button` styled identically (`.input`,
+  `line-clamp-2`, muted placeholder color when empty) that opens the popup on tap —
+  actual text editing no longer happens inline, only inside the popup.
+- [x] Popup (`StepEditor`, renamed from `StepIngredientPicker`) now has both: an
+  editable `<textarea>` bound to that step's text (autofocus) and the same
+  ingredient-chip picker below it, one "Done" button closes it. Typing in the popup
+  calls the same `setStep` the old inline textarea called, so reindexing/save logic is
+  untouched.
+- [x] `npm test` 28/28 (unchanged — no logic touched, presentation only), `node
+  scripts/check-jsx-imports.mjs` exit 0, `npm run build` clean.
+- [x] Screenshot: same static-mock method (real compiled CSS + exact markup), 390px —
+  closed state (plain two-arrow column, tappable text fields) and the open popup (step
+  2's text editable, ingredients below it) both confirmed against his description.
+- [x] APP_VERSION 1.34.1 -> 1.34.2 + dated CHANGELOG entry.
+
+Not verified: real on-device click-through (same standing gap, needs his login).

@@ -67,6 +67,10 @@ How to check work on this project for real.
   behind one icon button, not an always-visible row — he said so explicitly 2026-10-21
   after v1.34.0 shipped inline step-ingredient chips he called clutter. Ask first if a
   task seems to call for genuinely inline controls.
+- When the goal is explicitly "fewer controls/less clutter," prefer making an existing
+  element (a text field, a row) the tap target into a combined popup over adding a new
+  dedicated button for it, even a small icon one — 2026-10-21, a `ListChecks` button
+  added between a step's arrows was itself judged one control too many a round later.
 
 ## Screens/data that matter for most feature work
 

@@ -81,3 +81,20 @@ sits between steps anymore except the up/down/link/remove button column.
 row (chips, extra buttons, helper text) added under a repeating list item should default
 to a popup/modal unless he explicitly asked for it inline — ask, don't assume inline is
 fine just because the selection logic itself works.
+
+## 2026-10-21 — Second round: one popup button was still one tap too many (v1.34.1 -> v1.34.2)
+
+Task card: `tasks/2026-10-21-step-ingredient-linking.md`.
+
+**What came back wrong** (voice memo, 7:11pm, right after seeing v1.34.1's icon button):
+"keep the up arrow in the down arrow spaced where it is, and remove that button and
+make it so if you tap on the text field... it opens up that pop-up window that we
+showed all the ingredients to choose to incorporate with, and editable field for the
+step, just so we can have it all in one place." The dedicated `ListChecks` button
+between the arrows was itself extra UI — he wanted the step's own text field to be the
+single entry point into a combined edit-text + pick-ingredients popup.
+
+**Check that would have caught it** (added to VERIFY.md): when a task's own goal is
+"fewer controls/less clutter," don't stop at the first simplification that technically
+adds a new control (even a small icon button) — ask whether an existing element (here,
+the step text itself) can be the single tap target before adding a new one.
