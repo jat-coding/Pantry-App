@@ -302,8 +302,12 @@ export default function RecipeDetail() {
         </div>
       )}
 
-      {/* Hero */}
-      <div className="relative -mx-4 -mt-5 mb-4 h-56 overflow-hidden sm:-mx-8 sm:rounded-b-3xl">
+      {/* Hero -- full-bleed: extends up through the status-bar/notch area, same amount
+          `main`'s own top padding reserves for it (Layout.jsx's safe-area-inset-top),
+          so there's no cream gap above the photo on a real phone (2026-10-21). Height
+          grows by that same inset so the bottom edge (title, pills, etc. below) doesn't
+          move -- only the photo gets taller/extends further up, not the whole layout. */}
+      <div className="relative -mx-4 -mt-[calc(env(safe-area-inset-top)+1.25rem)] mb-4 h-[calc(14rem+env(safe-area-inset-top))] overflow-hidden sm:-mx-8 sm:-mt-5 sm:h-56 sm:rounded-b-3xl">
         {recipe.videoUrl ? (
           <video src={recipe.videoUrl} controls playsInline className="h-full w-full bg-black object-cover" />
         ) : (
@@ -314,12 +318,14 @@ export default function RecipeDetail() {
               </div>
             } />
         )}
+        {/* Pulled down by the same safe-area inset the hero now extends into, so these
+            stay clear of the status bar/notch instead of sitting under it. */}
         <button
           onClick={() => goBack('/')}
-          className="absolute left-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-card backdrop-blur"
+          className="absolute left-3 top-[calc(env(safe-area-inset-top)+0.75rem)] flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-card backdrop-blur sm:top-3"
           aria-label="Back"
         ><ChevronLeft className="h-5 w-5 text-warm" strokeWidth={2.2} aria-hidden="true" /></button>
-        <div className="absolute right-3 top-3 flex gap-2">
+        <div className="absolute right-3 top-[calc(env(safe-area-inset-top)+0.75rem)] flex gap-2 sm:top-3">
           <button
             onClick={() => openPdf(pdfSize)}
             disabled={!!sharing}

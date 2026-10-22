@@ -74,6 +74,14 @@ How to check work on this project for real.
 
 ## Screens/data that matter for most feature work
 
+- Any full-bleed header image (a hero photo meant to reach the top of the screen) must
+  cancel `main`'s safe-area-aware top padding (`Layout.jsx`'s
+  `pt-[calc(env(safe-area-inset-top)+1.25rem)]`) with the matching negative margin, not
+  just a flat `-mt-5` — a flat value leaves a cream gap above the image exactly the
+  height of the notch/status-bar inset on a real phone, invisible in a desktop/headless
+  browser where that inset is 0 (RecipeDetail's hero, fixed 2026-10-21). Any absolutely
+  positioned buttons over that image need the same inset added to their top offset so
+  they don't end up under the status bar.
 - Recipe Detail (`src/pages/RecipeDetail.jsx`) — the most-touched page: Cook Mode,
   ingredient scaling/unit switching, add-to-grocery, edit/delete all live here and are
   easy to regress with an unrelated change.
