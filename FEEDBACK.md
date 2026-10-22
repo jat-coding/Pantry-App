@@ -57,3 +57,27 @@ for the title. We still can't read the title of the recipes."
 **Check that would have caught it** (added to VERIFY.md): a recipe-list visual check
 must use a genuinely long real title (not a short test fixture) and confirm it reads in
 full within 2 lines at 390px width before calling a list-row layout change done.
+
+## 2026-10-21 — Step-ingredient chips too much clutter in the editor (v1.34.0)
+
+Task card: `tasks/2026-10-21-step-ingredient-linking.md`.
+
+**What he asked for (4:47pm):** manual per-step ingredient selection, "selectable, when
+writing in a step."
+
+**What came back wrong** (voice memo, 6:10pm, after trying it): v1.34.0 put a full
+always-visible row of ingredient-name chips plus a helper sentence under every single
+step's textarea. His words: "space out the up and down arrow and we don't have a bunch
+of text in between or buttons in between the steps." The selection mechanism itself
+(tap a chip to toggle) was right — the problem was always-visible inline chips eating
+space between every step.
+
+**Fixed same day:** chips moved into a popup, opened by one icon button (`ListChecks`,
+with a small count badge) inserted between the step's up/down reorder arrows — exactly
+where he asked for it, and it visually spaces the arrows apart as a side effect. Nothing
+sits between steps anymore except the up/down/link/remove button column.
+
+**Check that would have caught it** (added to VERIFY.md): any per-item inline control
+row (chips, extra buttons, helper text) added under a repeating list item should default
+to a popup/modal unless he explicitly asked for it inline — ask, don't assume inline is
+fine just because the selection logic itself works.

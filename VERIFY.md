@@ -62,6 +62,11 @@ How to check work on this project for real.
 
 - Bump `APP_VERSION` in `src/lib/version.js` and add a dated `CHANGELOG` entry in
   user-facing language (standing rule, no exceptions).
+- Any new per-item inline control (chips, extra buttons, helper text) added under a
+  repeating list row (a recipe step, an ingredient row, etc.) defaults to a popup/modal
+  behind one icon button, not an always-visible row — he said so explicitly 2026-10-21
+  after v1.34.0 shipped inline step-ingredient chips he called clutter. Ask first if a
+  task seems to call for genuinely inline controls.
 
 ## Screens/data that matter for most feature work
 

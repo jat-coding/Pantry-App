@@ -126,3 +126,38 @@ His words re-read: manual selection (chips), selectable while writing a step (un
 textarea, updates as he types), created + edited + imported (imports land in the same
 `/new` editor via the draft, tested path) — all there. Not verified on a real iPhone or
 with a real Firestore save.
+
+## Revision — 2026-10-21 6:10pm: move chips off the step row into a popup
+
+His words (voice memo): "In between the steps, I want to have the up arrow for
+reordering. And then in between the arrows, I want there to be a link button or some
+sort of button that indicates a pop-up screen that you'll link the ingredients to... so
+you can space out the up and down arrow and we don't have a bunch of text in between or
+buttons in between the steps." FEEDBACK.md entry added.
+
+- [x] Inline chip row + caption removed from under the step textarea.
+- [x] New icon button (`ListChecks`) inserted between the up/down reorder arrows — a
+  small count badge (`bg-cta`) shows how many ingredients are linked, 0 = no badge.
+  Button fills peach (`bg-peach`, same active styling as the category chips) when the
+  step has a manual (not auto-matched) link, so manual vs. auto is visible without
+  opening it.
+- [x] Tapping it opens a popup (`StepIngredientPicker`, same modal pattern as
+  `ConfirmDialog`/`AddToPantryPrompt`) with the same chip-toggle UI and "Match from
+  text" reset, now inside the popup instead of inline. "Done" closes it.
+- [x] All existing selection/reindex logic (`stepIngredientsFor`, `toggleStepIngredient`,
+  `resetStepIngredients`, the reindex-on-delete/move/save paths) untouched — this was a
+  presentation change only, confirmed by the same 28/28 `npm test` pass.
+- [x] `npm test` 28/28, `node scripts/check-jsx-imports.mjs` exit 0, `npm run build`
+  clean.
+- [x] Screenshots: static mock built from the real compiled Tailwind CSS
+  (`dist/assets/index-CGn1pPGl.css`) + the exact JSX markup/classes, at 390px — the
+  real app route couldn't be screenshotted directly (guest mode can't reach `/new`'s
+  "+" button — `guardWrite()` blocks it — and `/recipe/:id/edit`'s Edit button needs a
+  real `user`, not just `guest`, per `isOwner` in RecipeDetail.jsx; same constraint the
+  original build hit for its browser-based checks). Closed state (3 steps, badges 0/3/1)
+  and the open popup (step 2, 3 picked) both confirmed visually correct against the
+  spec and his description.
+- [x] APP_VERSION 1.34.0 -> 1.34.1 + dated CHANGELOG entry.
+
+Not verified: real click-through on-device (same gap as the original build — needs his
+login, not something this session can do).

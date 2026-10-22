@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.34.0'
+export const APP_VERSION = '1.34.1'
 
 export const CHANGELOG = [
+  {
+    version: '1.34.1',
+    date: '2026-10-21',
+    changes: [
+      'Recipe editor: moved step-ingredient picking out of an always-visible chip row and into a popup, opened by a button between each step\'s up/down arrows (shows how many ingredients are linked). Less clutter between steps.',
+    ],
+  },
   {
     version: '1.34.0',
     date: '2026-10-21',

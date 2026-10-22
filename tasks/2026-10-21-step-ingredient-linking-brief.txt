@@ -1,0 +1,32 @@
+Read /home/roni/agent/AGENTS.md first — it governs how you work, what you may do freely, and what you must ask about.
+
+Project: /home/roni/agent/projects/Pantry-App (desktop checkout, repo root, branch main).
+
+Build against the task card at projects/Pantry-App/tasks/2026-10-21-step-ingredient-linking.md — read it in full, including "His words" verbatim. Also read projects/Pantry-App/VERIFY.md (all of it, including the "Every commit" section — version bump + changelog entry is required on every commit, no exceptions) and the latest entries in projects/Pantry-App/FEEDBACK.md.
+
+Read these files in full before changing anything:
+- src/lib/recipeShape.js (sanitizeRecipe — add the new field here)
+- src/lib/stepIngredients.js (the existing fallback matcher — do not change its behavior)
+- src/pages/RecipeDetail.jsx, specifically the Instructions section around line 455-504 (Cook Mode's `needs` computation)
+- src/pages/RecipeEditor.jsx in full (blankRecipe, setIngredient/addIngredient/removeIngredient, setStep/addStep/removeStep/moveStep, handleSave's `clean` object construction, the Ingredients and Instructions Field blocks, and the existing category-chip pattern around line 274-293 to match visually)
+
+What to build: a new additive field `stepIngredientLinks` (object: step-index key -> array of ingredient-index values) on the recipe. In the editor, each step gets a row of tappable ingredient-name chips (visually matching the existing category-chip pattern: `rounded-full border px-... text-sm font-bold shadow-card`, active = `border-peach-dark bg-peach text-warm`, inactive = `border-warm/15 bg-white text-warm-soft`) letting him toggle which ingredients that step uses. In Cook Mode (RecipeDetail.jsx), a step with an explicit link shows exactly those ingredients (filtered to named ones, same filter already used today); a step with no explicit link keeps today's `stepIngredientIndexes()` text-match behavior unchanged.
+
+The hard part, read carefully — this is the actual risk in this build, not the chip UI itself: the step and ingredient arrays can be reordered and items can be removed, both live in the editor (moveStep, removeStep, removeIngredient) and again at save time (handleSave's `clean.ingredients`/`clean.instructions` drop blank rows, which re-indexes everything). `stepIngredientLinks` is keyed and valued by array position, so every one of those operations must keep it pointing at the right step/ingredient, not stale indexes:
+- removeIngredient(i): drop i from every step's link list, and shift every index > i down by one, in every step's list.
+- removeStep(i): drop stepIngredientLinks[i] entirely, and shift every key > i down by one.
+- moveStep(i, dir): swap stepIngredientLinks[i] and stepIngredientLinks[i+dir] (if either exists).
+- handleSave: `clean.ingredients` and `clean.instructions` already filter out blank rows before saving — build an old-index -> new-index map for each (skip dropped entries) and remap `stepIngredientLinks` through both maps before it's written to Firestore, dropping any reference to something that got dropped.
+Write a real test for this in tests/ (there's already a tests/*.test.js convention, `npm test` runs node:test) — at minimum: 3 ingredients + 3 steps, link ingredient #2 to step #2, delete ingredient #1, delete step #1, assert the surviving link still points at the right (now-renumbered) ingredient and step. Don't rely only on a visual screenshot to prove this part — it's exactly the kind of bug a screenshot of the happy path won't catch.
+
+Follow this repo's task-loop pattern: build to the card's "Done when" checks one by one, run every VERIFY.md step, record each as pass or fail with evidence. The card has no Reference (follows the existing design system, confirmed with him), so no visual-compare gate applies, but still take real screenshots per the card's Done-when (the editor's chip row, and Cook Mode showing an explicit-link step next to a fallback step).
+
+Local preview now actually works for real visual verification (fixed today, see projects/Pantry-App/VERIFY.md's "Run locally" section) — use `scripts/browser.sh screenshot <url> <out.png> --width 390 --height 844` from the repo root (/home/roni/agent) against `http://localhost:8091/` (the standing dev server on :8091, auto-restarts on code changes). You'll need a real account or guest mode to reach the editor/Cook Mode screens — browse as guest if adding/editing recipes works in guest mode, otherwise note in your report that click-through verification needs his login and screenshot what you can (the chip UI rendering, at minimum, doesn't require auth if you can reach it via a mocked/sample recipe route — check src/data/sampleRecipes.js for a fixture you can point a screenshot at without logging in).
+
+Do not push to prod — local commit only on main, one commit per logical change, every commit bumps APP_VERSION in src/lib/version.js with a dated CHANGELOG entry (currently at 1.33.3). Do not ask him "push to prod?" — he's said "Not yet" twice already today and it's a standing rule not to re-ask; just leave it committed locally and say so in your report.
+
+Before claiming done, re-read the task card's "His words" section against what you actually shipped, line by line, not against your own Done-when paraphrase — confirm every distinct thing he asked for is actually there (manual selection, selectable while writing a step, works for created/edited/imported recipes alike).
+
+Write your task card's own "Result" section (model it on a recent sibling card in projects/Pantry-App/tasks/ with a Result section) with every Done-when check as PASS/FAIL and the evidence, then update FEEDBACK.md and VERIFY.md per the task-loop skill §4 if this reveals a check that should become standing for future Pantry editor/Cook-Mode work.
+
+Start your output file with a '## Summary' block (TL;DR / What I found / Need from you, plain language, under ~2,500 characters, no em dashes) — the wrapper sends this to Mr. Roni's phone as-is, the rest of the file goes along as a PDF.
