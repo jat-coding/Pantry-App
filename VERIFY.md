@@ -113,6 +113,11 @@ How to check work on this project for real.
 - Run `npm test` after any change to scaling.js; add a case for the new behavior.
 - Read his original instruction literally before scoping something out in "Not doing":
   if he said "oz", that means every oz, not only the subset that's easy.
+- The cup-vs-tbsp/tsp default (`defaultUnitFor`) is a single threshold on the real
+  quantity — >= 1/4 cup shows as cup, below shows as tbsp/tsp — not a "how close is it
+  to an exact fraction" tolerance (2026-10-21 send-back: 3 fl oz / 0.375 cup was stuck
+  in tbsp because it wasn't close enough to 1/3 cup). Test an amount meaningfully above
+  1/4 cup but not near any exact fraction landmark.
 
 ## Recipe list-view row layout (`src/pages/Pantry.jsx`, `RecipeListView`) — added after a 2026-10-21 send-back
 

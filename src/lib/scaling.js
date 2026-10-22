@@ -238,27 +238,29 @@ export function isFluidOunce(unit) {
   return abbreviateUnit(unit) === 'fl oz'
 }
 
-// How far (in tsp) a 1/4 or 1/3 cup reading may be from the true amount and
-// still be the default. Without it 1.5 fl oz (9 tsp, exactly 3 tbsp) would read
-// 1/4 cup (12 tsp), a third too much.
-const SMALL_CUP_TOLERANCE_TSP = 1
-
 // The unit an ingredient is shown in before the reader picks one: its own unit,
-// except fl oz (or a weight with a known density), which becomes cup if it reads
-// as at least 1/2 cup (quarter/third rounded, so 0.749 cup is 3/4 cup), or as
-// 1/4 or 1/3 cup within SMALL_CUP_TOLERANCE_TSP of the true amount; else the
-// larger of tbsp/tsp that reads as at least 1 (half-unit rounded). Worked out
-// from the recipe's own quantity, not the scaled one, so scaling or typing an
-// amount never makes the unit jump.
+// except fl oz (or a weight with a known density), which becomes cup once the
+// TRUE amount reaches 1/4 cup (12 tsp) or more -- 1/4 cup and 1/3 cup both
+// count, the cutoff is the real quantity, not how close it happens to land to
+// an exact fraction; else the larger of tbsp/tsp that reads as at least 1
+// (half-unit rounded). Worked out from the recipe's own quantity, not the
+// scaled one, so scaling or typing an amount never makes the unit jump.
+// (2026-10-21: dropped an earlier "within 1 tsp of the fraction" guard that
+// kept some amounts above 1/4 cup, like 3 fl oz = 6 tbsp, stuck in tbsp --
+// his rule is the threshold itself, same as the unconditional >=1/2 cup band
+// already below it, which never had that guard. CUP_EPSILON only absorbs
+// density-conversion rounding noise -- e.g. 2 oz butter is a real 1/4 cup
+// [half a stick] but convertQty's density math lands it at 0.2498, not
+// 0.25 -- it's not a reintroduction of the old closeness tolerance, which
+// was ~24x looser and forgave genuinely short amounts like 1.75 fl oz.)
+const CUP_EPSILON = 0.001
 export function defaultUnitFor(qty, unit, name) {
   const u = effectiveUnit(unit, name)
   if (!isFluidOunce(u) && !weightToKitchen(u, name)) return u
   const n = Number(qty)
   if (!Number.isFinite(n) || n <= 0) return 'cup'
   const cups = convertQty(n, u, 'cup', name)
-  const snapped = roundCup(cups)
-  if (snapped >= 0.5) return 'cup'
-  if (snapped >= 0.25 && Math.abs(snapped - cups) * VOLUME.units.cup <= SMALL_CUP_TOLERANCE_TSP) return 'cup'
+  if (cups >= 0.25 - CUP_EPSILON) return 'cup'
   return ['tbsp', 'tsp'].find((k) => roundHalf(convertQty(n, u, k, name)) >= 1) || 'tsp'
 }
 

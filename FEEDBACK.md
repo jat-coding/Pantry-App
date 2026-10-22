@@ -98,3 +98,22 @@ single entry point into a combined edit-text + pick-ingredients popup.
 "fewer controls/less clutter," don't stop at the first simplification that technically
 adds a new control (even a small icon button) — ask whether an existing element (here,
 the step text itself) can be the single tap target before adding a new one.
+
+## 2026-10-21 — Cup-vs-tbsp/tsp threshold was "close to a fraction," not the real amount (v1.32.0 -> v1.34.4)
+
+Original task: `tasks/2026-10-19-weight-oz-density-conversion.md`.
+
+**What came back wrong** (voice memo): "teaspoons and tablespoons were picked up before
+one fourth cups or one third cups. Anything lower than one fourth cup should be
+labeled as defaulted as teaspoons or tablespoons. Otherwise, one fourth cup should be
+prioritized, with one third cup." `defaultUnitFor` in `src/lib/scaling.js` had a
+`SMALL_CUP_TOLERANCE_TSP = 1` guard that only showed a 1/4-1/2 cup reading as cup if it
+landed within 1 tsp of an exact 1/4 or 1/3 cup fraction — so e.g. 3 fl oz (genuinely
+0.375 cup, 6 tbsp) stayed in tbsp because it was 2 tsp off the nearest fraction (1/3
+cup), even though it's well above the 1/4 cup line he wants as the actual cutoff.
+
+**Check that would have caught it** (added to VERIFY.md): the cup-vs-tbsp/tsp default
+is a single threshold on the real quantity (>= 1/4 cup = cup, below = tbsp/tsp), not a
+"how close is it to a round fraction" tolerance — test an amount that's meaningfully
+above 1/4 cup but not near any exact 1/4 or 1/3 landmark (like 3 fl oz / 0.375 cup) and
+confirm it still shows as cup.

@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.34.3'
+export const APP_VERSION = '1.34.4'
 
 export const CHANGELOG = [
+  {
+    version: '1.34.4',
+    date: '2026-10-21',
+    changes: [
+      'Cook Mode unit picker: an ingredient reading 1/4 cup or more now always defaults to cup, even when it doesn\'t land close to an exact 1/4 or 1/3 cup (e.g. 3 fl oz now shows as 1/3 cup instead of 6 tbsp). Below 1/4 cup still defaults to tbsp/tsp.',
+    ],
+  },
   {
     version: '1.34.3',
     date: '2026-10-21',
