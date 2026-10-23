@@ -183,7 +183,9 @@ const requestsCol = collection(db, 'friendRequests')
 export async function searchUsers(term, excludeUid) {
   const t = term.trim().toLowerCase()
   if (!t) return []
-  const end = t +''
+  // '\uf8ff' sorts after ordinary characters, so this range is "starts with t". Kept
+  // as an escape: the raw character is invisible and reads like an exact-match bug.
+  const end = t + '\uf8ff'
   const q = query(usersCol, where('displayNameLower', '>=', t), where('displayNameLower', '<=', end))
   const snap = await getDocs(q)
   return snap.docs

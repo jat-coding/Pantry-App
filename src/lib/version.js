@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.34.4'
+export const APP_VERSION = '1.35.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.35.0',
+    date: '2026-10-22',
+    changes: [
+      'Friends: search now updates as you type, no Search button to press. Results show a moment after you stop typing, and clearing the box clears the results.',
+    ],
+  },
   {
     version: '1.34.4',
     date: '2026-10-21',

@@ -1,0 +1,28 @@
+Read /home/roni/agent/AGENTS.md first — it governs how you work, what you may do freely, and what you must ask about.
+
+Project: /home/roni/agent/projects/Pantry-App (desktop checkout, repo root, branch main).
+
+Build against the task card at projects/Pantry-App/tasks/2026-10-22-friends-search-live-remove-button.md — read it in full, including "His words" verbatim. Also read projects/Pantry-App/VERIFY.md in full (including the "Every commit" section — version bump + changelog entry required on every commit, currently at 1.34.4) and the latest entries in projects/Pantry-App/FEEDBACK.md.
+
+Read these files in full before changing anything:
+- src/pages/Friends.jsx — the whole file. `term`/`results`/`searching` state, `doSearch()`, the search `<div className="flex gap-2">` block around line 125-129.
+- src/lib/firestore.js — `searchUsers` (around line 183-192).
+
+What to build:
+1. In src/lib/firestore.js, fix the prefix-range bug in searchUsers: `const end = t + ''` makes the Firestore range query `>= t AND <= t`, which only matches the exact string, not a prefix. Change it to `const end = t + ''` (the standard Firestore prefix-range trick — `` sorts after virtually every normal character). Confirm this is the only place that needs it (searchUsers is the only prefix query in this file as far as you can see) and that no other behavior of the function depends on the old (buggy) exact-match semantics.
+2. In src/pages/Friends.jsx, replace the manual doSearch()-on-click/Enter flow with a debounced live search: a useEffect that watches `term`, runs after ~300ms of no further typing, calls fs.searchUsers(term.trim(), user.uid), and ignores a response that comes back after the term has already changed again (a simple `alive` flag closure is enough, Firestore's getDocs doesn't give you a real cancel token). Empty/whitespace-only term clears results immediately with no query fired. Remove the Search button and the now-dead doSearch function and onKeyDown Enter handler. Keep the `searching` state driving the existing ListSkeleton while a lookup is in flight.
+3. Sanity-check the rest of the search block's layout still looks right with the button gone (the input probably wants to go full-width now instead of sharing a flex row with a button) — take a screenshot, don't just reason about it.
+
+Follow this repo's task-loop pattern: build to the card's "Done when" checks one by one, run every VERIFY.md step, record each as pass or fail with evidence.
+
+Local preview works for real visual verification (projects/Pantry-App/VERIFY.md's "Run locally" section) — use `scripts/browser.sh screenshot <url> <out.png> --width 390 --height 844` from the repo root (/home/roni/agent) against the standing dev server (check its actual port in VERIFY.md / terminal output, don't assume one). You'll need a real account or guest mode to reach the Friends page and exercise search against real Firestore users — if guest mode can't reach a populated user list, note that in your report and verify what you can (debounce timing via a console.log count of query calls, the button actually being gone, the prefix-match unit behavior via a quick node/test script against the query logic if full Firestore auth isn't reachable headless).
+
+Watch for a flood of queries while typing fast — type a full name in one `browser.sh` action (or simulate rapid keystrokes) and confirm via network/console that only one query fires per settled pause, not one per keystroke.
+
+Do not push to prod — local commit only on main, one commit per logical change, every commit bumps APP_VERSION in src/lib/version.js with a dated CHANGELOG entry. Do not ask him "push to prod?" — standing rule is he says when; leave it committed locally and say so in your report.
+
+Before claiming done, re-read the task card's "His words" section against what you actually shipped, line by line: live-update while typing (not just "faster"), and the Search button actually removed, not just hidden or disabled.
+
+Write your task card's own "Result" section (model it on a recent sibling card in projects/Pantry-App/tasks/ with a Result section) with every Done-when check as PASS/FAIL and the evidence, then update FEEDBACK.md and VERIFY.md per the task-loop skill §4 if this reveals a check that should become standing for future Pantry search/list work.
+
+Start your output file with a '## Summary' block (TL;DR / What I found / Need from you, plain language, under ~2,500 characters, no em dashes) — the wrapper sends this to Mr. Roni's phone as-is, the rest of the file goes along as a PDF.

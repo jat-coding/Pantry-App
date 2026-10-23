@@ -36,23 +36,33 @@ export default function Friends() {
     return fs.listenIncomingRequests(user.uid, setRequests)
   }, [user])
 
+  // Search as you type: look up a short beat after the last keystroke, so a name typed
+  // fast is one read, not one per letter. A lookup that comes back after the box has
+  // changed again is dropped rather than overwriting the newer results.
+  useEffect(() => {
+    const t = term.trim()
+    if (!user || !t) {
+      setResults(null)
+      setSearching(false)
+      return
+    }
+    let alive = true
+    setSearching(true)
+    const timer = setTimeout(() => {
+      fs.searchUsers(t, user.uid)
+        .then((list) => { if (alive) setResults(list) })
+        .catch(() => { if (alive) setResults([]) })
+        .finally(() => { if (alive) setSearching(false) })
+    }, 300)
+    return () => { alive = false; clearTimeout(timer) }
+  }, [term, user])
+
   const viewing = viewingId ? friends.find((f) => f.id === viewingId) : null
   const openFriend = (f) => setSearchParams({ friend: f.id })
   const closeFriend = () => goBack('/friends')
 
   if (guest || !user) {
     return <Gate />
-  }
-
-  async function doSearch() {
-    if (!term.trim()) return
-    setSearching(true)
-    try {
-      const list = await fs.searchUsers(term.trim(), user.uid)
-      setResults(list)
-    } finally {
-      setSearching(false)
-    }
   }
 
   async function addFriend(u) {
@@ -122,18 +132,17 @@ export default function Friends() {
       </header>
 
       {/* Search */}
-      <div className="flex gap-2">
-        <input className="input" placeholder="Search by display name…" value={term}
-          onChange={(e) => setTerm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && doSearch()} />
-        <button className="btn-peach px-5" onClick={doSearch}>Search</button>
-      </div>
+      <input className="input" placeholder="Search by display name…" value={term}
+        onChange={(e) => setTerm(e.target.value)} />
       {/* Invite link (compact) */}
       <div className="-mt-3 flex items-center gap-2">
         <span className="flex-1 text-sm font-bold text-warm-soft">Invite a friend</span>
         <button className="btn-peach px-3 py-1.5 text-sm" onClick={shareInvite}>Share</button>
         <button className="btn-ghost px-3 py-1.5 text-sm" onClick={copyInvite}>Copy link</button>
       </div>
-      {searching ? (
+      {/* Skeleton only until the first results land; after that the last list stays up
+          while the next lookup runs, so it doesn't blink on every pause in typing. */}
+      {searching && !results ? (
         <ListSkeleton count={3} />
       ) : results && (
         <div className="space-y-2">

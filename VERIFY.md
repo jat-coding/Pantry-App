@@ -144,3 +144,14 @@ How to check work on this project for real.
   save to Firestore; `/new` autosaves the form to `localStorage['pantry-draft-new']`, which
   is the readable proof of what Save would send. Script used:
   `/home/roni/agent/artifacts/pantry-step-links/click-through.mjs`.
+
+## Search / live-as-you-type lists (`src/pages/Friends.jsx`, `fs.searchUsers`) -- added 2026-10-22 (v1.35.0)
+
+- Count lookups, don't eyeball them: type a full name fast (one `pressSequentially`, ~60ms
+  per key) and assert exactly one query per settled pause, plus a stale-response case
+  (change the term while a lookup is in flight; the late answer must not show). Harness:
+  `/home/roni/agent/artifacts/pantry-friends-search/live-search.mjs` (fake auth + fixture
+  users via the real range bounds; real Firestore needs a signed-in uid).
+- Before calling a string literal a bug, check its bytes (`od -c`). `searchUsers`' upper
+  bound was a raw invisible U+F8FF that read as `t + ''` and got written up as an
+  exact-match bug. It is now the escape `'\uf8ff'`; keep invisible characters as escapes.
