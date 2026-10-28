@@ -91,16 +91,28 @@ export default function Pantry() {
   const likedIds = useMemo(() => new Set(pantryIds), [pantryIds])
   const isLiked = (id) => likedIds.has(id)
   const sections = useMemo(() => {
-    const byCat = new Map([...CATEGORIES, OTHER].map((c) => [c, { liked: [], rest: [] }]))
+    const order = [...CATEGORIES, OTHER]
+    const byCat = new Map(order.map((c) => [c, { liked: [], rest: [] }]))
     for (const r of filtered) {
       const p = primaryCategory(r)
       const bucket = byCat.get(CATEGORIES.includes(p) ? p : OTHER)
       ;(likedIds.has(r.id) ? bucket.liked : bucket.rest).push(r)
     }
-    return [...byCat]
+    let list = [...byCat]
       .filter(([, b]) => b.liked.length + b.rest.length > 0)
       .map(([category, b]) => ({ category, ...b }))
-  }, [filtered, likedIds])
+    // A selected category can still pull in recipes whose *primary* section sits
+    // earlier in CATEGORIES (e.g. a Lunch recipe also tagged Dinner, matching a
+    // Dinner filter). Showing that earlier section reads as the filter doing
+    // nothing, so once something's selected we cut everything above the
+    // earliest selected category and keep the selected section plus whatever
+    // falls after it, in their existing order.
+    if (cats.length) {
+      const minIndex = Math.min(...cats.map((c) => order.indexOf(c)))
+      list = list.filter(({ category }) => order.indexOf(category) >= minIndex)
+    }
+    return list
+  }, [filtered, likedIds, cats])
 
   // While searching, show every match instead of hiding some behind "See all".
   const searching = query.trim() !== ''
