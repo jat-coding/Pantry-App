@@ -70,6 +70,40 @@ export default function Layout() {
   const tabBarRef = useRef(null)
   const pillRef = useRef(null)
   const pillShownRef = useRef(false)
+  const [keyboardOpen, setKeyboardOpen] = useState(false)
+
+  // The bar is `fixed bottom-0`, but iOS/Android scroll the *layout* viewport
+  // to keep a focused field visible, dragging anything fixed-to-bottom up with
+  // it — it ends up floating mid-screen over whatever the keyboard didn't
+  // cover. Tracking the viewport to re-pin it is fighting that scroll every
+  // frame, so instead the bar just steps out of the way for as long as a text
+  // field is focused, same as it already does for Cook Mode's own bar.
+  useEffect(() => {
+    const isTextField = (el) =>
+      el instanceof HTMLElement &&
+      (el.tagName === 'TEXTAREA' ||
+        (el.tagName === 'INPUT' &&
+          !['checkbox', 'radio', 'range', 'button', 'submit', 'file', 'color'].includes(el.type)))
+    let closeTimer = null
+    const onFocusIn = (e) => {
+      if (!isTextField(e.target)) return
+      if (closeTimer) { clearTimeout(closeTimer); closeTimer = null }
+      setKeyboardOpen(true)
+    }
+    const onFocusOut = (e) => {
+      // A grace period so tabbing between two fields (blur then focus, back to
+      // back) doesn't flash the bar back in between them.
+      if (!isTextField(e.target)) return
+      closeTimer = setTimeout(() => setKeyboardOpen(false), 50)
+    }
+    document.addEventListener('focusin', onFocusIn)
+    document.addEventListener('focusout', onFocusOut)
+    return () => {
+      document.removeEventListener('focusin', onFocusIn)
+      document.removeEventListener('focusout', onFocusOut)
+      if (closeTimer) clearTimeout(closeTimer)
+    }
+  }, [])
 
   // Sliding selected-tab pill: one peach pill measures the active tab and glides to it
   // instead of the highlight just jumping. It snaps (no glide) the first time it
@@ -220,7 +254,7 @@ export default function Layout() {
 
       {/* Mobile floating "bubble" tab bar — hidden in Cook Mode, whose own
           Prev/Next bar is the only bottom control until you exit. */}
-      {!cookMode && (
+      {!cookMode && !keyboardOpen && (
       <nav
         className={`fixed inset-x-0 bottom-0 z-40 flex justify-center pb-[calc(env(safe-area-inset-bottom)+var(--nav-bottom))] sm:hidden ${nav.wrap}`}
         style={{ '--nav-bottom': nav.bottom }}
