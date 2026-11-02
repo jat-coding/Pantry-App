@@ -25,21 +25,38 @@ export default async function handler(req, res) {
       return
     }
 
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 15_000)
+    const callBridge = async (timeoutMs) => {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), timeoutMs)
+      try {
+        return await fetch(`${bridgeUrl}/start`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-video-secret': bridgeSecret },
+          body: JSON.stringify({ url, mode: 'page' }),
+          signal: controller.signal,
+        })
+      } finally {
+        clearTimeout(timer)
+      }
+    }
+
     let bridgeRes
     try {
-      bridgeRes = await fetch(`${bridgeUrl}/start`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-video-secret': bridgeSecret },
-        body: JSON.stringify({ url, mode: 'page' }),
-        signal: controller.signal,
-      })
+      bridgeRes = await callBridge(14_000)
     } catch (err) {
-      const reason = err?.name === 'AbortError' ? 'timed out' : (err?.message || 'unreachable')
-      throw new Error(`Could not reach the fetch service (${reason}).`)
-    } finally {
-      clearTimeout(timer)
+      // A real timeout already spent the full budget -- retrying would just
+      // time out again. A connection-level failure (DNS blip, bridge mid-
+      // restart) fails almost instantly, so one short retry absorbs it
+      // without a user-visible or monitor-visible outage.
+      if (err?.name === 'AbortError') {
+        throw new Error('Could not reach the fetch service (timed out).')
+      }
+      try {
+        bridgeRes = await callBridge(4_000)
+      } catch (err2) {
+        const reason = err2?.name === 'AbortError' ? 'timed out' : (err2?.message || 'unreachable')
+        throw new Error(`Could not reach the fetch service (${reason}).`)
+      }
     }
 
     const data = await bridgeRes.json().catch(() => ({}))

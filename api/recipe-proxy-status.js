@@ -21,19 +21,36 @@ export default async function handler(req, res) {
   }
 
   try {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 15_000)
+    const callBridge = async (timeoutMs) => {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), timeoutMs)
+      try {
+        return await fetch(`${bridgeUrl}/status?jobId=${encodeURIComponent(jobId)}`, {
+          headers: { 'x-video-secret': bridgeSecret },
+          signal: controller.signal,
+        })
+      } finally {
+        clearTimeout(timer)
+      }
+    }
+
     let bridgeRes
     try {
-      bridgeRes = await fetch(`${bridgeUrl}/status?jobId=${encodeURIComponent(jobId)}`, {
-        headers: { 'x-video-secret': bridgeSecret },
-        signal: controller.signal,
-      })
+      bridgeRes = await callBridge(14_000)
     } catch (err) {
-      const reason = err?.name === 'AbortError' ? 'timed out' : (err?.message || 'unreachable')
-      throw new Error(`Could not reach the fetch service (${reason}).`)
-    } finally {
-      clearTimeout(timer)
+      // Same reasoning as recipe-proxy-start.js: the client polls this every
+      // 2s for up to 60s, so one short retry here absorbs a transient
+      // connection blip instead of reporting a terminal error on the first
+      // bad poll and killing an import that would have succeeded seconds later.
+      if (err?.name === 'AbortError') {
+        throw new Error('Could not reach the fetch service (timed out).')
+      }
+      try {
+        bridgeRes = await callBridge(4_000)
+      } catch (err2) {
+        const reason = err2?.name === 'AbortError' ? 'timed out' : (err2?.message || 'unreachable')
+        throw new Error(`Could not reach the fetch service (${reason}).`)
+      }
     }
 
     const data = await bridgeRes.json().catch(() => ({}))
