@@ -87,3 +87,89 @@ recipes instead of `recipes`/`pantryIds`.
 ## Open questions
 
 none — scope is derived directly from the existing, proven `Pantry.jsx` pattern.
+
+## Result — 2026-11-06 (v1.36.0, local commit `9487132`, not pushed)
+
+Built on try 1 of 5. `ViewToggle` and `RecipeListView` moved into
+`src/components/RecipeViews.jsx` (new file, exported, `VIEW_KEY = 'pantry-view'`
+also exported from there so both pages read/write the identical key — checked by
+setting the key before load and confirming the friend profile opens already in
+list view). `Pantry.jsx` now imports both from the shared file; its own logic
+(sections, sort, filters) untouched beyond the extraction. `FriendProfile` in
+`Friends.jsx` gained its own `view`/`expanded` state and a `sections` useMemo that
+groups the friend's recipes into `CATEGORIES` + `Other`, same order and same
+"See all" overflow past 4 as `Pantry.jsx`.
+
+One gap found during the build's own fresh-context re-read of "Done when" against
+the card, not sent back from outside: the card requires "Copy to Pantry... still
+works unchanged in both views," but `RecipeListView` as extracted had no pocket
+affordance at all (`RecipeDetail` has no pocket action either, so list view would
+have silently been the one path with no way to copy a friend's recipe). Fixed by
+giving `RecipeListView` an optional `showPocket`/`onPocket`/`pocketLabel` prop
+(off by default, so `Pantry.jsx`'s own list view is pixel-identical to before —
+confirmed by screenshot, see below); `Friends.jsx` passes it, My Pantry's call
+site doesn't.
+
+Checks, each with how it was actually confirmed:
+- [x] **No category pills anywhere in list-view rows** — confirmed two ways, not
+  just by eye: (1) read `RecipeViews.jsx`'s `RecipeListView` in full, no
+  `pill-peach` class or category text anywhere in the row markup; (2) a headless
+  Chromium run counted `.pill-peach` elements inside `ul.divide-y li` after
+  switching to list view on a real friend profile — **0**, vs. **5** on the same
+  data in grid view (one pill per card, expected and unchanged).
+- [x] **Build/test/lint all pass clean, real output shown** — `npm run build`:
+  clean Vite build, no new warnings (ran twice, before and after the pocket-button
+  fix). `node scripts/check-jsx-imports.mjs`: `checked 30 file(s) under src/ --
+  every JSX component tag is imported or defined` (29 before the new file existed,
+  30 after — the new file is now part of what's checked). `npm test`: `28/28
+  pass`, `0 fail` (same 28 as before this change — nothing here has its own test
+  coverage yet, per VERIFY.md, so these are the pre-existing scaling/stepLinks/
+  jsx-import tests confirming nothing broke, not new coverage for this feature).
+- [x] ViewToggle + category sections render on a friend's pantry, defaulting to
+  whatever `localStorage['pantry-view']` already held — verified by setting the
+  key to `'list'` before load and confirming the toggle opened already pressed to
+  List.
+- [x] Section headers (`CategoryIcon` + name + count), same `CATEGORIES` + Other
+  order, "See all" past 4 — code match to `Pantry.jsx`'s own section block;
+  visually confirmed on fixture data across Breakfast(2)/Dinner(2)/Dessert(1).
+  Overflow itself (>4 in one section) wasn't exercised by the fixture data — the
+  grouping/order logic is identical to `Pantry.jsx`'s, which does have overflow
+  coverage already.
+- [x] Grid view unchanged — still `RecipeCard`, still pills on cards; confirmed by
+  reading `Pantry.jsx`'s grid render path (untouched) and by screenshot.
+- [x] "Copy to Pantry" works in both views — grid: unchanged, same `RecipeCard`
+  prop wiring as before. List: new plus-icon button per row; a scripted click on
+  it (by exact `aria-label`, not a fuzzy role-name match that first caught a false
+  positive by matching the row's own button instead) called `pocketRecipe` with
+  the correct recipe id and did **not** navigate away — confirmed via
+  `window.__pocketed` captured inside the page.
+- [x] My Pantry's own list view has zero regression — separate guest-mode run
+  against `/`: list view still shows the heart (not a plus button) on every row,
+  `0` rows contain a `[aria-label="Copy to Pantry"]` element.
+
+No console/page errors in any of the above runs.
+
+**Screenshots** (real friend profile, fixture recipes across Breakfast/Dinner/
+Dessert, one genuinely long title to sanity-check wrapping even though this task
+didn't touch row typography):
+`/home/roni/agent/artifacts/pantry-friend-listview-20261106/390-grid.png`,
+`390-list.png`, `1440-grid.png`, `1440-list.png`, plus
+`regression-my-pantry-list.png` for the My-Pantry sanity check.
+
+**How the friend profile was reached for testing**: no real second account exists
+on this machine, so a headless Chromium harness (same pattern as
+`artifacts/pantry-friends-search/live-search.mjs`) patched `AuthContext` to a fake
+signed-in user and `lib/firestore.js`'s friend-related functions to fixture data,
+then navigated straight to `/friends?friend=u-hannah` (the real URL shape
+`FriendProfile` already uses). Everything else in the app — routing, the actual
+`FriendProfile`/`RecipeViews` components, real Tailwind/build output — is real,
+only the Firestore calls are stubbed. Not click-tested against live Firebase (no
+test account with friends + categorized recipes on this machine).
+
+**Not doing, respected**: no favorites/liked split invented for friend sections
+(plain category grouping only); `Pantry.jsx` untouched beyond the
+`ViewToggle`/`RecipeListView` extraction; didn't touch the bottom-gap bug or the
+heart/pantryIds quirk on friend cards.
+
+**Not pushed** — prod push needs his go-ahead per standing rule (VERIFY.md,
+FEEDBACK.md).
