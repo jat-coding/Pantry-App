@@ -6,10 +6,9 @@ import HelpModal from '../components/HelpModal.jsx'
 import { CategoryFilter, SearchBar, matchesQuery, matchesCategories } from '../components/Filters.jsx'
 import { CATEGORIES, primaryCategory } from '../lib/categories.js'
 import { GridSkeleton } from '../components/Skeleton.jsx'
-import { GridIcon, ListIcon, PantryIcon, CategoryIcon, HelpIcon, HeartIcon } from '../components/icons.jsx'
-import SafeImage from '../components/SafeImage.jsx'
+import { PantryIcon, CategoryIcon, HelpIcon } from '../components/icons.jsx'
+import { ViewToggle, RecipeListView, VIEW_KEY } from '../components/RecipeViews.jsx'
 
-const VIEW_KEY = 'pantry-view'
 const ONBOARDED_KEY = 'pantry-onboarded'
 // Session-only, so opening a recipe and coming back keeps the sections you opened.
 const EXPANDED_KEY = 'pantry-expanded'
@@ -25,15 +24,6 @@ const OTHER = 'Other'
 function totalMin(r) {
   const toMin = (t) => (t ? (t.unit === 'hr' ? t.value * 60 : t.value) : 0)
   return toMin(r.prepTime) + toMin(r.cookTime)
-}
-
-function totalTime(recipe) {
-  const mins = totalMin(recipe)
-  if (!mins) return null
-  if (mins < 60) return `${mins} min`
-  const h = Math.floor(mins / 60)
-  const m = mins % 60
-  return m ? `${h}h ${m}m` : `${h}h`
 }
 
 export default function Pantry() {
@@ -198,67 +188,6 @@ export default function Pantry() {
       )}
 
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
-    </div>
-  )
-}
-
-function ViewToggle({ view, onChange }) {
-  const btn = (v, Icon, label) => (
-    <button
-      onClick={() => onChange(v)}
-      aria-label={label}
-      aria-pressed={view === v}
-      className={`flex h-9 w-9 items-center justify-center rounded-xl transition ${
-        view === v ? 'bg-peach text-warm' : 'text-warm-soft hover:bg-eggshell'
-      }`}
-    >
-      <Icon className="h-5 w-5" />
-    </button>
-  )
-  return (
-    <div className="flex shrink-0 items-center gap-1 rounded-2xl bg-white p-1 shadow-card">
-      {btn('grid', GridIcon, 'Grid view')}
-      {btn('list', ListIcon, 'List view')}
-    </div>
-  )
-}
-
-function RecipeListView({ recipes, isLiked, onOpen }) {
-  return (
-    <div className="overflow-hidden rounded-2xl bg-white shadow-card">
-      {/* Column header (hidden on the smallest screens) */}
-      <div className="hidden items-center gap-3 border-b border-warm/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-warm-soft sm:flex">
-        <span className="flex-1">Title</span>
-        <span className="w-14 text-right">Time</span>
-      </div>
-      <ul className="divide-y divide-warm/10">
-        {recipes.map((r) => {
-          const time = totalTime(r)
-          return (
-            <li key={r.id}>
-              <button
-                onClick={() => onOpen(r.id)}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-eggshell"
-              >
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-peach/40 to-surface-2 text-peach-dark">
-                  <SafeImage src={r.imageUrl} className="h-full w-full object-cover"
-                      fallback={<CategoryIcon category={primaryCategory(r)} className="h-6 w-6" />} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="line-clamp-2 font-bold leading-snug">{r.title}</span>
-                  <span className="block truncate text-xs text-warm-soft">
-                    {r.pocketedFromName ? `Pocketed from ${r.pocketedFromName}` : `by ${r.authorName}`}
-                  </span>
-                </span>
-                <span className="flex w-14 shrink-0 flex-col items-end gap-1">
-                  <HeartIcon filled={isLiked(r.id)} className="h-4 w-4" emptyFill="#FAF4E8" emptyStroke="#F0EAD6" />
-                  <span className="text-xs font-semibold text-warm-soft">{time || '—'}</span>
-                </span>
-              </button>
-            </li>
-          )
-        })}
-      </ul>
     </div>
   )
 }

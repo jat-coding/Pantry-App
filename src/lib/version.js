@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.35.0'
+export const APP_VERSION = '1.36.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.36.0',
+    date: '2026-11-06',
+    changes: [
+      'A friend\'s pantry now has the same grid/list view toggle and category sections as My Pantry, instead of one flat grid with no grouping. List view stays pill-free, same as My Pantry.',
+    ],
+  },
   {
     version: '1.35.0',
     date: '2026-10-22',

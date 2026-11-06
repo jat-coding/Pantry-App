@@ -1,17 +1,25 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, ChevronLeft, Menu } from 'lucide-react'
 import { createPortal } from 'react-dom'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useData } from '../contexts/DataContext.jsx'
 import { useToast } from '../components/Toast.jsx'
 import RecipeCard from '../components/RecipeCard.jsx'
 import { ListSkeleton, GridSkeleton } from '../components/Skeleton.jsx'
-import { FriendsIcon, ProfileIcon } from '../components/icons.jsx'
+import { FriendsIcon, ProfileIcon, CategoryIcon } from '../components/icons.jsx'
+import { ViewToggle, RecipeListView, VIEW_KEY } from '../components/RecipeViews.jsx'
+import { CATEGORIES, primaryCategory } from '../lib/categories.js'
 import { useScrollLock } from '../lib/useScrollLock.js'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
 import { useGoBack } from '../lib/useGoBack.js'
 import * as fs from '../lib/firestore.js'
+
+// Recipes whose stored category isn't one of CATEGORIES (very old data) still
+// need a home, so they land in this section after the real ones. Matches Pantry.jsx.
+const OTHER = 'Other'
+// How many recipes a category shows before its "See all" button. Matches Pantry.jsx.
+const PREVIEW_COUNT = 4
 
 export default function Friends() {
   const { user, profile, guest } = useAuth()
@@ -207,6 +215,9 @@ export default function Friends() {
 }
 
 function FriendProfile({ friend, onClose, onPocket, onRemove, me, myFriendIds, incoming, onRespond }) {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { pantryIds } = useData()
   // Prefetched by DataContext while the phone was idle, so this is usually already
   // filled in on the first frame; the fetch below still runs and replaces it.
   const [recipes, setRecipes] = useState(() => fs.peekFriendRecipes(friend.id))
@@ -216,6 +227,10 @@ function FriendProfile({ friend, onClose, onPocket, onRemove, me, myFriendIds, i
   const [menuOpen, setMenuOpen] = useState(false)
   const [showFriends, setShowFriends] = useState(false)
   const friendsRef = useRef(null)
+  // Shared with My Pantry: grid vs list is a personal viewing preference, not
+  // per-screen, so it's the same key and reads whatever My Pantry last set.
+  const [view, setView] = useState(() => localStorage.getItem(VIEW_KEY) || 'grid')
+  const [expanded, setExpanded] = useState([])
   useEffect(() => {
     setRecipes(fs.peekFriendRecipes(friend.id))
     let alive = true
@@ -230,6 +245,33 @@ function FriendProfile({ friend, onClose, onPocket, onRemove, me, myFriendIds, i
   useEffect(() => {
     if (showFriends) friendsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [showFriends])
+
+  function setViewPersist(v) {
+    setView(v)
+    localStorage.setItem(VIEW_KEY, v)
+  }
+
+  function toggleExpanded(c) {
+    setExpanded((s) => (s.includes(c) ? s.filter((x) => x !== c) : [...s, c]))
+  }
+
+  // One section per category, in CATEGORIES order, same grouping as My Pantry. A
+  // friend's recipes have no "liked" concept here (see task card) -- just the plain
+  // list in whatever order getFriendRecipes returned.
+  const sections = useMemo(() => {
+    const order = [...CATEGORIES, OTHER]
+    const byCat = new Map(order.map((c) => [c, []]))
+    for (const r of recipes || []) {
+      const p = primaryCategory(r)
+      byCat.get(CATEGORIES.includes(p) ? p : OTHER).push(r)
+    }
+    return [...byCat].filter(([, list]) => list.length > 0).map(([category, list]) => ({ category, list }))
+  }, [recipes])
+
+  // Same pre-existing quirk as RecipeCard's own heart: it reflects *your* pantry,
+  // not anything the friend has marked -- out of scope for this task (see card).
+  const isLiked = (id) => pantryIds.includes(id)
+  const openRecipe = (id) => navigate(`/recipe/${id}`, { state: { from: location.pathname } })
 
   // Portaled to <body>: a `position: fixed` overlay nested inside the page inherits
   // any transform/filter an ancestor has (the page's fade-in animation is one), which
@@ -294,16 +336,51 @@ function FriendProfile({ friend, onClose, onPocket, onRemove, me, myFriendIds, i
             {friend.bio && <p className="text-warm-soft">{friend.bio}</p>}
           </div>
         </div>
-        <h2 className="mb-3 text-lg font-extrabold">{friend.displayName}'s Pantry</h2>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-extrabold">{friend.displayName}'s Pantry</h2>
+          {recipes != null && recipes.length > 0 && (
+            <ViewToggle view={view} onChange={setViewPersist} />
+          )}
+        </div>
         {recipes == null ? (
           <GridSkeleton count={3} />
         ) : recipes.length === 0 ? (
           <p className="text-warm-soft">No recipes to show yet.</p>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {recipes.map((r) => (
-              <RecipeCard key={r.id} recipe={r} showPocket pocketLabel="Copy to Pantry" onPocket={onPocket} />
-            ))}
+          <div className="space-y-8">
+            {sections.map(({ category, list }) => {
+              const open = expanded.includes(category)
+              const shown = open ? list : list.slice(0, PREVIEW_COUNT)
+              const hidden = list.length - PREVIEW_COUNT
+              return (
+                <section key={category} className="space-y-3">
+                  <h2 className="flex items-center gap-2 text-xl font-extrabold">
+                    <CategoryIcon category={category} className="h-5 w-5 text-zinc-800" />
+                    {category}
+                    <span className="text-sm font-bold text-warm-soft">{list.length}</span>
+                  </h2>
+                  {view === 'list' ? (
+                    <RecipeListView recipes={shown} isLiked={isLiked} onOpen={openRecipe}
+                      showPocket onPocket={onPocket} pocketLabel="Copy to Pantry" />
+                  ) : (
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {shown.map((r) => (
+                        <RecipeCard key={r.id} recipe={r} showPocket pocketLabel="Copy to Pantry" onPocket={onPocket} />
+                      ))}
+                    </div>
+                  )}
+                  {hidden > 0 && (
+                    <button
+                      onClick={() => toggleExpanded(category)}
+                      aria-expanded={open}
+                      className="w-full rounded-2xl border border-warm/15 bg-white py-2.5 text-sm font-bold text-warm shadow-card transition active:scale-[.98] hover:bg-eggshell"
+                    >
+                      {open ? 'Show fewer' : `See all ${category} (${hidden} more)`}
+                    </button>
+                  )}
+                </section>
+              )
+            })}
           </div>
         )}
 
