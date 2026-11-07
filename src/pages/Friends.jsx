@@ -8,9 +8,10 @@ import { useToast } from '../components/Toast.jsx'
 import RecipeCard from '../components/RecipeCard.jsx'
 import { ListSkeleton, GridSkeleton } from '../components/Skeleton.jsx'
 import { FriendsIcon, ProfileIcon, CategoryIcon } from '../components/icons.jsx'
-import { ViewToggle, RecipeListView, VIEW_KEY } from '../components/RecipeViews.jsx'
+import { ViewToggle, FavoritesToggle, RecipeListView, VIEW_KEY } from '../components/RecipeViews.jsx'
 import { CATEGORIES, primaryCategory } from '../lib/categories.js'
 import { useScrollLock } from '../lib/useScrollLock.js'
+import { useStandaloneBottomGap } from '../lib/useStandaloneBottomGap.js'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
 import { useGoBack } from '../lib/useGoBack.js'
 import * as fs from '../lib/firestore.js'
@@ -231,6 +232,11 @@ function FriendProfile({ friend, onClose, onPocket, onRemove, me, myFriendIds, i
   // per-screen, so it's the same key and reads whatever My Pantry last set.
   const [view, setView] = useState(() => localStorage.getItem(VIEW_KEY) || 'grid')
   const [expanded, setExpanded] = useState([])
+  // 'all' or 'favorites': favorites = the recipes in the friend's OWN pantryIds (what
+  // they hearted), not yours, so it reads as their curated list. pantryIds is already
+  // on the friend's user doc that DataContext loaded, so no extra read.
+  const [show, setShow] = useState('all')
+  const bottomGap = useStandaloneBottomGap()
   useEffect(() => {
     setRecipes(fs.peekFriendRecipes(friend.id))
     let alive = true
@@ -255,18 +261,23 @@ function FriendProfile({ friend, onClose, onPocket, onRemove, me, myFriendIds, i
     setExpanded((s) => (s.includes(c) ? s.filter((x) => x !== c) : [...s, c]))
   }
 
-  // One section per category, in CATEGORIES order, same grouping as My Pantry. A
-  // friend's recipes have no "liked" concept here (see task card) -- just the plain
-  // list in whatever order getFriendRecipes returned.
+  const visible = useMemo(() => {
+    if (show !== 'favorites') return recipes || []
+    const favs = friend.pantryIds || []
+    return (recipes || []).filter((r) => favs.includes(r.id))
+  }, [recipes, show, friend.pantryIds])
+
+  // One section per category, in CATEGORIES order, same grouping as My Pantry, in
+  // whatever order getFriendRecipes returned (no liked-first sort here).
   const sections = useMemo(() => {
     const order = [...CATEGORIES, OTHER]
     const byCat = new Map(order.map((c) => [c, []]))
-    for (const r of recipes || []) {
+    for (const r of visible) {
       const p = primaryCategory(r)
       byCat.get(CATEGORIES.includes(p) ? p : OTHER).push(r)
     }
     return [...byCat].filter(([, list]) => list.length > 0).map(([category, list]) => ({ category, list }))
-  }, [recipes])
+  }, [visible])
 
   // Same pre-existing quirk as RecipeCard's own heart: it reflects *your* pantry,
   // not anything the friend has marked -- out of scope for this task (see card).
@@ -280,7 +291,10 @@ function FriendProfile({ friend, onClose, onPocket, onRemove, me, myFriendIds, i
     // Every edge respects the phone's safe areas (notch/Dynamic Island on top, home
     // indicator on the bottom, rounded corners on the sides in landscape) — without
     // these, content slides under the status bar and past the bottom of the screen.
-    <div className="fixed inset-0 z-[70] overflow-y-auto overscroll-contain bg-eggshell">
+    // `bottom` reaches over the strip iOS home-screen apps leave under fixed overlays
+    // (see useStandaloneBottomGap, same fix as PdfPreview): without it the page stops
+    // ~59px short of the screen with a bare cream band below the cut-off recipes.
+    <div className="fixed inset-0 z-[70] overflow-y-auto overscroll-contain bg-eggshell" style={{ bottom: -bottomGap }}>
       {/* Sticky header: the back button stays reachable at the top-left however far
           you've scrolled, so no separate floating button is needed. */}
       <header className="sticky top-0 z-10 border-b border-warm/10 bg-eggshell/95 pt-[calc(env(safe-area-inset-top)+0.75rem)] pb-3 backdrop-blur">
@@ -336,16 +350,19 @@ function FriendProfile({ friend, onClose, onPocket, onRemove, me, myFriendIds, i
             {friend.bio && <p className="text-warm-soft">{friend.bio}</p>}
           </div>
         </div>
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-extrabold">{friend.displayName}'s Pantry</h2>
-          {recipes != null && recipes.length > 0 && (
+        <h2 className="mb-3 text-lg font-extrabold">{friend.displayName}'s Pantry</h2>
+        {recipes != null && recipes.length > 0 && (
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <FavoritesToggle value={show} onChange={setShow} />
             <ViewToggle view={view} onChange={setViewPersist} />
-          )}
-        </div>
+          </div>
+        )}
         {recipes == null ? (
           <GridSkeleton count={3} />
         ) : recipes.length === 0 ? (
           <p className="text-warm-soft">No recipes to show yet.</p>
+        ) : visible.length === 0 ? (
+          <p className="text-warm-soft">{friend.displayName} hasn't favorited any of their recipes yet.</p>
         ) : (
           <div className="space-y-8">
             {sections.map(({ category, list }) => {

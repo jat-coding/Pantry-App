@@ -1,9 +1,17 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.36.0'
+export const APP_VERSION = '1.37.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.37.0',
+    date: '2026-11-06',
+    changes: [
+      'A friend\'s pantry now has an All / Favorites switch. Favorites shows just the recipes that friend has favorited themselves, as their own curated list, in the same category sections.',
+      'Fixed the empty cream strip at the bottom of a friend\'s pantry on iPhone: the page now reaches all the way to the bottom of the screen instead of stopping short and cutting recipes off.',
+    ],
+  },
   {
     version: '1.36.0',
     date: '2026-11-06',

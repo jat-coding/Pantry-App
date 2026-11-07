@@ -16,23 +16,48 @@ function totalTime(recipe) {
   return m ? `${h}h ${m}m` : `${h}h`
 }
 
+// One look for every segmented toggle (grid/list, All/Favorites): a white pill
+// holding buttons, the pressed one filled peach.
+const TOGGLE_SHELL = 'flex shrink-0 items-center gap-1 rounded-2xl bg-white p-1 shadow-card'
+const segment = (on) => `flex h-9 items-center justify-center rounded-xl transition ${
+  on ? 'bg-peach text-warm' : 'text-warm-soft hover:bg-eggshell'
+}`
+
 export function ViewToggle({ view, onChange }) {
   const btn = (v, Icon, label) => (
     <button
       onClick={() => onChange(v)}
       aria-label={label}
       aria-pressed={view === v}
-      className={`flex h-9 w-9 items-center justify-center rounded-xl transition ${
-        view === v ? 'bg-peach text-warm' : 'text-warm-soft hover:bg-eggshell'
-      }`}
+      className={`w-9 ${segment(view === v)}`}
     >
       <Icon className="h-5 w-5" />
     </button>
   )
   return (
-    <div className="flex shrink-0 items-center gap-1 rounded-2xl bg-white p-1 shadow-card">
+    <div className={TOGGLE_SHELL}>
       {btn('grid', GridIcon, 'Grid view')}
       {btn('list', ListIcon, 'List view')}
+    </div>
+  )
+}
+
+// All of someone's recipes, or just the ones they've favorited (put in their own
+// Pantry). Same shell and pressed style as ViewToggle, with words instead of icons.
+export function FavoritesToggle({ value, onChange }) {
+  const btn = (v, label) => (
+    <button
+      onClick={() => onChange(v)}
+      aria-pressed={value === v}
+      className={`px-3.5 text-sm font-bold ${segment(value === v)}`}
+    >
+      {label}
+    </button>
+  )
+  return (
+    <div className={TOGGLE_SHELL}>
+      {btn('all', 'All')}
+      {btn('favorites', 'Favorites')}
     </div>
   )
 }
