@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   FEED_TTL_DAYS, isPostExpired, liveFeedPosts, formatPostDate, normalizeIngredientName,
-  findLikelyDuplicate, planExpiry,
+  findLikelyDuplicate, planExpiry, expiryCheckUrls,
 } from '../src/lib/socialFeed.js'
 
 const NOW = Date.UTC(2026, 10, 8, 18, 0)
@@ -89,4 +89,23 @@ test('expiry plan: unflag + repoint to compressed + delete full-res only when sa
     { id: 'b', update: { postedToFeed: false }, deleteUrl: null },
     { id: 'c', update: { postedToFeed: false, imageUrl: 'small-c' }, deleteUrl: null },
   ])
+})
+
+test('expiry plan: a friend\'s old-style copy still uses the full-res file -> file and imageUrl both kept', () => {
+  const old = ts(NOW - 31 * DAY)
+  const mine = [
+    { id: 'a', postedToFeed: true, postedAt: old, imageUrl: 'full-a', imageUrlCompressed: 'small-a' },
+    { id: 'e', postedToFeed: true, postedAt: old, imageUrl: 'full-e', imageUrlCompressed: 'small-e' },
+  ]
+  // Only files the sweep would actually delete need the friends'-copies check.
+  assert.deepEqual(expiryCheckUrls(mine, NOW), ['full-a', 'full-e'])
+  const plan = planExpiry(mine, NOW, new Set(['full-e']))
+  assert.deepEqual(plan, [
+    // No copy found: same as before, repoint + delete.
+    { id: 'a', update: { postedToFeed: false, imageUrl: 'small-a' }, deleteUrl: 'full-a' },
+    // Copy found: still leaves the feed, but no repoint and no delete.
+    { id: 'e', update: { postedToFeed: false }, deleteUrl: null },
+  ])
+  // An empty keep set behaves exactly like the original plan.
+  assert.deepEqual(planExpiry(mine, NOW, new Set()), planExpiry(mine, NOW))
 })

@@ -122,11 +122,15 @@ export function findLikelyDuplicate(post, library = []) {
 // point the recipe at its compressed record, then delete the full-res file -- but only
 // when a compressed record exists (otherwise the recipe would lose its photo) and no
 // other recipe of mine still shows that same file.
-export function planExpiry(myRecipes = [], now = Date.now()) {
+// `keepUrls`: full-res files a friend's old-style pantry copy still points at (found by
+// findCopiedUrls in firestore.js). Those are left exactly as they are, file and
+// imageUrl both, forever -- his call: keep the big photo when it's been copied.
+export function planExpiry(myRecipes = [], now = Date.now(), keepUrls = new Set()) {
   const expiring = myRecipes.filter((r) => r.postedToFeed === true && isPostExpired(r, now))
   const ids = new Set(expiring.map((r) => r.id))
   return expiring.map((r) => {
-    const swap = !!r.imageUrlCompressed && r.imageUrlCompressed !== r.imageUrl
+    const copied = !!r.imageUrl && keepUrls.has(r.imageUrl)
+    const swap = !copied && !!r.imageUrlCompressed && r.imageUrlCompressed !== r.imageUrl
     const stillUsed = myRecipes.some((o) => !ids.has(o.id) && o.imageUrl === r.imageUrl)
     return {
       id: r.id,
@@ -134,4 +138,10 @@ export function planExpiry(myRecipes = [], now = Date.now()) {
       deleteUrl: swap && r.imageUrl && !stillUsed ? r.imageUrl : null,
     }
   })
+}
+
+// The full-res files the sweep would delete if nothing else used them: the ones that
+// need the friends'-copies check before planExpiry runs for real.
+export function expiryCheckUrls(myRecipes = [], now = Date.now()) {
+  return [...new Set(planExpiry(myRecipes, now).map((s) => s.deleteUrl).filter(Boolean))]
 }

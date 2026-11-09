@@ -54,10 +54,11 @@ export function DataProvider({ children }) {
   // author may edit the recipe or delete its photo). Checked once per library load.
   const sweptFor = useRef(null)
   useEffect(() => {
-    if (guest || !user || loadingRecipes || sweptFor.current === user.uid) return
+    // Wait for the profile too: the sweep needs my friend list to spot copies of my photos.
+    if (guest || !user || !profile || loadingRecipes || sweptFor.current === user.uid) return
     sweptFor.current = user.uid
-    fs.expireMyOldPosts(recipes, user.uid).catch(() => {})
-  }, [user, guest, loadingRecipes, recipes])
+    fs.expireMyOldPosts(recipes, user.uid, profile?.friendIds || []).catch(() => {})
+  }, [user, guest, profile, loadingRecipes, recipes])
 
   // ----- Grocery -----
   useEffect(() => {

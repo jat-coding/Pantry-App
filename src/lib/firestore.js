@@ -18,7 +18,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase.js'
 import { sampleRecipes } from '../data/sampleRecipes.js'
-import { liveFeedPosts, planExpiry } from './socialFeed.js'
+import { expiryCheckUrls, liveFeedPosts, planExpiry } from './socialFeed.js'
 import { compressedCopy, deleteOwnImage } from './imageSnapshot.js'
 
 const recipesCol = collection(db, 'recipes')
@@ -372,10 +372,37 @@ export async function getFeedPosts(friendIds = []) {
   return liveFeedPosts(lists.flat())
 }
 
+// Which of `urls` (my full-res files) a friend's old-style pantry copy still points at.
+// Pocketing from a friend's pantry copies the imageUrl string, not the file, so deleting
+// it would blank their copy. Those copies can only come from people who are my friends
+// (FriendProfile), so check each friend's recipes pocketed from me -- the same
+// authorId query the rules already allow for viewing a friend's pantry.
+// Throws if a friend's recipes can't be read for any reason other than "not mutual
+// anymore" (a former friend's copy was never reachable here), so the sweep retries
+// later instead of deleting on a guess.
+export async function findCopiedUrls(urls, friendIds = [], uid) {
+  const kept = new Set()
+  if (!urls.length || !friendIds.length) return kept
+  const want = new Set(urls)
+  await Promise.all(friendIds.map(async (id) => {
+    try {
+      const snap = await getDocs(query(recipesCol, where('authorId', '==', id), where('pocketedFromId', '==', uid)))
+      for (const d of snap.docs) { const u = d.data().imageUrl; if (want.has(u)) kept.add(u) }
+    } catch (e) {
+      if (e?.code !== 'permission-denied') throw e
+    }
+  }))
+  return kept
+}
+
 // Lazy 30-day sweep over MY OWN posts (only the author may edit the recipe or delete
 // its file, so each person's app expires its own). Runs when my library loads.
-export async function expireMyOldPosts(myRecipes, uid) {
-  const plan = planExpiry(myRecipes)
+export async function expireMyOldPosts(myRecipes, uid, friendIds = []) {
+  const toCheck = expiryCheckUrls(myRecipes)
+  // If the copies check fails, change nothing: the feed already hides it by date, and
+  // leaving postedToFeed set means the next load tries again.
+  const keep = await findCopiedUrls(toCheck, friendIds, uid)
+  const plan = planExpiry(myRecipes, Date.now(), keep)
   for (const step of plan) {
     try {
       await updateDoc(doc(db, 'recipes', step.id), step.update)
