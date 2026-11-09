@@ -1,6 +1,11 @@
 // Social feed rules, kept free of Firebase so they can be unit-tested
-// (tests/socialFeed.test.js). The Firestore/Storage side lives in firestore.js and
-// imageSnapshot.js; the screen is Friends.jsx.
+// (tests/socialFeed.test.js). The Firestore/Storage side lives in firestore.js; the
+// screen is Friends.jsx (feed + Post composer).
+//
+// A post is its own doc in the top-level `posts` collection:
+//   { authorId, authorName, recipeId, recipeTitle, imageUrl, postedAt }
+// `imageUrl` is the photo taken/picked at post time and belongs only to the post; the
+// linked recipe's own photo is never touched. One recipe can have many posts.
 
 // A post leaves the feed this long after it was posted (his call: "clear images after
 // a month", tap answer: vanish from the feed entirely).
@@ -18,15 +23,16 @@ export function toMillis(t) {
   return null
 }
 
-export function isPostExpired(recipe, now = Date.now()) {
-  const at = toMillis(recipe?.postedAt)
+export function isPostExpired(post, now = Date.now()) {
+  const at = toMillis(post?.postedAt)
   return at != null && now - at > FEED_TTL_DAYS * DAY_MS
 }
 
-// What the feed actually renders: still flagged, not expired, newest first.
-export function liveFeedPosts(recipes, now = Date.now()) {
-  return recipes
-    .filter((r) => r.postedToFeed === true && !isPostExpired(r, now))
+// What the feed actually renders: posts that still link a recipe, not expired,
+// newest first.
+export function liveFeedPosts(posts, now = Date.now()) {
+  return posts
+    .filter((p) => p && p.recipeId && !isPostExpired(p, now))
     .sort((a, b) => (toMillis(b.postedAt) ?? now) - (toMillis(a.postedAt) ?? now))
 }
 
@@ -118,30 +124,28 @@ export function findLikelyDuplicate(post, library = []) {
 
 // ---------- Expiry ----------
 
-// What to do with my own recipes whose post is past 30 days: take it off the feed and
-// point the recipe at its compressed record, then delete the full-res file -- but only
-// when a compressed record exists (otherwise the recipe would lose its photo) and no
-// other recipe of mine still shows that same file.
-// `keepUrls`: full-res files a friend's old-style pantry copy still points at (found by
-// findCopiedUrls in firestore.js). Those are left exactly as they are, file and
-// imageUrl both, forever -- his call: keep the big photo when it's been copied.
-export function planExpiry(myRecipes = [], now = Date.now(), keepUrls = new Set()) {
-  const expiring = myRecipes.filter((r) => r.postedToFeed === true && isPostExpired(r, now))
-  const ids = new Set(expiring.map((r) => r.id))
-  return expiring.map((r) => {
-    const copied = !!r.imageUrl && keepUrls.has(r.imageUrl)
-    const swap = !copied && !!r.imageUrlCompressed && r.imageUrlCompressed !== r.imageUrl
-    const stillUsed = myRecipes.some((o) => !ids.has(o.id) && o.imageUrl === r.imageUrl)
-    return {
-      id: r.id,
-      update: swap ? { postedToFeed: false, imageUrl: r.imageUrlCompressed } : { postedToFeed: false },
-      deleteUrl: swap && r.imageUrl && !stillUsed ? r.imageUrl : null,
-    }
-  })
+// What to do with my own posts past 30 days: delete each post doc, and delete its
+// photo file once nothing else still shows that exact file -- a live post of mine
+// (re-posting the same photo) or one of my recipes. Each file is listed once even when
+// several expiring posts share it, so it's never deleted twice.
+export function planPostExpiry(myPosts = [], now = Date.now(), myRecipes = []) {
+  const expiring = myPosts.filter((p) => isPostExpired(p, now))
+  const ids = new Set(expiring.map((p) => p.id))
+  const inUse = new Set([
+    ...myPosts.filter((p) => !ids.has(p.id)).map((p) => p.imageUrl),
+    ...myRecipes.map((r) => r.imageUrl),
+  ].filter(Boolean))
+  const deleteUrls = [...new Set(expiring.map((p) => p.imageUrl).filter((u) => u && !inUse.has(u)))]
+  return { deleteIds: [...ids], deleteUrls }
 }
 
-// The full-res files the sweep would delete if nothing else used them: the ones that
-// need the friends'-copies check before planExpiry runs for real.
-export function expiryCheckUrls(myRecipes = [], now = Date.now()) {
-  return [...new Set(planExpiry(myRecipes, now).map((s) => s.deleteUrl).filter(Boolean))]
+// ---------- Recipe picker (Post composer) ----------
+
+// The picker's search: case-insensitive title match on every word typed, across all
+// categories. Blank = everything.
+export function matchesRecipeSearch(recipe, term) {
+  const words = String(term || '').toLowerCase().split(/\s+/).filter(Boolean)
+  if (!words.length) return true
+  const title = String(recipe?.title || '').toLowerCase()
+  return words.every((w) => title.includes(w))
 }

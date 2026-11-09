@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   FEED_TTL_DAYS, isPostExpired, liveFeedPosts, formatPostDate, normalizeIngredientName,
-  findLikelyDuplicate, planExpiry, expiryCheckUrls,
+  findLikelyDuplicate, planPostExpiry, matchesRecipeSearch,
 } from '../src/lib/socialFeed.js'
 
 const NOW = Date.UTC(2026, 10, 8, 18, 0)
@@ -10,17 +10,18 @@ const DAY = 86400000
 const ing = (...names) => names.map((name) => ({ qty: '1', unit: 'cup', name }))
 const ts = (ms) => ({ toMillis: () => ms }) // Firestore Timestamp shape
 
-test('feed: only posted, unexpired, newest first; friend with no posts contributes nothing', () => {
-  const recipes = [
-    { id: 'old', authorId: 'a', postedToFeed: true, postedAt: ts(NOW - (FEED_TTL_DAYS + 1) * DAY) },
-    { id: 'new', authorId: 'a', postedToFeed: true, postedAt: ts(NOW - DAY) },
-    { id: 'newer', authorId: 'b', postedToFeed: true, postedAt: ts(NOW - 60000) },
-    { id: 'unposted', authorId: 'c', postedToFeed: false, postedAt: ts(NOW) },
-    { id: 'never', authorId: 'c' },
-    { id: 'pending', authorId: 'b', postedToFeed: true, postedAt: null }, // serverTimestamp not landed yet
+test('feed: posts are their own docs; same recipe posted twice = two entries, newest first', () => {
+  const posts = [
+    { id: 'old', authorId: 'a', recipeId: 'r1', postedAt: ts(NOW - (FEED_TTL_DAYS + 1) * DAY) },
+    { id: 'chili-1', authorId: 'a', recipeId: 'chili', imageUrl: 'photo-1', postedAt: ts(NOW - 2 * DAY) },
+    { id: 'chili-2', authorId: 'a', recipeId: 'chili', imageUrl: 'photo-2', postedAt: ts(NOW - 60000) },
+    { id: 'other', authorId: 'b', recipeId: 'r2', postedAt: ts(NOW - DAY) },
+    { id: 'no-recipe', authorId: 'b', postedAt: ts(NOW) }, // malformed: nothing to open
+    { id: 'pending', authorId: 'b', recipeId: 'r3', postedAt: null }, // serverTimestamp not landed yet
   ]
-  assert.deepEqual(liveFeedPosts(recipes, NOW).map((r) => r.id), ['pending', 'newer', 'new'])
-  assert.ok(!liveFeedPosts(recipes, NOW).some((r) => r.authorId === 'c'))
+  const live = liveFeedPosts(posts, NOW)
+  assert.deepEqual(live.map((p) => p.id), ['pending', 'chili-2', 'other', 'chili-1'])
+  assert.deepEqual(live.filter((p) => p.recipeId === 'chili').map((p) => p.imageUrl), ['photo-2', 'photo-1'])
 })
 
 test('expiry boundary is 30 days', () => {
@@ -75,37 +76,41 @@ test('duplicate: same post already copied, or same title, flags too', () => {
   assert.equal(findLikelyDuplicate(chili, [{ id: 'z', title: 'smoky weeknight chili!', ingredients: [] }])?.reason, 'same-title')
 })
 
-test('expiry plan: unflag + repoint to compressed + delete full-res only when safe', () => {
+test('post expiry: past 30 days -> delete the post doc and its photo file', () => {
   const old = ts(NOW - 31 * DAY)
-  const plan = planExpiry([
-    { id: 'a', postedToFeed: true, postedAt: old, imageUrl: 'full-a', imageUrlCompressed: 'small-a' },
-    { id: 'b', postedToFeed: true, postedAt: old, imageUrl: 'full-b' }, // no compressed: keep photo
-    { id: 'c', postedToFeed: true, postedAt: old, imageUrl: 'full-c', imageUrlCompressed: 'small-c' },
-    { id: 'c2', imageUrl: 'full-c' }, // another of my recipes still shows full-c
-    { id: 'd', postedToFeed: true, postedAt: ts(NOW - DAY), imageUrl: 'full-d', imageUrlCompressed: 'small-d' },
+  const plan = planPostExpiry([
+    { id: 'a', postedAt: old, imageUrl: 'photo-a' },
+    { id: 'b', postedAt: ts(NOW - DAY), imageUrl: 'photo-b' },
+    { id: 'c', postedAt: old, imageUrl: '' }, // no photo: just the doc
   ], NOW)
-  assert.deepEqual(plan, [
-    { id: 'a', update: { postedToFeed: false, imageUrl: 'small-a' }, deleteUrl: 'full-a' },
-    { id: 'b', update: { postedToFeed: false }, deleteUrl: null },
-    { id: 'c', update: { postedToFeed: false, imageUrl: 'small-c' }, deleteUrl: null },
-  ])
+  assert.deepEqual(plan, { deleteIds: ['a', 'c'], deleteUrls: ['photo-a'] })
 })
 
-test('expiry plan: a friend\'s old-style copy still uses the full-res file -> file and imageUrl both kept', () => {
+test('post expiry: a photo shared by two posts is deleted once, and only when both are gone', () => {
   const old = ts(NOW - 31 * DAY)
-  const mine = [
-    { id: 'a', postedToFeed: true, postedAt: old, imageUrl: 'full-a', imageUrlCompressed: 'small-a' },
-    { id: 'e', postedToFeed: true, postedAt: old, imageUrl: 'full-e', imageUrlCompressed: 'small-e' },
-  ]
-  // Only files the sweep would actually delete need the friends'-copies check.
-  assert.deepEqual(expiryCheckUrls(mine, NOW), ['full-a', 'full-e'])
-  const plan = planExpiry(mine, NOW, new Set(['full-e']))
-  assert.deepEqual(plan, [
-    // No copy found: same as before, repoint + delete.
-    { id: 'a', update: { postedToFeed: false, imageUrl: 'small-a' }, deleteUrl: 'full-a' },
-    // Copy found: still leaves the feed, but no repoint and no delete.
-    { id: 'e', update: { postedToFeed: false }, deleteUrl: null },
-  ])
-  // An empty keep set behaves exactly like the original plan.
-  assert.deepEqual(planExpiry(mine, NOW, new Set()), planExpiry(mine, NOW))
+  // Both expired: one delete, not two.
+  assert.deepEqual(planPostExpiry([
+    { id: 'a', postedAt: old, imageUrl: 'same' },
+    { id: 'b', postedAt: ts(NOW - 40 * DAY), imageUrl: 'same' },
+  ], NOW), { deleteIds: ['a', 'b'], deleteUrls: ['same'] })
+  // One still live: the expired doc goes, the file stays.
+  assert.deepEqual(planPostExpiry([
+    { id: 'a', postedAt: old, imageUrl: 'same' },
+    { id: 'b', postedAt: ts(NOW - DAY), imageUrl: 'same' },
+  ], NOW), { deleteIds: ['a'], deleteUrls: [] })
+  // A file one of my recipes shows is never deleted.
+  assert.deepEqual(planPostExpiry([{ id: 'a', postedAt: old, imageUrl: 'recipe-photo' }], NOW,
+    [{ id: 'r', imageUrl: 'recipe-photo' }]), { deleteIds: ['a'], deleteUrls: [] })
+  // Nothing expiring: nothing to do.
+  assert.deepEqual(planPostExpiry([{ id: 'b', postedAt: ts(NOW - DAY), imageUrl: 'x' }], NOW), { deleteIds: [], deleteUrls: [] })
+})
+
+test('recipe picker search: every word, case-insensitive, blank = all', () => {
+  const r = { title: 'Smoky Weeknight Chili' }
+  assert.equal(matchesRecipeSearch(r, ''), true)
+  assert.equal(matchesRecipeSearch(r, '  '), true)
+  assert.equal(matchesRecipeSearch(r, 'chili'), true)
+  assert.equal(matchesRecipeSearch(r, 'CHILI smoky'), true)
+  assert.equal(matchesRecipeSearch(r, 'chili beans'), false)
+  assert.equal(matchesRecipeSearch({}, 'x'), false)
 })

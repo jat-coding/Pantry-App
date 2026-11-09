@@ -7,7 +7,7 @@ import { useData } from '../contexts/DataContext.jsx'
 import { useToast } from '../components/Toast.jsx'
 import RecipeCard from '../components/RecipeCard.jsx'
 import { ListSkeleton, GridSkeleton } from '../components/Skeleton.jsx'
-import { FriendsIcon, ProfileIcon, CategoryIcon } from '../components/icons.jsx'
+import { FriendsIcon, ProfileIcon, CategoryIcon, PlusIcon } from '../components/icons.jsx'
 import { ViewToggle, FavoritesToggle, RecipeListView, VIEW_KEY } from '../components/RecipeViews.jsx'
 import { CATEGORIES, primaryCategory } from '../lib/categories.js'
 import { useScrollLock } from '../lib/useScrollLock.js'
@@ -17,7 +17,7 @@ import { useGoBack } from '../lib/useGoBack.js'
 import * as fs from '../lib/firestore.js'
 import SafeImage from '../components/SafeImage.jsx'
 import { findLikelyDuplicate, formatPostDate } from '../lib/socialFeed.js'
-import { forkImage } from '../lib/imageSnapshot.js'
+import PostComposer from '../components/PostComposer.jsx'
 
 // Recipes whose stored category isn't one of CATEGORIES (very old data) still
 // need a home, so they land in this section after the real ones. Matches Pantry.jsx.
@@ -35,7 +35,7 @@ export default function Friends() {
   const [results, setResults] = useState(null)
   const [searching, setSearching] = useState(false)
   const [requests, setRequests] = useState([])
-  // A feed post waiting on "Save anyway" because it looks like one of my recipes.
+  // A feed post's recipe waiting on "Save anyway" because it looks like one of mine.
   const [dupPrompt, setDupPrompt] = useState(null)
   const goBack = useGoBack()
   // The open friend pantry lives in the URL (?friend=<id>), not component state, so it's
@@ -99,23 +99,22 @@ export default function Friends() {
     }
   }
 
-  // Copying from the Social feed: check my library for a likely duplicate first, and
-  // only copy on an explicit "Save anyway". The copy gets its own fork of the photo,
-  // since the author's full-res file is deleted when the post expires.
-  async function copyFeedPost(post) {
+  // Copying from the Social feed copies the RECIPE the post links to (fetched fresh:
+  // full ingredients/instructions and the recipe's own photo), never the post's photo.
+  // Check my library for a likely duplicate first, and only copy on an explicit
+  // "Save anyway". The recipe's own photo isn't deleted by post expiry, so the copy
+  // keeps its link to it, same as copying from a friend's pantry.
+  async function handleFeedCopy(post) {
+    let recipe = null
     try {
-      const imageUrl = await forkImage(post.imageUrl, user.uid)
-      const newId = await pocketRecipe({ ...post, imageUrl })
-      await togglePantry(newId)
-      toast('Copied to your Pantry')
+      recipe = await fs.getRecipe(post.recipeId)
     } catch {
-      toast('Could not copy recipe')
+      // handled below
     }
-  }
-  function handleFeedCopy(post) {
-    const dup = findLikelyDuplicate(post, myRecipes)
-    if (dup) setDupPrompt({ post, existing: dup.recipe })
-    else return copyFeedPost(post)
+    if (!recipe) return toast('That recipe is no longer available')
+    const dup = findLikelyDuplicate(recipe, myRecipes)
+    if (dup) setDupPrompt({ recipe, existing: dup.recipe })
+    else return handleCopyToPantry(recipe)
   }
 
   const friendIds = new Set(profile?.friendIds || [])
@@ -209,7 +208,7 @@ export default function Friends() {
         </section>
       )}
 
-      <SocialFeed friends={friends} friendsLoaded={friendsLoaded} onCopy={handleFeedCopy} />
+      <SocialFeed me={user} myProfile={profile} friends={friends} friendsLoaded={friendsLoaded} onCopy={handleFeedCopy} />
 
       {/* Friends list */}
       <section>
@@ -235,7 +234,7 @@ export default function Friends() {
         <ConfirmDialog
           message={`This looks a lot like your "${dupPrompt.existing.title}". Save anyway?`}
           confirmLabel="Save anyway"
-          onConfirm={() => { const p = dupPrompt.post; setDupPrompt(null); copyFeedPost(p) }}
+          onConfirm={() => { const r = dupPrompt.recipe; setDupPrompt(null); handleCopyToPantry(r) }}
           onCancel={() => setDupPrompt(null)}
         />
       )}
@@ -249,71 +248,87 @@ export default function Friends() {
   )
 }
 
-// Strava-style feed: friends' posted recipes, newest first. Each post: who, when,
-// the full-res photo, the title (opens the recipe), and Copy to Pantry.
-function SocialFeed({ friends, friendsLoaded, onCopy }) {
+// Strava-style feed: my friends' posts and my own, newest first. Each post: who, when,
+// the photo taken at post time, the linked recipe's title (opens the recipe), and Copy
+// to Pantry on friends' posts. Post (top right) picks a photo, then PostComposer links
+// a recipe to it; a new post lands at the top through the same refresh as the button.
+function SocialFeed({ me, myProfile, friends, friendsLoaded, onCopy }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [posts, setPosts] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  // The photo picked by Post; non-null = composer open.
+  const [photo, setPhoto] = useState(null)
   const idsKey = friends.map((f) => f.id).sort().join(',')
   useEffect(() => {
     if (!friendsLoaded) return
     let alive = true
-    fs.getFeedPosts(idsKey ? idsKey.split(',') : [])
+    fs.getFeedPosts([me.uid, ...(idsKey ? idsKey.split(',') : [])])
       .then((list) => { if (alive) setPosts(list) })
       .catch(() => { if (alive) setPosts((prev) => prev ?? []) })
       .finally(() => { if (alive) setRefreshing(false) })
     return () => { alive = false }
-  }, [idsKey, friendsLoaded, reloadKey])
+  }, [idsKey, friendsLoaded, reloadKey, me.uid])
   const refresh = () => { if (refreshing) return; setRefreshing(true); setReloadKey((k) => k + 1) }
   const byId = new Map(friends.map((f) => [f.id, f]))
-  // No friends yet has its own empty state in My Friends below; don't double up.
-  if (friendsLoaded && friends.length === 0) return null
+  byId.set(me.uid, { ...myProfile, displayName: myProfile?.displayName || me.displayName || 'Me' })
   const openRecipe = (id) => navigate(`/recipe/${id}`, { state: { from: location.pathname } })
+  const pickPhoto = (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) setPhoto(f) }
 
   return (
     <section>
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-lg font-extrabold">Feed</h2>
+      <div className="mb-2 flex items-center gap-2">
+        <h2 className="flex-1 text-lg font-extrabold">Feed</h2>
         <button onClick={refresh} disabled={refreshing || !friendsLoaded} aria-label="Refresh feed"
           className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-zinc-800 shadow-card transition active:scale-90 hover:bg-eggshell disabled:opacity-60">
           <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
         </button>
+        {/* Same filled orange circle-and-plus as the bottom bar's add button. No
+            `capture` attribute, so the phone offers both Take Photo and the library. */}
+        <label aria-label="New post"
+          className="flex h-9 cursor-pointer items-center gap-1 rounded-full bg-cta pl-2.5 pr-3.5 text-sm font-bold text-white shadow-card transition active:scale-90 hover:bg-cta-dark">
+          <PlusIcon className="h-5 w-5" /> Post
+          <input type="file" accept="image/*" className="hidden" onChange={pickPhoto} />
+        </label>
       </div>
       {posts == null ? (
         <ListSkeleton count={2} action={false} />
       ) : posts.length === 0 ? (
-        <p className="text-sm text-warm-soft">None of your friends have posted a recipe yet.</p>
+        <p className="text-sm text-warm-soft">No posts yet. Tap Post to share a photo of something you made.</p>
       ) : (
         <div className="space-y-4">
           {posts.map((p) => {
             const author = byId.get(p.authorId) || { displayName: p.authorName }
+            const mine = p.authorId === me.uid
             return (
               <article key={p.id} data-post={p.id} className="card overflow-hidden">
                 <div className="flex items-center gap-3 p-3">
                   <Avatar user={author} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-bold">{author.displayName}</p>
+                    <p className="truncate font-bold">{mine ? 'You' : author.displayName}</p>
                     <p className="text-xs text-warm-soft">{formatPostDate(p.postedAt)}</p>
                   </div>
                 </div>
                 {p.imageUrl && (
-                  <button onClick={() => openRecipe(p.id)} className="block w-full" aria-label={`Open ${p.title}`}>
-                    <SafeImage src={p.imageUrl} alt={p.title} className="aspect-[4/3] w-full object-cover" fallback={null} />
+                  <button onClick={() => openRecipe(p.recipeId)} className="block w-full" aria-label={`Open ${p.recipeTitle}`}>
+                    <SafeImage src={p.imageUrl} alt={p.recipeTitle} className="aspect-[4/3] w-full object-cover" fallback={null} />
                   </button>
                 )}
                 <div className="flex items-center gap-3 p-3">
-                  <button onClick={() => openRecipe(p.id)} className="min-w-0 flex-1 text-left text-lg font-extrabold leading-tight hover:underline">
-                    {p.title}
+                  <button onClick={() => openRecipe(p.recipeId)} className="min-w-0 flex-1 text-left text-lg font-extrabold leading-tight hover:underline">
+                    {p.recipeTitle}
                   </button>
-                  <button className="btn-peach shrink-0 px-3 py-2 text-sm" onClick={() => onCopy(p)}>Copy to Pantry</button>
+                  {!mine && <button className="btn-peach shrink-0 px-3 py-2 text-sm" onClick={() => onCopy(p)}>Copy to Pantry</button>}
                 </div>
               </article>
             )
           })}
         </div>
+      )}
+      {photo && (
+        <PostComposer file={photo} onChangeFile={setPhoto} onClose={() => setPhoto(null)}
+          onPosted={() => { setPhoto(null); refresh() }} />
       )}
     </section>
   )

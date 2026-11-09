@@ -1,9 +1,19 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.38.2'
+export const APP_VERSION = '1.39.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.39.0',
+    date: '2026-11-08',
+    changes: [
+      'New Post button on the Social feed: take or choose a photo, pick which of your recipes it goes with (grouped by category, with a search box), and post. It shows at the top of your feed right away.',
+      'Each post keeps its own photo. Your recipe\'s own photo is never changed by posting, and you can post the same recipe again any time as a new entry.',
+      'Your own posts now show in your feed too. Copy to Pantry on a friend\'s post copies their full recipe with its own photo.',
+      'The Post to Social button on a recipe\'s page is gone; the feed\'s Post button is now the one way to post.',
+    ],
+  },
   {
     version: '1.38.2',
     date: '2026-11-08',

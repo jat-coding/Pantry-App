@@ -51,14 +51,14 @@ export function DataProvider({ children }) {
 
   // ----- Social feed: 30-day expiry of my own posts -----
   // No server cron in this app, so each author's own app expires their posts (only the
-  // author may edit the recipe or delete its photo). Checked once per library load.
+  // author may delete a post or its photo). Checked once per library load; my recipes
+  // are passed so a photo one of them also shows is never deleted.
   const sweptFor = useRef(null)
   useEffect(() => {
-    // Wait for the profile too: the sweep needs my friend list to spot copies of my photos.
-    if (guest || !user || !profile || loadingRecipes || sweptFor.current === user.uid) return
+    if (guest || !user || loadingRecipes || sweptFor.current === user.uid) return
     sweptFor.current = user.uid
-    fs.expireMyOldPosts(recipes, user.uid, profile?.friendIds || []).catch(() => {})
-  }, [user, guest, profile, loadingRecipes, recipes])
+    fs.expireMyOldPosts(user.uid, recipes).catch(() => {})
+  }, [user, guest, loadingRecipes, recipes])
 
   // ----- Grocery -----
   useEffect(() => {

@@ -18,10 +18,11 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase.js'
 import { sampleRecipes } from '../data/sampleRecipes.js'
-import { expiryCheckUrls, liveFeedPosts, planExpiry } from './socialFeed.js'
-import { compressedCopy, deleteOwnImage } from './imageSnapshot.js'
+import { liveFeedPosts, planPostExpiry } from './socialFeed.js'
+import { deleteOwnImage } from './imageSnapshot.js'
 
 const recipesCol = collection(db, 'recipes')
+const postsCol = collection(db, 'posts')
 
 // ---------- Recipes ----------
 
@@ -343,73 +344,48 @@ export function prefetchFriendRecipes(ids = []) {
 }
 
 // ---------- Social feed ----------
-// Rules live in src/lib/socialFeed.js; images in src/lib/imageSnapshot.js.
+// Rules live in src/lib/socialFeed.js. A post is its own doc in `posts` (not a flag on
+// the recipe): its own photo, a link to one of my recipes, and a timestamp. The same
+// recipe can be posted any number of times; each post is a separate feed entry.
 
-// Post one of my recipes to my friends' Social feed. The first time, also makes the
-// small permanent copy of its photo the recipe falls back to after the post expires.
-export async function postRecipeToFeed(recipe, uid) {
-  const data = { postedToFeed: true, postedAt: serverTimestamp() }
-  if (recipe.imageUrl && !recipe.imageUrlCompressed) {
-    const small = await compressedCopy(recipe.imageUrl, uid)
-    if (small) data.imageUrlCompressed = small
-  }
-  await updateDoc(doc(db, 'recipes', recipe.id), data)
-  return data
+// `imageUrl` is the post's own photo, already uploaded by the composer.
+export async function createPost({ recipe, imageUrl }, user, authorName) {
+  const ref = await addDoc(postsCol, {
+    authorId: user.uid,
+    authorName: authorName || user.displayName || 'Me',
+    recipeId: recipe.id,
+    recipeTitle: recipe.title || 'Untitled',
+    imageUrl: imageUrl || '',
+    postedAt: serverTimestamp(),
+  })
+  return ref.id
 }
 
-export function unpostRecipeFromFeed(id) {
-  return updateDoc(doc(db, 'recipes', id), { postedToFeed: false })
-}
-
-// Posts from my friends, newest first, expired ones already dropped. One equality
-// query per friend (same shape the rules already allow for viewing a friend's pantry),
-// so there is no 30-friend `in` cap and no composite index to deploy.
-export async function getFeedPosts(friendIds = []) {
-  const lists = await Promise.all(friendIds.map((id) =>
-    getDocs(query(recipesCol, where('authorId', '==', id), where('postedToFeed', '==', true)))
+// Feed posts by these authors (my friends, plus me so I see my own posts), newest
+// first, expired ones already dropped. One equality query per author, the same shape
+// the rules allow for viewing a friend's pantry, so there is no 30-author `in` cap and
+// no composite index to deploy.
+export async function getFeedPosts(authorIds = []) {
+  const lists = await Promise.all([...new Set(authorIds)].map((id) =>
+    getDocs(query(postsCol, where('authorId', '==', id)))
       .then((snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() })))
       .catch(() => [])))
   return liveFeedPosts(lists.flat())
 }
 
-// Which of `urls` (my full-res files) a friend's old-style pantry copy still points at.
-// Pocketing from a friend's pantry copies the imageUrl string, not the file, so deleting
-// it would blank their copy. Those copies can only come from people who are my friends
-// (FriendProfile), so check each friend's recipes pocketed from me -- the same
-// authorId query the rules already allow for viewing a friend's pantry.
-// Throws if a friend's recipes can't be read for any reason other than "not mutual
-// anymore" (a former friend's copy was never reachable here), so the sweep retries
-// later instead of deleting on a guess.
-export async function findCopiedUrls(urls, friendIds = [], uid) {
-  const kept = new Set()
-  if (!urls.length || !friendIds.length) return kept
-  const want = new Set(urls)
-  await Promise.all(friendIds.map(async (id) => {
-    try {
-      const snap = await getDocs(query(recipesCol, where('authorId', '==', id), where('pocketedFromId', '==', uid)))
-      for (const d of snap.docs) { const u = d.data().imageUrl; if (want.has(u)) kept.add(u) }
-    } catch (e) {
-      if (e?.code !== 'permission-denied') throw e
-    }
-  }))
-  return kept
-}
-
-// Lazy 30-day sweep over MY OWN posts (only the author may edit the recipe or delete
-// its file, so each person's app expires its own). Runs when my library loads.
-export async function expireMyOldPosts(myRecipes, uid, friendIds = []) {
-  const toCheck = expiryCheckUrls(myRecipes)
-  // If the copies check fails, change nothing: the feed already hides it by date, and
-  // leaving postedToFeed set means the next load tries again.
-  const keep = await findCopiedUrls(toCheck, friendIds, uid)
-  const plan = planExpiry(myRecipes, Date.now(), keep)
-  for (const step of plan) {
-    try {
-      await updateDoc(doc(db, 'recipes', step.id), step.update)
-      if (step.deleteUrl) await deleteOwnImage(step.deleteUrl, uid)
-    } catch {
-      // Best-effort: the feed already hides it by date; next load tries again.
-    }
+// Lazy 30-day sweep over MY OWN posts (only the author may delete a post or its photo,
+// so each person's app expires its own). Runs when my library loads. Best-effort: the
+// feed already hides an expired post by date, and anything left over is retried next
+// load.
+export async function expireMyOldPosts(uid, myRecipes = []) {
+  const snap = await getDocs(query(postsCol, where('authorId', '==', uid)))
+  const myPosts = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+  const plan = planPostExpiry(myPosts, Date.now(), myRecipes)
+  for (const id of plan.deleteIds) {
+    try { await deleteDoc(doc(db, 'posts', id)) } catch { /* next load retries */ }
   }
-  return plan.length
+  // Files only after their docs are gone, so the feed never shows a post whose photo
+  // was already deleted.
+  for (const url of plan.deleteUrls) await deleteOwnImage(url, uid)
+  return plan
 }

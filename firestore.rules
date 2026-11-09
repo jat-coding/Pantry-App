@@ -44,6 +44,19 @@ service cloud.firestore {
       allow update, delete: if signedIn() && resource.data.authorId == request.auth.uid;
     }
 
+    // Social feed posts: each is its own doc (its own photo + a link to one of the
+    // author's recipes). Readable by the author and the author's mutual friends, same as
+    // a private recipe. Only the author creates (as themselves) or deletes (expiry);
+    // posts are never edited.
+    match /posts/{postId} {
+      allow read: if signedIn() && (
+        resource.data.authorId == request.auth.uid ||
+        mutualFriendOf(resource.data.authorId)
+      );
+      allow create: if signedIn() && request.resource.data.authorId == request.auth.uid;
+      allow delete: if signedIn() && resource.data.authorId == request.auth.uid;
+    }
+
     // Friend requests: sender creates; only the recipient can accept/decline; either
     // party can delete (unfriending clears the record so it can't re-add anyone).
     match /friendRequests/{requestId} {
