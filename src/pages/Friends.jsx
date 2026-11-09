@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronLeft, Menu } from 'lucide-react'
+import { Check, ChevronLeft, Menu, RefreshCw } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
@@ -158,9 +158,8 @@ export default function Friends() {
           aria-label="Your profile"
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-zinc-800 shadow-card transition active:scale-90 hover:bg-eggshell"
         >
-          {profile?.avatarUrl
-            ? <img src={profile.avatarUrl} alt="" className="h-full w-full rounded-full object-cover" />
-            : <ProfileIcon className="h-6 w-6" />}
+          <SafeImage src={profile?.avatarUrl} alt="" className="h-full w-full rounded-full object-cover"
+            fallback={<ProfileIcon className="h-6 w-6" />} />
         </button>
       </header>
 
@@ -256,15 +255,19 @@ function SocialFeed({ friends, friendsLoaded, onCopy }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [posts, setPosts] = useState(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
   const idsKey = friends.map((f) => f.id).sort().join(',')
   useEffect(() => {
     if (!friendsLoaded) return
     let alive = true
     fs.getFeedPosts(idsKey ? idsKey.split(',') : [])
       .then((list) => { if (alive) setPosts(list) })
-      .catch(() => { if (alive) setPosts([]) })
+      .catch(() => { if (alive) setPosts((prev) => prev ?? []) })
+      .finally(() => { if (alive) setRefreshing(false) })
     return () => { alive = false }
-  }, [idsKey, friendsLoaded])
+  }, [idsKey, friendsLoaded, reloadKey])
+  const refresh = () => { if (refreshing) return; setRefreshing(true); setReloadKey((k) => k + 1) }
   const byId = new Map(friends.map((f) => [f.id, f]))
   // No friends yet has its own empty state in My Friends below; don't double up.
   if (friendsLoaded && friends.length === 0) return null
@@ -272,7 +275,13 @@ function SocialFeed({ friends, friendsLoaded, onCopy }) {
 
   return (
     <section>
-      <h2 className="mb-2 text-lg font-extrabold">Feed</h2>
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="text-lg font-extrabold">Feed</h2>
+        <button onClick={refresh} disabled={refreshing || !friendsLoaded} aria-label="Refresh feed"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-zinc-800 shadow-card transition active:scale-90 hover:bg-eggshell disabled:opacity-60">
+          <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
       {posts == null ? (
         <ListSkeleton count={2} action={false} />
       ) : posts.length === 0 ? (
@@ -596,13 +605,14 @@ function FriendsOfFriend({ friend, me, myFriendIds, incoming, onRespond }) {
 
 function Avatar({ user, big }) {
   const size = big ? 'h-16 w-16 text-2xl' : 'h-10 w-10'
-  return user.avatarUrl ? (
-    <img src={user.avatarUrl} alt="" className={`${size} rounded-full object-cover`} />
-  ) : (
+  // A broken avatar URL (deleted file, Storage unavailable) falls back to the same
+  // initial-letter circle as no avatar at all, instead of a broken-image glyph.
+  const initial = (
     <span className={`${size} flex items-center justify-center rounded-full bg-peach font-extrabold text-warm`}>
       {(user.displayName || '?')[0].toUpperCase()}
     </span>
   )
+  return <SafeImage src={user.avatarUrl} alt="" className={`${size} rounded-full object-cover`} fallback={initial} />
 }
 
 function Gate() {

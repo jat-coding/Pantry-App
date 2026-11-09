@@ -155,3 +155,15 @@ How to check work on this project for real.
 - Before calling a string literal a bug, check its bytes (`od -c`). `searchUsers`' upper
   bound was a raw invisible U+F8FF that read as `t + ''` and got written up as an
   exact-match bug. It is now the escape `'\uf8ff'`; keep invisible characters as escapes.
+
+## Images all broken at once -- check Storage billing FIRST (2026-11-08 incident)
+
+- If avatars and Storage-hosted recipe photos all break together, `curl -sD- '<a firebasestorage
+  download URL>'` before reading any code. 2026-11-08 it returned `402 "The billing account for
+  the owning project is disabled in state closed"` for every object, including admin
+  (`scripts/broker/firebase-api --host storage.googleapis.com`) downloads, while object
+  metadata/listing still worked and every referenced file still existed. That is a billing
+  wall, not a code bug and not deleted files. Missing-file check: list the bucket via the
+  broker and diff against every `imageUrl`/`imageUrlCompressed`/`avatarUrl` in Firestore.
+- Avatars render through `SafeImage` with the initial-letter fallback (v1.38.2), so a dead
+  avatar URL shows the initial, not a broken-image glyph.

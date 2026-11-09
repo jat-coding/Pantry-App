@@ -1,9 +1,17 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.38.1'
+export const APP_VERSION = '1.38.2'
 
 export const CHANGELOG = [
+  {
+    version: '1.38.2',
+    date: '2026-11-08',
+    changes: [
+      'The Social feed has a refresh button next to Feed, so you can pull in new posts without reloading the app.',
+      'A profile picture that can\'t load now shows the person\'s initial instead of a broken-image icon.',
+    ],
+  },
   {
     version: '1.38.1',
     date: '2026-11-08',

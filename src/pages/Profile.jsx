@@ -8,6 +8,7 @@ import { exportRecipesToExcel } from '../lib/exportExcel.js'
 import { uploadImage } from '../lib/storage.js'
 import { APP_VERSION, CHANGELOG } from '../lib/version.js'
 import { ProfileIcon, CameraIcon } from '../components/icons.jsx'
+import SafeImage from '../components/SafeImage.jsx'
 import { useGoBack } from '../lib/useGoBack.js'
 import { NAV_STYLES, readNavStyle, writeNavStyle } from '../lib/navStyle.js'
 import { StatSkeleton } from '../components/Skeleton.jsx'
@@ -82,13 +83,11 @@ export default function Profile() {
       </header>
 
       <div className="card flex flex-col items-center gap-3 p-6 text-center">
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="" className="h-24 w-24 rounded-full object-cover" />
-        ) : (
+        <SafeImage src={avatarUrl} alt="" className="h-24 w-24 rounded-full object-cover" fallback={
           <span className="flex h-24 w-24 items-center justify-center rounded-full bg-peach text-4xl font-extrabold text-warm">
             {(profile?.displayName || user.displayName || '?')[0].toUpperCase()}
           </span>
-        )}
+        } />
         <h2 className="text-xl font-extrabold">{profile?.displayName || user.displayName}</h2>
         <p className="text-sm text-warm-soft">{user.email}</p>
         {!editing && profile?.bio && <p className="max-w-sm text-warm">{profile.bio}</p>}
