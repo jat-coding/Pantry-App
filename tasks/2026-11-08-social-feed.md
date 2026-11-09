@@ -164,3 +164,25 @@ None given.
 None — every prior open question above was resolved by a tap answer. The lazy-vs-cron
 expiry choice and the exact confirm-dialog copy are implementation details the build
 should make and report, not block on.
+
+## Result (2026-11-08, v1.38.0, local commit on main, NOT pushed)
+
+- PASS build / jsx-imports / tests: `npm run build` clean (no warnings), `check-jsx-imports` exit 0, `npm test` 36/36 (8 new in `tests/socialFeed.test.js`).
+- PASS posted recipe full-res in feed, non-posting friend absent: browser click-through
+  (`artifacts/pantry-social-feed/feed-check.mjs`, stubbed Firestore, real filter): feed image
+  naturalWidth 1600x1200 = the source; friend "Zed NoPosts" in My Friends but 0 feed cards.
+- PASS (unit + browser) 30-day expiry: 31-day-old post not rendered; `planExpiry` test proves
+  unflag + repoint `imageUrl` to `imageUrlCompressed` + delete full-res only when a compressed copy
+  exists and no other own recipe shows the same file. NOT checked against real Firebase (no emulator).
+- PASS copy (a)/(c): copy lands via `pocketRecipe` + heart; near-dupe chili shows
+  "This looks a lot like your "Mom's Chili". Save anyway?"; Cancel -> 0 copies; Save anyway -> 1.
+- PARTIAL copy (b): copy path calls `forkImage` with the copier's uid and saves the fork URL
+  (verified in browser). The real Storage upload was not exercised (stubbed; needs a signed-in account).
+- PASS non-matching (curry, 0 shared) copies with no dialog; unit tests cover 4/10 cookies, 5-shared-62%, 3-ingredient 100%.
+- PASS Friends functions: search box, invite, My Friends, View Pantry overlay all render and open on the renamed tab.
+
+Deviations: per-friend equality queries instead of `in` (no 30 cap, no new index, existing rules
+cover it); expiry runs on the AUTHOR's app (rules only let the author edit/delete), and the feed
+hides >30-day posts for every viewer by date regardless; title match and "same post already copied"
+also trigger the dialog (tap answer 6). No rules changes needed. Fresh-context review subagent was
+blocked by a hook on this run; self-review only.
