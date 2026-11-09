@@ -11,14 +11,14 @@ import {
   GroceryIcon, CookIcon, PantryIcon, FriendsIcon, ProfileIcon, PlusIcon, LinkIcon, EditIcon,
 } from './icons.jsx'
 
-// Bottom-bar order: Grocery, Cook, [+ add], Pantry, Friends.
-// Profile is reached from the top-right of the Friends screen.
+// Bottom-bar order: Grocery, Cook, [+ add], Pantry, Social (was Friends; same route).
+// Profile is reached from the top-right of the Social screen.
 // Cook isn't a screen of its own: /cook picks a recipe and opens it in Cook Mode.
 const TABS = [
   { to: '/grocery', label: 'Grocery', Icon: GroceryIcon },
   { to: '/cook', label: 'Cook', Icon: CookIcon },
   { to: '/', label: 'Pantry', Icon: PantryIcon, end: true },
-  { to: '/friends', label: 'Friends', Icon: FriendsIcon },
+  { to: '/friends', label: 'Social', Icon: FriendsIcon },
 ]
 
 // Small count bubble on the Friends tab for unanswered incoming requests. "9+" past 9.

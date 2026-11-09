@@ -18,6 +18,8 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase.js'
 import { sampleRecipes } from '../data/sampleRecipes.js'
+import { liveFeedPosts, planExpiry } from './socialFeed.js'
+import { compressedCopy, deleteOwnImage } from './imageSnapshot.js'
 
 const recipesCol = collection(db, 'recipes')
 
@@ -338,4 +340,49 @@ export function prefetchFriendRecipes(ids = []) {
   const run = () => { for (const id of ids) getFriendRecipes(id).catch(() => {}) }
   if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 4000 })
   else setTimeout(run, 1200)
+}
+
+// ---------- Social feed ----------
+// Rules live in src/lib/socialFeed.js; images in src/lib/imageSnapshot.js.
+
+// Post one of my recipes to my friends' Social feed. The first time, also makes the
+// small permanent copy of its photo the recipe falls back to after the post expires.
+export async function postRecipeToFeed(recipe, uid) {
+  const data = { postedToFeed: true, postedAt: serverTimestamp() }
+  if (recipe.imageUrl && !recipe.imageUrlCompressed) {
+    const small = await compressedCopy(recipe.imageUrl, uid)
+    if (small) data.imageUrlCompressed = small
+  }
+  await updateDoc(doc(db, 'recipes', recipe.id), data)
+  return data
+}
+
+export function unpostRecipeFromFeed(id) {
+  return updateDoc(doc(db, 'recipes', id), { postedToFeed: false })
+}
+
+// Posts from my friends, newest first, expired ones already dropped. One equality
+// query per friend (same shape the rules already allow for viewing a friend's pantry),
+// so there is no 30-friend `in` cap and no composite index to deploy.
+export async function getFeedPosts(friendIds = []) {
+  const lists = await Promise.all(friendIds.map((id) =>
+    getDocs(query(recipesCol, where('authorId', '==', id), where('postedToFeed', '==', true)))
+      .then((snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+      .catch(() => [])))
+  return liveFeedPosts(lists.flat())
+}
+
+// Lazy 30-day sweep over MY OWN posts (only the author may edit the recipe or delete
+// its file, so each person's app expires its own). Runs when my library loads.
+export async function expireMyOldPosts(myRecipes, uid) {
+  const plan = planExpiry(myRecipes)
+  for (const step of plan) {
+    try {
+      await updateDoc(doc(db, 'recipes', step.id), step.update)
+      if (step.deleteUrl) await deleteOwnImage(step.deleteUrl, uid)
+    } catch {
+      // Best-effort: the feed already hides it by date; next load tries again.
+    }
+  }
+  return plan.length
 }

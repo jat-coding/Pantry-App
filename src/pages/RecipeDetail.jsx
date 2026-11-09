@@ -19,6 +19,8 @@ import { AddToPantryPrompt } from './RecipeEditor.jsx'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
 import PdfPreview from '../components/PdfPreview.jsx'
 import { thud } from '../lib/haptics.js'
+import { postRecipeToFeed, unpostRecipeFromFeed } from '../lib/firestore.js'
+import { formatPostDate, isPostExpired } from '../lib/socialFeed.js'
 
 function timeLabel(t) {
   if (!t || !t.value) return '—'
@@ -365,6 +367,10 @@ export default function RecipeDetail() {
         <p className="text-sm text-warm-soft">
           {recipe.pocketedFromName ? `Pocketed from ${recipe.pocketedFromName}` : `by ${recipe.authorName}`}
         </p>
+        {isOwner && canWrite && (
+          <SocialPostButton recipe={recipe} uid={user.uid}
+            onChange={(data) => setRecipe((r) => ({ ...r, ...data }))} />
+        )}
       </div>
 
       {/* Stats */}
@@ -572,6 +578,41 @@ function Stat({ label, value }) {
     <div className="card flex flex-col items-center py-3">
       <span className="text-xs font-bold uppercase tracking-wide text-warm-soft">{label}</span>
       <span className="text-lg font-extrabold">{value}</span>
+    </div>
+  )
+}
+
+// Owner-only: put this recipe on friends' Social feed (it leaves the feed by itself
+// after 30 days), or take it down early.
+function SocialPostButton({ recipe, uid, onChange }) {
+  const toast = useToast()
+  const [busy, setBusy] = useState(false)
+  const live = recipe.postedToFeed === true && !isPostExpired(recipe)
+  async function toggle() {
+    setBusy(true)
+    try {
+      if (live) {
+        await unpostRecipeFromFeed(recipe.id)
+        onChange({ postedToFeed: false })
+        toast('Removed from Social')
+      } else {
+        const data = await postRecipeToFeed(recipe, uid)
+        onChange({ ...data, postedAt: new Date() })
+        toast('Posted to Social')
+      }
+    } catch {
+      toast('Could not update Social')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div className="mt-2 flex items-center gap-2">
+      <button onClick={toggle} disabled={busy} aria-busy={busy}
+        className={`${live ? 'btn-ghost' : 'btn-peach'} px-3 py-1.5 text-sm`}>
+        {busy ? 'Saving…' : live ? 'Remove from Social' : 'Post to Social'}
+      </button>
+      {live && <span className="text-sm text-warm-soft">Posted {formatPostDate(recipe.postedAt)}</span>}
     </div>
   )
 }

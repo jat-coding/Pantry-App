@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from './AuthContext.jsx'
 import * as fs from '../lib/firestore.js'
 import { readFriendCache, writeFriendCache } from '../lib/friendCache.js'
@@ -48,6 +48,16 @@ export function DataProvider({ children }) {
     })
     return unsub
   }, [user, guest])
+
+  // ----- Social feed: 30-day expiry of my own posts -----
+  // No server cron in this app, so each author's own app expires their posts (only the
+  // author may edit the recipe or delete its photo). Checked once per library load.
+  const sweptFor = useRef(null)
+  useEffect(() => {
+    if (guest || !user || loadingRecipes || sweptFor.current === user.uid) return
+    sweptFor.current = user.uid
+    fs.expireMyOldPosts(recipes, user.uid).catch(() => {})
+  }, [user, guest, loadingRecipes, recipes])
 
   // ----- Grocery -----
   useEffect(() => {

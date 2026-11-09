@@ -1,9 +1,18 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.37.0'
+export const APP_VERSION = '1.38.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.38.0',
+    date: '2026-11-08',
+    changes: [
+      'The Friends tab is now Social. On top of finding friends and viewing their pantries, it has a feed of recipes your friends have posted, newest first, with the full photo, who posted it and when.',
+      'Post any of your own recipes to Social from its recipe page. A post leaves the feed by itself after 30 days; the recipe keeps a smaller copy of its photo forever.',
+      'Copy to Pantry from the feed checks your recipes first. If it looks a lot like one you already have, it asks before saving. Copies keep their own photo, even after the original post expires.',
+    ],
+  },
   {
     version: '1.37.0',
     date: '2026-11-06',

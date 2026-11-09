@@ -15,6 +15,9 @@ import { useStandaloneBottomGap } from '../lib/useStandaloneBottomGap.js'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
 import { useGoBack } from '../lib/useGoBack.js'
 import * as fs from '../lib/firestore.js'
+import SafeImage from '../components/SafeImage.jsx'
+import { findLikelyDuplicate, formatPostDate } from '../lib/socialFeed.js'
+import { forkImage } from '../lib/imageSnapshot.js'
 
 // Recipes whose stored category isn't one of CATEGORIES (very old data) still
 // need a home, so they land in this section after the real ones. Matches Pantry.jsx.
@@ -24,7 +27,7 @@ const PREVIEW_COUNT = 4
 
 export default function Friends() {
   const { user, profile, guest } = useAuth()
-  const { pocketRecipe, togglePantry, friends, friendsLoaded } = useData()
+  const { pocketRecipe, togglePantry, friends, friendsLoaded, recipes: myRecipes } = useData()
   const toast = useToast()
   const navigate = useNavigate()
 
@@ -32,6 +35,8 @@ export default function Friends() {
   const [results, setResults] = useState(null)
   const [searching, setSearching] = useState(false)
   const [requests, setRequests] = useState([])
+  // A feed post waiting on "Save anyway" because it looks like one of my recipes.
+  const [dupPrompt, setDupPrompt] = useState(null)
   const goBack = useGoBack()
   // The open friend pantry lives in the URL (?friend=<id>), not component state, so it's
   // a real history step: opening a recipe from a friend's pantry and tapping back lands
@@ -94,6 +99,25 @@ export default function Friends() {
     }
   }
 
+  // Copying from the Social feed: check my library for a likely duplicate first, and
+  // only copy on an explicit "Save anyway". The copy gets its own fork of the photo,
+  // since the author's full-res file is deleted when the post expires.
+  async function copyFeedPost(post) {
+    try {
+      const imageUrl = await forkImage(post.imageUrl, user.uid)
+      const newId = await pocketRecipe({ ...post, imageUrl })
+      await togglePantry(newId)
+      toast('Copied to your Pantry')
+    } catch {
+      toast('Could not copy recipe')
+    }
+  }
+  function handleFeedCopy(post) {
+    const dup = findLikelyDuplicate(post, myRecipes)
+    if (dup) setDupPrompt({ post, existing: dup.recipe })
+    else return copyFeedPost(post)
+  }
+
   const friendIds = new Set(profile?.friendIds || [])
   const [inviteToken, setInviteToken] = useState(null)
   useEffect(() => {
@@ -126,8 +150,8 @@ export default function Friends() {
     <div className="animate-fadein space-y-6">
       <header className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-extrabold">Friends</h1>
-          <p className="text-warm-soft">Find friends and pocket their recipes.</p>
+          <h1 className="text-3xl font-extrabold">Social</h1>
+          <p className="text-warm-soft">See what friends are cooking and copy their recipes.</p>
         </div>
         <button
           onClick={() => navigate('/profile')}
@@ -186,6 +210,8 @@ export default function Friends() {
         </section>
       )}
 
+      <SocialFeed friends={friends} friendsLoaded={friendsLoaded} onCopy={handleFeedCopy} />
+
       {/* Friends list */}
       <section>
         <h2 className="mb-2 text-lg font-extrabold">My Friends</h2>
@@ -206,12 +232,81 @@ export default function Friends() {
         )}
       </section>
 
+      {dupPrompt && (
+        <ConfirmDialog
+          message={`This looks a lot like your "${dupPrompt.existing.title}". Save anyway?`}
+          confirmLabel="Save anyway"
+          onConfirm={() => { const p = dupPrompt.post; setDupPrompt(null); copyFeedPost(p) }}
+          onCancel={() => setDupPrompt(null)}
+        />
+      )}
+
       {viewing && (
         <FriendProfile friend={viewing} onClose={closeFriend} onPocket={handleCopyToPantry}
           me={user} myFriendIds={friendIds} incoming={requests} onRespond={respond}
           onRemove={async () => { await fs.removeFriend(user.uid, viewing.id); closeFriend(); toast('Friend removed') }} />
       )}
     </div>
+  )
+}
+
+// Strava-style feed: friends' posted recipes, newest first. Each post: who, when,
+// the full-res photo, the title (opens the recipe), and Copy to Pantry.
+function SocialFeed({ friends, friendsLoaded, onCopy }) {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [posts, setPosts] = useState(null)
+  const idsKey = friends.map((f) => f.id).sort().join(',')
+  useEffect(() => {
+    if (!friendsLoaded) return
+    let alive = true
+    fs.getFeedPosts(idsKey ? idsKey.split(',') : [])
+      .then((list) => { if (alive) setPosts(list) })
+      .catch(() => { if (alive) setPosts([]) })
+    return () => { alive = false }
+  }, [idsKey, friendsLoaded])
+  const byId = new Map(friends.map((f) => [f.id, f]))
+  // No friends yet has its own empty state in My Friends below; don't double up.
+  if (friendsLoaded && friends.length === 0) return null
+  const openRecipe = (id) => navigate(`/recipe/${id}`, { state: { from: location.pathname } })
+
+  return (
+    <section>
+      <h2 className="mb-2 text-lg font-extrabold">Feed</h2>
+      {posts == null ? (
+        <ListSkeleton count={2} action={false} />
+      ) : posts.length === 0 ? (
+        <p className="text-sm text-warm-soft">None of your friends have posted a recipe yet.</p>
+      ) : (
+        <div className="space-y-4">
+          {posts.map((p) => {
+            const author = byId.get(p.authorId) || { displayName: p.authorName }
+            return (
+              <article key={p.id} data-post={p.id} className="card overflow-hidden">
+                <div className="flex items-center gap-3 p-3">
+                  <Avatar user={author} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-bold">{author.displayName}</p>
+                    <p className="text-xs text-warm-soft">{formatPostDate(p.postedAt)}</p>
+                  </div>
+                </div>
+                {p.imageUrl && (
+                  <button onClick={() => openRecipe(p.id)} className="block w-full" aria-label={`Open ${p.title}`}>
+                    <SafeImage src={p.imageUrl} alt={p.title} className="aspect-[4/3] w-full object-cover" fallback={null} />
+                  </button>
+                )}
+                <div className="flex items-center gap-3 p-3">
+                  <button onClick={() => openRecipe(p.id)} className="min-w-0 flex-1 text-left text-lg font-extrabold leading-tight hover:underline">
+                    {p.title}
+                  </button>
+                  <button className="btn-peach shrink-0 px-3 py-2 text-sm" onClick={() => onCopy(p)}>Copy to Pantry</button>
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      )}
+    </section>
   )
 }
 
