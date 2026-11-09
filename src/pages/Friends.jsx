@@ -35,6 +35,11 @@ export default function Friends() {
   const [results, setResults] = useState(null)
   const [searching, setSearching] = useState(false)
   const [requests, setRequests] = useState([])
+  // People I've asked (live) plus ones asked this visit, so a search result never offers
+  // Add twice; `busy` holds the ids whose own tap is still in flight.
+  const [outgoing, setOutgoing] = useState([])
+  const [sent, setSent] = useState(() => new Set())
+  const [busy, setBusy] = useState(() => new Set())
   // A feed post's recipe waiting on "Save anyway" because it looks like one of mine.
   const [dupPrompt, setDupPrompt] = useState(null)
   const goBack = useGoBack()
@@ -48,6 +53,10 @@ export default function Friends() {
   useEffect(() => {
     if (!user) return
     return fs.listenIncomingRequests(user.uid, setRequests)
+  }, [user])
+  useEffect(() => {
+    if (!user) return
+    return fs.listenOutgoingRequests(user.uid, setOutgoing)
   }, [user])
 
   // Search as you type: look up a short beat after the last keystroke, so a name typed
@@ -79,14 +88,32 @@ export default function Friends() {
     return <Gate />
   }
 
+  const markBusy = (id, on) => setBusy((b) => { const n = new Set(b); if (on) n.add(id); else n.delete(id); return n })
+
   async function addFriend(u) {
-    await fs.sendFriendRequest(user, u.id)
-    toast('Friend request sent')
+    if (busy.has(u.id)) return
+    markBusy(u.id, true)
+    try {
+      const result = await fs.sendFriendRequest(user, u.id)
+      setSent((s) => new Set(s).add(u.id))
+      toast(result === 'friends' ? `You and ${u.displayName} are now friends`
+        : result === 'pending' ? 'Already requested' : 'Friend request sent')
+    } catch {
+      toast('Could not send request')
+    } finally {
+      markBusy(u.id, false)
+    }
   }
 
   async function respond(req, accept) {
-    await fs.respondToRequest(req, accept, user.uid)
-    toast(accept ? `You and ${req.fromDisplayName} are now friends` : 'Request declined')
+    if (busy.has(req.fromUserId)) return
+    markBusy(req.fromUserId, true)
+    try {
+      await fs.respondToRequest(req, accept, user.uid)
+      toast(accept ? `You and ${req.fromDisplayName} are now friends` : 'Request declined')
+    } finally {
+      markBusy(req.fromUserId, false)
+    }
   }
 
   async function handleCopyToPantry(recipe) {
@@ -184,8 +211,10 @@ export default function Friends() {
               <span className="flex-1 font-bold">{u.displayName}</span>
               {friendIds.has(u.id) ? (
                 <span className="inline-flex items-center gap-1 text-sm font-bold text-warm-soft">Friends <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" /></span>
+              ) : outgoing.includes(u.id) || sent.has(u.id) ? (
+                <span className="text-sm font-bold text-warm-soft">Requested</span>
               ) : (
-                <button className="btn-ghost py-2 text-sm" onClick={() => addFriend(u)}>Add</button>
+                <button className="btn-ghost py-2 text-sm" disabled={busy.has(u.id)} onClick={() => addFriend(u)}>Add</button>
               )}
             </div>
           ))}
@@ -200,8 +229,8 @@ export default function Friends() {
             {requests.map((r) => (
               <div key={r.id} className="card flex items-center gap-3 p-3">
                 <span className="flex-1 font-bold">{r.fromDisplayName}</span>
-                <button className="btn-peach py-2 text-sm" onClick={() => respond(r, true)}>Accept</button>
-                <button className="btn-ghost py-2 text-sm" onClick={() => respond(r, false)}>Decline</button>
+                <button className="btn-peach py-2 text-sm" disabled={busy.has(r.fromUserId)} onClick={() => respond(r, true)}>Accept</button>
+                <button className="btn-ghost py-2 text-sm" disabled={busy.has(r.fromUserId)} onClick={() => respond(r, false)}>Decline</button>
               </div>
             ))}
           </div>
@@ -573,8 +602,9 @@ function FriendsOfFriend({ friend, me, myFriendIds, incoming, onRespond }) {
     if (waitingOnThem.has(u.id)) return
     setSent((s) => new Set(s).add(u.id))
     try {
-      await fs.sendFriendRequest(me, u.id)
-      toast('Friend request sent')
+      const result = await fs.sendFriendRequest(me, u.id)
+      toast(result === 'friends' ? `You and ${u.displayName} are now friends`
+        : result === 'pending' ? 'Already requested' : 'Friend request sent')
     } catch {
       setSent((s) => { const n = new Set(s); n.delete(u.id); return n })
       toast('Could not send request')

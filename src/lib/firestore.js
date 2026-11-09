@@ -20,6 +20,7 @@ import { db } from '../firebase.js'
 import { sampleRecipes } from '../data/sampleRecipes.js'
 import { liveFeedPosts, planPostExpiry } from './socialFeed.js'
 import { deleteOwnImage } from './imageSnapshot.js'
+import { dedupeIncoming, planFriendRequest, requestDocId } from './friendRequests.js'
 
 const recipesCol = collection(db, 'recipes')
 const postsCol = collection(db, 'posts')
@@ -196,27 +197,69 @@ export async function searchUsers(term, excludeUid) {
     .filter((u) => u.id !== excludeUid)
 }
 
+// Every request doc between me and them, both directions. Two equality filters on
+// participants is what the read rule can prove, so no status filter here.
+async function requestsBetween(myUid, otherUid) {
+  const [mine, theirs] = await Promise.all([
+    getDocs(query(requestsCol, where('fromUserId', '==', myUid), where('toUserId', '==', otherUid))),
+    getDocs(query(requestsCol, where('fromUserId', '==', otherUid), where('toUserId', '==', myUid))),
+  ])
+  const list = (snap) => snap.docs.map((d) => ({ id: d.id, ref: d.ref, ...d.data() }))
+  return { mine: list(mine), theirs: list(theirs) }
+}
+
+// Write a request at the pair's fixed id. If one is already there the rules refuse the
+// sender an update; that is the "already sent" case (two taps racing), not an error.
+async function createRequest(fromUser, toUserId, extra) {
+  try {
+    await setDoc(doc(db, 'friendRequests', requestDocId(fromUser.uid, toUserId)), {
+      fromUserId: fromUser.uid,
+      fromDisplayName: fromUser.displayName || 'Someone',
+      toUserId,
+      createdAt: serverTimestamp(),
+      ...extra,
+    })
+    return true
+  } catch (e) {
+    if (e?.code === 'permission-denied') return false
+    throw e
+  }
+}
+
+// Ask someone to be friends, unless something between us already settles it: they
+// already asked me (accept theirs), we're already friends, or I already asked.
+// Returns 'sent' | 'pending' | 'friends'.
 export async function sendFriendRequest(fromUser, toUserId) {
-  await addDoc(requestsCol, {
-    fromUserId: fromUser.uid,
-    fromDisplayName: fromUser.displayName || 'Someone',
-    toUserId,
-    status: 'pending',
-    createdAt: serverTimestamp(),
-  })
+  const { mine, theirs } = await requestsBetween(fromUser.uid, toUserId)
+  const plan = planFriendRequest(mine, theirs)
+  if (plan === 'friends') {
+    await updateDoc(doc(db, 'users', fromUser.uid), { friendIds: arrayUnion(toUserId) })
+    return 'friends'
+  }
+  if (plan === 'accept') {
+    const pending = theirs.filter((r) => r.status === 'pending')
+    await respondToRequest({ ...pending[0], ids: pending.map((r) => r.id) }, true, fromUser.uid)
+    return 'friends'
+  }
+  if (plan === 'pending') return 'pending'
+  // Clear my old declined ones first so the fixed id is free to create on.
+  await Promise.all(mine.map((r) => deleteDoc(r.ref)))
+  return (await createRequest(fromUser, toUserId, { status: 'pending' })) ? 'sent' : 'pending'
 }
 
 // Incoming pending requests for me.
 export function listenIncomingRequests(uid, cb) {
   const q = query(requestsCol, where('toUserId', '==', uid), where('status', '==', 'pending'))
-  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+  return onSnapshot(q, (snap) => cb(dedupeIncoming(snap.docs.map((d) => ({ id: d.id, ...d.data() })))),
     () => cb([]))
 }
 
+// A row can stand for several duplicate docs from the same sender (request.ids); answer
+// them all so a leftover copy doesn't pop the row straight back.
 export async function respondToRequest(request, accept, myUid) {
-  await updateDoc(doc(db, 'friendRequests', request.id), {
-    status: accept ? 'accepted' : 'declined',
-  })
+  const status = accept ? 'accepted' : 'declined'
+  await Promise.all((request.ids || [request.id]).map((id) =>
+    updateDoc(doc(db, 'friendRequests', id), { status })))
   // Friendship is mutual and each side writes only its own list (see firestore.rules).
   // The recipient adds the sender here; the sender's client adds the recipient when it
   // sees the accepted request (syncAcceptedRequests).
@@ -273,20 +316,21 @@ export async function getOrCreateInviteToken(uid) {
 // back to a normal request they must accept.
 export async function acceptInvite(me, inviterId, token) {
   if (!me?.uid || !inviterId || me.uid === inviterId) return 'self'
-  if (!token) {
-    const existing = await getDocs(query(requestsCol,
-      where('fromUserId', '==', me.uid), where('toUserId', '==', inviterId), where('status', '==', 'pending')))
-    if (existing.empty) await sendFriendRequest(me, inviterId)
-    return 'requested'
+  if (!token) return (await sendFriendRequest(me, inviterId)) === 'friends' ? 'friends' : 'requested'
+  const { mine, theirs } = await requestsBetween(me.uid, inviterId)
+  const plan = planFriendRequest(mine, theirs)
+  if (plan === 'accept') return (await sendFriendRequest(me, inviterId)) === 'friends' ? 'friends' : 'requested'
+  if (plan !== 'friends') {
+    // My own pending/declined ones give way to the pre-accepted one at the same id.
+    await Promise.all(mine.map((r) => deleteDoc(r.ref)))
+    const created = await createRequest(me, inviterId, { status: 'accepted', inviteToken: token })
+    if (!created) {
+      // Refused: either the link was opened twice at once (the other open wrote it) or
+      // the token is wrong. Only the first is fine.
+      const again = await requestsBetween(me.uid, inviterId)
+      if (planFriendRequest(again.mine, again.theirs) !== 'friends') throw new Error('invite refused')
+    }
   }
-  await addDoc(requestsCol, {
-    fromUserId: me.uid,
-    fromDisplayName: me.displayName || 'Someone',
-    toUserId: inviterId,
-    status: 'accepted',
-    inviteToken: token,
-    createdAt: serverTimestamp(),
-  })
   await updateDoc(doc(db, 'users', me.uid), { friendIds: arrayUnion(inviterId) })
   return 'friends'
 }

@@ -1,9 +1,19 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.39.0'
+export const APP_VERSION = '1.39.1'
 
 export const CHANGELOG = [
+  {
+    version: '1.39.1',
+    date: '2026-11-09',
+    changes: [
+      'Friend requests no longer double up. Sending again to someone you already asked, opening the same invite link twice, or tapping Add twice now leaves just one request.',
+      'Search results show Requested once you\'ve asked someone, instead of offering Add again.',
+      'If someone already asked you, tapping Add on them accepts their request instead of sending a second one back.',
+      'Any older duplicate requests show as one row, and the Social badge counts each person once.',
+    ],
+  },
   {
     version: '1.39.0',
     date: '2026-11-08',

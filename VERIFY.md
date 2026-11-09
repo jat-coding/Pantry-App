@@ -22,6 +22,11 @@ How to check work on this project for real.
   logic in `src/lib/scaling.js` and the JSX-import checker itself
   (`tests/check-jsx-imports.test.js`, added 2026-10-20), and the step -> ingredient link
   re-pointing in `src/lib/stepLinks.js` (`tests/stepLinks.test.js`, added 2026-10-21).
+  `tests/friendRequests.test.js` (added 2026-11-09) covers the friend-request dedup rules in
+  `src/lib/friendRequests.js`. `tests/emulator/friend-requests.sh` (NOT part of `npm test`;
+  needs Java, pulls firebase-tools via npx) runs the real `src/lib/firestore.js` friend
+  functions against the real `firestore.rules` in the Firestore emulator: repeat send,
+  concurrent double tap, invite link opened twice, reverse-direction add, legacy duplicates.
   Nothing else has test coverage —
   don't claim it does; a task card's "Done when" checks are the verification for everything
   else.
