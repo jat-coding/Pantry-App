@@ -165,7 +165,7 @@ None — every prior open question above was resolved by a tap answer. The lazy-
 expiry choice and the exact confirm-dialog copy are implementation details the build
 should make and report, not block on.
 
-## Result (2026-11-08, v1.38.0, local commit on main, NOT pushed)
+## Result (2026-11-08, v1.38.0, pushed live together with v1.38.1 below)
 
 - PASS build / jsx-imports / tests: `npm run build` clean (no warnings), `check-jsx-imports` exit 0, `npm test` 36/36 (8 new in `tests/socialFeed.test.js`).
 - PASS posted recipe full-res in feed, non-posting friend absent: browser click-through
@@ -186,3 +186,33 @@ cover it); expiry runs on the AUTHOR's app (rules only let the author edit/delet
 hides >30-day posts for every viewer by date regardless; title match and "same post already copied"
 also trigger the dialog (tap answer 6). No rules changes needed. Fresh-context review subagent was
 blocked by a hook on this run; self-review only.
+
+## Follow-up (2026-11-08, v1.38.1) -- old-style copies keep the big photo; PUSHED + LIVE
+
+His tap answers on the result report: "Push Social tab live?" -> Yes, push it. "Old-style copies
+share the poster's photo, fix?" -> Keep the big photo when it's been copied.
+
+- Fix: before the expiry sweep repoints/deletes a full-res file, `findCopiedUrls` (firestore.js)
+  queries each of the author's current friends for recipes with `pocketedFromId == author` whose
+  `imageUrl` is that file (authorId equality, same shape as getFriendRecipes, so existing rules
+  and single-field indexes cover it). Any hit -> `planExpiry(..., keepUrls)` only unflags the post:
+  no repoint, no delete, the file stays forever. A friend read failing with anything other than
+  permission-denied (a stale, no-longer-mutual friend) aborts the whole sweep with nothing written,
+  so the next load retries instead of deleting on a guess. DataContext waits for the profile so
+  the friend list is never empty by accident.
+- PASS build / jsx-imports / tests: build clean, check-jsx-imports exit 0, npm test 37/37.
+- PASS new unit case: copy found -> `{ postedToFeed: false }`, deleteUrl null; and in the same test
+  the no-copy recipe still gets repoint + delete; the original planExpiry case passes unchanged.
+- PASS integration (real firestore.js, fake Firestore module, throwaway harness): friend copy of
+  file E -> E kept, A repointed + deleted; no copies -> both repointed + deleted (original
+  behavior); stale friend permission-denied ignored; offline friend read -> zero writes.
+- PASS original Done-when re-check: `artifacts/pantry-social-feed/feed-check.mjs` re-run against
+  v1.38.1, same results as v1.38.0, no page errors.
+- PASS push gate (build, tests, clean-checkout smoke, Fable diff review). Smoke flow updated to
+  click "Social" (it clicked the old "Friends" label). 3 smoke steps fail on the v1.37.0 base too
+  (pre-existing, not from this push).
+- LIVE: pushed f2ee53a..0ee7f1b (v1.38.0 feature + task card + v1.38.1 fix); the bundle served by
+  pantry-app-nu-nine.vercel.app contains "1.38.1", the new changelog line, "Post to Social" and
+  the pocketedFromId check.
+- Known, accepted: a copy held by someone who has since unfriended the author is not protected
+  (brief: out of scope). Reviewer note: HelpModal still calls the tab "Friends" (cosmetic).
