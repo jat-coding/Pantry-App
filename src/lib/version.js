@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.39.1'
+export const APP_VERSION = '1.39.2'
 
 export const CHANGELOG = [
+  {
+    version: '1.39.2',
+    date: '2026-11-13',
+    changes: [
+      'Slimmer page tops: removed the small description line under the titles on My Pantry, Grocery List and Social.',
+    ],
+  },
   {
     version: '1.39.1',
     date: '2026-11-09',

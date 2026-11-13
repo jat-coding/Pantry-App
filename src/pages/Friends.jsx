@@ -174,10 +174,9 @@ export default function Friends() {
 
   return (
     <div className="animate-fadein space-y-6">
-      <header className="flex items-start justify-between gap-3">
+      <header className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-extrabold">Social</h1>
-          <p className="text-warm-soft">See what friends are cooking and copy their recipes.</p>
         </div>
         <button
           onClick={() => navigate('/profile')}

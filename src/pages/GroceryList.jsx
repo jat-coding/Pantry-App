@@ -51,7 +51,6 @@ export default function GroceryList() {
     <div className="animate-fadein space-y-5">
       <header>
         <h1 className="text-3xl font-extrabold">Grocery List</h1>
-        <p className="text-warm-soft">Everything you need for your next cook.</p>
       </header>
 
       <div className="flex rounded-2xl bg-white p-1">

@@ -110,10 +110,9 @@ export default function Pantry() {
 
   return (
     <div className="animate-fadein space-y-5">
-      <header className="flex items-start justify-between gap-3">
+      <header className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-extrabold">My Pantry</h1>
-          <p className="text-warm-soft">Every recipe you have, with the ones you love up top.</p>
         </div>
         <button
           onClick={() => setShowHelp(true)}
