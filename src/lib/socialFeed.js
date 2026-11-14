@@ -3,7 +3,9 @@
 // screen is Friends.jsx (feed + Post composer).
 //
 // A post is its own doc in the top-level `posts` collection:
-//   { authorId, authorName, recipeId, recipeTitle, imageUrl, postedAt }
+//   { authorId, authorName, recipeId, recipeTitle, imageUrl, caption, postedAt }
+// `caption` is the optional text the poster typed (v1.39.3); posts made before it
+// existed have no `caption` field and render with no caption block.
 // `imageUrl` is the photo taken/picked at post time and belongs only to the post; the
 // linked recipe's own photo is never touched. One recipe can have many posts.
 
@@ -148,4 +150,20 @@ export function matchesRecipeSearch(recipe, term) {
   if (!words.length) return true
   const title = String(recipe?.title || '').toLowerCase()
   return words.every((w) => title.includes(w))
+}
+
+// ---------- Caption (Post composer) ----------
+
+export const CAPTION_MAX = 500
+
+// What gets stored: trimmed, at most one blank line in a row, capped at CAPTION_MAX.
+// Blank (or missing, on old posts) = no caption.
+export function normalizeCaption(text) {
+  return String(text ?? '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .slice(0, CAPTION_MAX)
+    .trim()
 }

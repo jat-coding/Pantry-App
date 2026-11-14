@@ -331,24 +331,32 @@ function SocialFeed({ me, myProfile, friends, friendsLoaded, onCopy }) {
             const mine = p.authorId === me.uid
             return (
               <article key={p.id} data-post={p.id} className="card overflow-hidden">
-                <div className="flex items-center gap-3 p-3">
+                {/* Header: who posted, then the recipe it links (opens the recipe) and
+                    when. Below the photo is only the poster's caption, if any. */}
+                <div className="flex items-start gap-3 p-3">
                   <Avatar user={author} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-bold">{mine ? 'You' : author.displayName}</p>
-                    <p className="text-xs text-warm-soft">{formatPostDate(p.postedAt)}</p>
+                    <p className="flex items-baseline gap-1.5">
+                      <span className="truncate font-bold">{mine ? 'You' : author.displayName}</span>
+                      <span className="shrink-0 text-xs text-warm-soft">{formatPostDate(p.postedAt)}</span>
+                    </p>
+                    <button onClick={() => openRecipe(p.recipeId)} data-post-recipe
+                      className="line-clamp-2 text-left text-sm font-bold leading-snug text-cta-dark hover:underline">
+                      {p.recipeTitle}
+                    </button>
                   </div>
+                  {!mine && <button className="btn-peach shrink-0 px-3 py-1.5 text-sm" aria-label="Copy to Pantry" onClick={() => onCopy(p)}>Copy</button>}
                 </div>
                 {p.imageUrl && (
                   <button onClick={() => openRecipe(p.recipeId)} className="block w-full" aria-label={`Open ${p.recipeTitle}`}>
                     <SafeImage src={p.imageUrl} alt={p.recipeTitle} className="aspect-[4/3] w-full object-cover" fallback={null} />
                   </button>
                 )}
-                <div className="flex items-center gap-3 p-3">
-                  <button onClick={() => openRecipe(p.recipeId)} className="min-w-0 flex-1 text-left text-lg font-extrabold leading-tight hover:underline">
-                    {p.recipeTitle}
-                  </button>
-                  {!mine && <button className="btn-peach shrink-0 px-3 py-2 text-sm" onClick={() => onCopy(p)}>Copy to Pantry</button>}
-                </div>
+                {p.caption?.trim() && (
+                  <p data-post-caption className="whitespace-pre-line break-words px-3 py-3 text-[15px] leading-snug text-warm">
+                    {p.caption.trim()}
+                  </p>
+                )}
               </article>
             )
           })}

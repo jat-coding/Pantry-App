@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   FEED_TTL_DAYS, isPostExpired, liveFeedPosts, formatPostDate, normalizeIngredientName,
-  findLikelyDuplicate, planPostExpiry, matchesRecipeSearch,
+  findLikelyDuplicate, planPostExpiry, matchesRecipeSearch, normalizeCaption, CAPTION_MAX,
 } from '../src/lib/socialFeed.js'
 
 const NOW = Date.UTC(2026, 10, 8, 18, 0)
@@ -113,4 +113,13 @@ test('recipe picker search: every word, case-insensitive, blank = all', () => {
   assert.equal(matchesRecipeSearch(r, 'CHILI smoky'), true)
   assert.equal(matchesRecipeSearch(r, 'chili beans'), false)
   assert.equal(matchesRecipeSearch({}, 'x'), false)
+})
+
+test('caption: trimmed, blank is empty, old posts (no field) are empty, capped', () => {
+  assert.equal(normalizeCaption('  Made this for Sunday dinner  '), 'Made this for Sunday dinner')
+  assert.equal(normalizeCaption('   \n\t '), '')
+  assert.equal(normalizeCaption(undefined), '')
+  assert.equal(normalizeCaption(null), '')
+  assert.equal(normalizeCaption('line one\r\n\r\n\r\n\r\nline two'), 'line one\n\nline two')
+  assert.equal(normalizeCaption('x'.repeat(CAPTION_MAX + 50)).length, CAPTION_MAX)
 })

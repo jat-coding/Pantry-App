@@ -1,9 +1,18 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.39.2'
+export const APP_VERSION = '1.39.3'
 
 export const CHANGELOG = [
+  {
+    version: '1.39.3',
+    date: '2026-11-14',
+    changes: [
+      'Social posts now show the recipe name up top, next to who posted it and when. Tap it to open the recipe.',
+      'New Caption box when posting: say something about what you made (optional). It shows under the photo on the feed.',
+      'Copy to Pantry on a friend\'s post moved up to the top of the post as a smaller Copy button.',
+    ],
+  },
   {
     version: '1.39.2',
     date: '2026-11-13',

@@ -18,7 +18,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase.js'
 import { sampleRecipes } from '../data/sampleRecipes.js'
-import { liveFeedPosts, planPostExpiry } from './socialFeed.js'
+import { liveFeedPosts, normalizeCaption, planPostExpiry } from './socialFeed.js'
 import { deleteOwnImage } from './imageSnapshot.js'
 import { dedupeIncoming, planFriendRequest, requestDocId } from './friendRequests.js'
 
@@ -392,14 +392,16 @@ export function prefetchFriendRecipes(ids = []) {
 // the recipe): its own photo, a link to one of my recipes, and a timestamp. The same
 // recipe can be posted any number of times; each post is a separate feed entry.
 
-// `imageUrl` is the post's own photo, already uploaded by the composer.
-export async function createPost({ recipe, imageUrl }, user, authorName) {
+// `imageUrl` is the post's own photo, already uploaded by the composer. `caption` is
+// the poster's optional text; blank is stored as '' and renders as no caption.
+export async function createPost({ recipe, imageUrl, caption }, user, authorName) {
   const ref = await addDoc(postsCol, {
     authorId: user.uid,
     authorName: authorName || user.displayName || 'Me',
     recipeId: recipe.id,
     recipeTitle: recipe.title || 'Untitled',
     imageUrl: imageUrl || '',
+    caption: normalizeCaption(caption),
     postedAt: serverTimestamp(),
   })
   return ref.id

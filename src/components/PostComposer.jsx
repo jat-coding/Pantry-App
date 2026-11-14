@@ -7,7 +7,7 @@ import { useToast } from './Toast.jsx'
 import SafeImage from './SafeImage.jsx'
 import { CameraIcon, CategoryIcon } from './icons.jsx'
 import { CATEGORIES, primaryCategory } from '../lib/categories.js'
-import { matchesRecipeSearch } from '../lib/socialFeed.js'
+import { CAPTION_MAX, matchesRecipeSearch } from '../lib/socialFeed.js'
 import { uploadImage } from '../lib/storage.js'
 import { useScrollLock } from '../lib/useScrollLock.js'
 import { useStandaloneBottomGap } from '../lib/useStandaloneBottomGap.js'
@@ -16,8 +16,10 @@ import * as fs from '../lib/firestore.js'
 // Recipes whose stored category isn't one of CATEGORIES land here. Matches Pantry.jsx.
 const OTHER = 'Other'
 
-// The Post button's second step: the photo is already picked (Friends.jsx), now link
-// one of my own recipes to it and post. The photo is uploaded only on Post, into my
+// The Post button's second step: the photo is already picked (Friends.jsx). Exactly
+// three inputs (his spec, v1.39.3): the photo, an optional caption, and one of my own
+// recipes to link. The caption box sits right under the photo, where it shows on the
+// feed card; the recipe list is last because it is long. The photo is uploaded only on Post, into my
 // own Storage folder, and belongs to the post alone -- the recipe's own photo is never
 // touched (his tap answer).
 export default function PostComposer({ file, onChangeFile, onClose, onPosted }) {
@@ -45,6 +47,7 @@ export default function PostComposer({ file, onChangeFile, onClose, onPosted }) 
 
   const [selectedId, setSelectedId] = useState(null)
   const [posting, setPosting] = useState(false)
+  const [caption, setCaption] = useState('')
   const selected = recipes.find((r) => r.id === selectedId) || null
 
   // One section per category, in CATEGORIES order (same grouping as My Pantry), each
@@ -70,7 +73,7 @@ export default function PostComposer({ file, onChangeFile, onClose, onPosted }) 
     setPosting(true)
     try {
       const imageUrl = await uploadImage(file, `recipes/${user.uid}/posts`)
-      await fs.createPost({ recipe: selected, imageUrl }, user, profile?.displayName)
+      await fs.createPost({ recipe: selected, imageUrl, caption }, user, profile?.displayName)
       toast('Posted to your feed')
       onPosted()
     } catch {
@@ -105,7 +108,17 @@ export default function PostComposer({ file, onChangeFile, onClose, onPosted }) 
         </div>
 
         <div>
-          <h2 className="mb-2 text-lg font-extrabold">Link a recipe</h2>
+          <label htmlFor="post-caption" className="mb-2 flex items-baseline justify-between gap-2">
+            <span className="text-lg font-extrabold">Caption</span>
+            <span className="text-xs font-bold text-warm-soft">Optional</span>
+          </label>
+          <textarea id="post-caption" className="input min-h-[5.5rem] resize-none leading-snug" rows={3}
+            placeholder="Say something about what you made…" maxLength={CAPTION_MAX}
+            value={caption} onChange={(e) => setCaption(e.target.value)} disabled={posting} />
+        </div>
+
+        <div>
+          <h2 className="mb-2 text-lg font-extrabold">Recipe</h2>
           {selected && (
             <p className="mb-2 text-sm text-warm-soft">Selected: <span className="font-bold text-warm">{selected.title}</span></p>
           )}
