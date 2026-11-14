@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronLeft, Link2, Menu, RefreshCw, Share, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronLeft, Link2, Menu, RefreshCw, Share, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
@@ -33,6 +33,20 @@ export default function Friends() {
   const navigate = useNavigate()
 
   const [term, setTerm] = useState('')
+  // My Friends is collapsible so the Feed leads the page. Collapsed by default; the
+  // choice is remembered on this device. No stored choice and no friends yet: open, so a
+  // new user still sees the search box.
+  const [friendsOpenPref, setFriendsOpenPref] = useState(() => {
+    const v = localStorage.getItem(FRIENDS_OPEN_KEY)
+    return v === null ? null : v === '1'
+  })
+  // A search in progress always keeps it open; collapsing clears the search.
+  const friendsOpen = term.trim() !== '' || (friendsOpenPref ?? (friendsLoaded && friends.length === 0))
+  const setFriendsOpen = (open) => {
+    if (!open) setTerm('')
+    setFriendsOpenPref(open)
+    localStorage.setItem(FRIENDS_OPEN_KEY, open ? '1' : '0')
+  }
   const [results, setResults] = useState(null)
   const [searching, setSearching] = useState(false)
   const [requests, setRequests] = useState([])
@@ -189,32 +203,6 @@ export default function Friends() {
         </button>
       </header>
 
-      {/* Search */}
-      <input className="input" placeholder="Search by display name…" value={term}
-        onChange={(e) => setTerm(e.target.value)} />
-      {/* Skeleton only until the first results land; after that the last list stays up
-          while the next lookup runs, so it doesn't blink on every pause in typing. */}
-      {searching && !results ? (
-        <ListSkeleton count={3} />
-      ) : results && (
-        <div className="space-y-2">
-          {results.length === 0 && <p className="text-sm text-warm-soft">No users found.</p>}
-          {results.map((u) => (
-            <div key={u.id} className="card flex items-center gap-3 p-3">
-              <Avatar user={u} />
-              <span className="flex-1 font-bold">{u.displayName}</span>
-              {friendIds.has(u.id) ? (
-                <span className="inline-flex items-center gap-1 text-sm font-bold text-warm-soft">Friends <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" /></span>
-              ) : outgoing.includes(u.id) || sent.has(u.id) ? (
-                <span className="text-sm font-bold text-warm-soft">Requested</span>
-              ) : (
-                <button className="btn-ghost py-2 text-sm" disabled={busy.has(u.id)} onClick={() => addFriend(u)}>Add</button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Incoming requests */}
       {requests.length > 0 && (
         <section>
@@ -233,25 +221,59 @@ export default function Friends() {
 
       <SocialFeed me={user} myProfile={profile} friends={friends} friendsLoaded={friendsLoaded} onCopy={handleFeedCopy} myRecipes={myRecipes} />
 
-      {/* Friends list */}
+      {/* Friends list: collapsible. The title row toggles it; the plus sits outside the
+          toggle so inviting never opens or closes the section. Search lives inside. */}
       <section>
-        <div className="mb-2 flex items-center gap-2">
-          <h2 className="flex-1 text-lg font-extrabold">My Friends</h2>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setFriendsOpen(!friendsOpen)} aria-expanded={friendsOpen} aria-controls="my-friends-body"
+            className="flex flex-1 items-center gap-1.5 py-1 text-left">
+            <h2 className="text-lg font-extrabold">My Friends</h2>
+            {friends.length > 0 && <span className="text-sm font-bold text-warm-soft">{friends.length}</span>}
+            <ChevronDown className={`h-5 w-5 text-warm-soft transition-transform ${friendsOpen ? 'rotate-180' : ''}`} strokeWidth={2.4} aria-hidden="true" />
+          </button>
           <InviteMenu onShare={shareInvite} onCopy={copyInvite} />
         </div>
-        {friends.length === 0 && !friendsLoaded ? (
-          <ListSkeleton count={2} action={false} />
-        ) : friends.length === 0 ? (
-          <p className="text-sm text-warm-soft">No friends yet — search above to connect.</p>
-        ) : (
-          <div className="space-y-2">
-            {friends.map((f) => (
-              <div key={f.id} className="card flex items-center gap-3 p-3">
-                <Avatar user={f} />
-                <span className="flex-1 font-bold">{f.displayName}</span>
-                <button className="btn-ghost py-2 text-sm" onClick={() => openFriend(f)}>View Pantry</button>
+        {friendsOpen && (
+          <div id="my-friends-body" className="mt-2 space-y-3 animate-fadein">
+            <input className="input" placeholder="Search by display name…" value={term}
+              onChange={(e) => setTerm(e.target.value)} />
+            {/* Skeleton only until the first results land; after that the last list stays up
+                while the next lookup runs, so it doesn't blink on every pause in typing. */}
+            {searching && !results ? (
+              <ListSkeleton count={3} />
+            ) : results && (
+              <div className="space-y-2">
+                {results.length === 0 && <p className="text-sm text-warm-soft">No users found.</p>}
+                {results.map((u) => (
+                  <div key={u.id} className="card flex items-center gap-3 p-3">
+                    <Avatar user={u} />
+                    <span className="flex-1 font-bold">{u.displayName}</span>
+                    {friendIds.has(u.id) ? (
+                      <span className="inline-flex items-center gap-1 text-sm font-bold text-warm-soft">Friends <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" /></span>
+                    ) : outgoing.includes(u.id) || sent.has(u.id) ? (
+                      <span className="text-sm font-bold text-warm-soft">Requested</span>
+                    ) : (
+                      <button className="btn-ghost py-2 text-sm" disabled={busy.has(u.id)} onClick={() => addFriend(u)}>Add</button>
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
+            {friends.length === 0 && !friendsLoaded ? (
+              <ListSkeleton count={2} action={false} />
+            ) : friends.length === 0 ? (
+              <p className="text-sm text-warm-soft">No friends yet. Search by name to connect.</p>
+            ) : (
+              <div className="space-y-2">
+                {friends.map((f) => (
+                  <div key={f.id} className="card flex items-center gap-3 p-3">
+                    <Avatar user={f} />
+                    <span className="flex-1 font-bold">{f.displayName}</span>
+                    <button className="btn-ghost py-2 text-sm" onClick={() => openFriend(f)}>View Pantry</button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </section>
@@ -273,6 +295,8 @@ export default function Friends() {
     </div>
   )
 }
+
+const FRIENDS_OPEN_KEY = 'pantry-friends-open'
 
 // Round plus at the right of the My Friends title (same look as the Feed row's refresh
 // button). Opens a small menu with the two invite actions; closes on an outside tap,
