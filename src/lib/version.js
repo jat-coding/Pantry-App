@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.39.6'
+export const APP_VERSION = '1.39.7'
 
 export const CHANGELOG = [
+  {
+    version: '1.39.7',
+    date: '2026-11-14',
+    changes: [
+      'Social: My Friends moved back above the Feed. It still starts folded up: tap the title or arrow to open it. The plus button and search by name are right under the title as before.',
+    ],
+  },
   {
     version: '1.39.6',
     date: '2026-11-14',

@@ -33,7 +33,7 @@ export default function Friends() {
   const navigate = useNavigate()
 
   const [term, setTerm] = useState('')
-  // My Friends is collapsible so the Feed leads the page. Collapsed by default; the
+  // My Friends sits above the Feed, collapsible so it stays one line. Collapsed by default; the
   // choice is remembered on this device. No stored choice and no friends yet: open, so a
   // new user still sees the search box.
   const [friendsOpenPref, setFriendsOpenPref] = useState(() => {
@@ -219,10 +219,9 @@ export default function Friends() {
         </section>
       )}
 
-      <SocialFeed me={user} myProfile={profile} friends={friends} friendsLoaded={friendsLoaded} onCopy={handleFeedCopy} myRecipes={myRecipes} />
-
-      {/* Friends list: collapsible. The title row toggles it; the plus sits outside the
-          toggle so inviting never opens or closes the section. Search lives inside. */}
+      {/* Friends list: sits above the Feed, collapsed by default so the Feed still shows
+          near the top. The title row toggles it; the plus sits outside the toggle so
+          inviting never opens or closes the section. Search lives inside. */}
       <section>
         <div className="flex items-center gap-2">
           <button onClick={() => setFriendsOpen(!friendsOpen)} aria-expanded={friendsOpen} aria-controls="my-friends-body"
@@ -277,6 +276,8 @@ export default function Friends() {
           </div>
         )}
       </section>
+
+      <SocialFeed me={user} myProfile={profile} friends={friends} friendsLoaded={friendsLoaded} onCopy={handleFeedCopy} myRecipes={myRecipes} />
 
       {dupPrompt && (
         <ConfirmDialog
