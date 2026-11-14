@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronLeft, Menu, RefreshCw, X } from 'lucide-react'
+import { Check, ChevronLeft, Link2, Menu, RefreshCw, Share, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
@@ -192,12 +192,6 @@ export default function Friends() {
       {/* Search */}
       <input className="input" placeholder="Search by display name…" value={term}
         onChange={(e) => setTerm(e.target.value)} />
-      {/* Invite link (compact) */}
-      <div className="-mt-3 flex items-center gap-2">
-        <span className="flex-1 text-sm font-bold text-warm-soft">Invite a friend</span>
-        <button className="btn-peach px-3 py-1.5 text-sm" onClick={shareInvite}>Share</button>
-        <button className="btn-ghost px-3 py-1.5 text-sm" onClick={copyInvite}>Copy link</button>
-      </div>
       {/* Skeleton only until the first results land; after that the last list stays up
           while the next lookup runs, so it doesn't blink on every pause in typing. */}
       {searching && !results ? (
@@ -241,7 +235,10 @@ export default function Friends() {
 
       {/* Friends list */}
       <section>
-        <h2 className="mb-2 text-lg font-extrabold">My Friends</h2>
+        <div className="mb-2 flex items-center gap-2">
+          <h2 className="flex-1 text-lg font-extrabold">My Friends</h2>
+          <InviteMenu onShare={shareInvite} onCopy={copyInvite} />
+        </div>
         {friends.length === 0 && !friendsLoaded ? (
           <ListSkeleton count={2} action={false} />
         ) : friends.length === 0 ? (
@@ -272,6 +269,47 @@ export default function Friends() {
         <FriendProfile friend={viewing} onClose={closeFriend} onPocket={handleCopyToPantry}
           me={user} myFriendIds={friendIds} incoming={requests} onRespond={respond}
           onRemove={async () => { await fs.removeFriend(user.uid, viewing.id); closeFriend(); toast('Friend removed') }} />
+      )}
+    </div>
+  )
+}
+
+// Round plus at the right of the My Friends title (same look as the Feed row's refresh
+// button). Opens a small menu with the two invite actions; closes on an outside tap,
+// Escape, or after picking one.
+function InviteMenu({ onShare, onCopy }) {
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef(null)
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e) => { if (!wrapRef.current?.contains(e.target)) setOpen(false) }
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('pointerdown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+  const pick = (fn) => { setOpen(false); fn() }
+  return (
+    <div ref={wrapRef} className="relative">
+      <button onClick={() => setOpen((o) => !o)} aria-label="Invite a friend" aria-haspopup="menu" aria-expanded={open}
+        className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-zinc-800 shadow-card transition active:scale-90 hover:bg-eggshell">
+        <PlusIcon className={`h-5 w-5 transition-transform ${open ? 'rotate-45' : ''}`} />
+      </button>
+      {open && (
+        <div role="menu" className="absolute right-0 top-full z-30 mt-2 w-48 overflow-hidden rounded-2xl bg-white p-1.5 shadow-card ring-1 ring-black/5 animate-fadein">
+          <p className="px-3 pb-1 pt-1.5 text-xs font-bold text-warm-soft">Invite a friend</p>
+          <button role="menuitem" onClick={() => pick(onShare)}
+            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-zinc-800 hover:bg-eggshell active:bg-eggshell">
+            <Share className="h-4 w-4 text-cta" strokeWidth={2.2} aria-hidden="true" /> Share
+          </button>
+          <button role="menuitem" onClick={() => pick(onCopy)}
+            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-zinc-800 hover:bg-eggshell active:bg-eggshell">
+            <Link2 className="h-4 w-4 text-cta" strokeWidth={2.2} aria-hidden="true" /> Copy link
+          </button>
+        </div>
       )}
     </div>
   )
