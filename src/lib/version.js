@@ -1,9 +1,18 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.39.3'
+export const APP_VERSION = '1.39.4'
 
 export const CHANGELOG = [
+  {
+    version: '1.39.4',
+    date: '2026-11-14',
+    changes: [
+      'Like your friends\' posts: tap the heart at the bottom right of a post. Tap the number next to it to see who liked it.',
+      'Delete your own post: tap the trash icon at the top right of it. Your recipe stays.',
+      'The bottom tab bar is now always frosted glass. The Tab bar picker is gone from Profile.',
+    ],
+  },
   {
     version: '1.39.3',
     date: '2026-11-14',

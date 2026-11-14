@@ -4,6 +4,7 @@ import {
   arrayUnion,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -18,7 +19,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase.js'
 import { sampleRecipes } from '../data/sampleRecipes.js'
-import { liveFeedPosts, normalizeCaption, planPostExpiry } from './socialFeed.js'
+import { likeName, liveFeedPosts, normalizeCaption, photoToDeleteWithPost, planPostExpiry } from './socialFeed.js'
 import { deleteOwnImage } from './imageSnapshot.js'
 import { dedupeIncoming, planFriendRequest, requestDocId } from './friendRequests.js'
 
@@ -434,4 +435,30 @@ export async function expireMyOldPosts(uid, myRecipes = []) {
   // was already deleted.
   for (const url of plan.deleteUrls) await deleteOwnImage(url, uid)
   return plan
+}
+
+// The poster deletes one of their own posts (rules: author only). Doc first, then the
+// photo file if nothing else of mine still shows it, so the feed never renders a post
+// whose photo is already gone. Throws if the doc delete fails; the file is best-effort.
+export async function deletePost(post, uid, myRecipes = []) {
+  if (!post?.id || post.authorId !== uid) throw new Error('Only the poster can delete this post')
+  await deleteDoc(doc(db, 'posts', post.id))
+  let myPosts = []
+  try {
+    const snap = await getDocs(query(postsCol, where('authorId', '==', uid)))
+    myPosts = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+  } catch {
+    return // can't tell if the photo is shared; leaving a file is safer than a broken image
+  }
+  const url = photoToDeleteWithPost(post, myPosts, myRecipes)
+  if (url) await deleteOwnImage(url, uid)
+}
+
+// Like / unlike a post as me: sets or removes only my own key in the post's `likes`
+// map (the rules refuse any other change). Field-path update, so two people liking at
+// once never overwrite each other.
+export async function setPostLike(postId, uid, name, liked) {
+  await updateDoc(doc(db, 'posts', postId), {
+    [`likes.${uid}`]: liked ? likeName(name) : deleteField(),
+  })
 }

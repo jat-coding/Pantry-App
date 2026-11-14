@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-// Bottom tab bar looks — picked in Profile → Appearance, stored on this device.
+// Bottom tab bar looks. Since v1.39.4 everyone gets Frosted glass (useNavStyle below);
+// the other entries are kept only so the old picker is one change away.
 //
 // One module owns every class string the bar uses so Layout stays a layout file and
 // adding a look is a single entry here. `bottom` is how much room is left under the
@@ -89,18 +89,9 @@ export function writeNavStyle(id) {
   window.dispatchEvent(new CustomEvent('pantry:navstyle', { detail: id }))
 }
 
-// Live-reads the pick so changing it in Profile restyles the bar instantly.
+// Locked to Frosted glass for everyone (v1.39.4, his call: the Profile picker is gone).
+// A look saved on this device by the old picker is ignored, not migrated, so nothing
+// else needs to change if it is ever brought back: point this at readNavStyle() again.
 export function useNavStyle() {
-  const [id, setId] = useState(readNavStyle)
-  useEffect(() => {
-    const onPick = (e) => setId(e.detail)
-    const onStorage = (e) => { if (e.key === NAV_STYLE_KEY) setId(e.newValue || DEFAULT_NAV_STYLE) }
-    window.addEventListener('pantry:navstyle', onPick)
-    window.addEventListener('storage', onStorage)
-    return () => {
-      window.removeEventListener('pantry:navstyle', onPick)
-      window.removeEventListener('storage', onStorage)
-    }
-  }, [])
-  return getNavStyle(id)
+  return getNavStyle(DEFAULT_NAV_STYLE)
 }

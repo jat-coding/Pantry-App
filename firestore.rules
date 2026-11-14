@@ -46,14 +46,27 @@ service cloud.firestore {
 
     // Social feed posts: each is its own doc (its own photo + a link to one of the
     // author's recipes). Readable by the author and the author's mutual friends, same as
-    // a private recipe. Only the author creates (as themselves) or deletes (expiry);
-    // posts are never edited.
+    // a private recipe. Only the author creates (as themselves) or deletes (by hand or
+    // expiry). The only edit is a like: anyone who can see the post (author included)
+    // may add or remove THEIR OWN key in `likes` ({uid: name}) and nothing else.
     match /posts/{postId} {
-      allow read: if signedIn() && (
-        resource.data.authorId == request.auth.uid ||
-        mutualFriendOf(resource.data.authorId)
-      );
-      allow create: if signedIn() && request.resource.data.authorId == request.auth.uid;
+      function canSeePost() {
+        return resource.data.authorId == request.auth.uid ||
+          mutualFriendOf(resource.data.authorId);
+      }
+      function onlyMyLikeChanged() {
+        let after = request.resource.data;
+        let likes = after.get('likes', {});
+        return after.diff(resource.data).affectedKeys().hasOnly(['likes']) &&
+          likes is map &&
+          likes.diff(resource.data.get('likes', {})).affectedKeys().hasOnly([request.auth.uid]) &&
+          (!(request.auth.uid in likes) ||
+            (likes[request.auth.uid] is string && likes[request.auth.uid].size() <= 80));
+      }
+      allow read: if signedIn() && canSeePost();
+      allow create: if signedIn() && request.resource.data.authorId == request.auth.uid &&
+        !('likes' in request.resource.data);
+      allow update: if signedIn() && canSeePost() && onlyMyLikeChanged();
       allow delete: if signedIn() && resource.data.authorId == request.auth.uid;
     }
 

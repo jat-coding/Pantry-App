@@ -27,6 +27,11 @@ How to check work on this project for real.
   needs Java, pulls firebase-tools via npx) runs the real `src/lib/firestore.js` friend
   functions against the real `firestore.rules` in the Firestore emulator: repeat send,
   concurrent double tap, invite link opened twice, reverse-direction add, legacy duplicates.
+  `tests/postLikes.test.js` (v1.39.4) covers the like map helpers and which photo a manual
+  post delete may remove. `tests/emulator/posts.sh` (same setup as friend-requests.sh) runs
+  likes/unlike/delete against the real rules: friend + poster may like, a non-friend can't,
+  nobody can touch another person's like or smuggle another field in with a like, only the
+  poster deletes. Run it after ANY change to the `posts` rules.
   Nothing else has test coverage —
   don't claim it does; a task card's "Done when" checks are the verification for everything
   else.

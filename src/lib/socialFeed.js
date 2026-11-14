@@ -167,3 +167,61 @@ export function normalizeCaption(text) {
     .slice(0, CAPTION_MAX)
     .trim()
 }
+
+// ---------- Delete (poster only) ----------
+
+// Deleting one of my posts by hand: the post doc goes, and its photo file goes too
+// unless something else still shows that exact file (another post of mine, or one of
+// my recipes) -- the same "still in use" test the 30-day expiry uses. null = keep it.
+export function photoToDeleteWithPost(post, myPosts = [], myRecipes = []) {
+  const url = post?.imageUrl
+  if (!url) return null
+  const inUse = [...myPosts.filter((p) => p && p.id !== post.id), ...myRecipes]
+    .some((x) => x?.imageUrl === url)
+  return inUse ? null : url
+}
+
+// ---------- Likes ----------
+
+// Likes live on the post doc as `likes: { [uid]: displayName }` (v1.39.4): one map
+// field, so the count and "did I like it" come with the post read, no extra queries.
+// Each person writes only their own key (firestore.rules). Posts without the field
+// have no likes.
+export const LIKE_NAME_MAX = 80
+
+export function likeMap(post) {
+  const m = post?.likes
+  return m && typeof m === 'object' ? m : {}
+}
+
+export function likeCount(post) {
+  return Object.keys(likeMap(post)).length
+}
+
+export function hasLiked(post, uid) {
+  return !!uid && Object.prototype.hasOwnProperty.call(likeMap(post), uid)
+}
+
+// The post with my like flipped, for an instant (optimistic) heart before the write lands.
+export function toggleLikeLocal(post, uid, name) {
+  const likes = { ...likeMap(post) }
+  if (hasLiked(post, uid)) delete likes[uid]
+  else likes[uid] = likeName(name)
+  return { ...post, likes }
+}
+
+export function likeName(name) {
+  return String(name || '').trim().slice(0, LIKE_NAME_MAX) || 'Someone'
+}
+
+// Who liked it, for the likes sheet: current name from `people` (uid -> profile) when
+// known, else the name saved at like time. Me first as "You", then A-Z.
+export function likersList(post, people = new Map(), meUid = null) {
+  return Object.entries(likeMap(post))
+    .map(([uid, saved]) => {
+      const p = people.get(uid)
+      const real = p?.displayName || likeName(saved)
+      return { uid, me: uid === meUid, name: uid === meUid ? 'You' : real, avatarName: real, avatarUrl: p?.avatarUrl || '' }
+    })
+    .sort((a, b) => (b.me - a.me) || a.name.localeCompare(b.name))
+}

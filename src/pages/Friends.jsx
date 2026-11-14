@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronLeft, Menu, RefreshCw } from 'lucide-react'
+import { Check, ChevronLeft, Menu, RefreshCw, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
@@ -7,7 +7,7 @@ import { useData } from '../contexts/DataContext.jsx'
 import { useToast } from '../components/Toast.jsx'
 import RecipeCard from '../components/RecipeCard.jsx'
 import { ListSkeleton, GridSkeleton } from '../components/Skeleton.jsx'
-import { FriendsIcon, ProfileIcon, CategoryIcon, PlusIcon } from '../components/icons.jsx'
+import { FriendsIcon, ProfileIcon, CategoryIcon, PlusIcon, HeartIcon, TrashIcon } from '../components/icons.jsx'
 import { ViewToggle, FavoritesToggle, RecipeListView, VIEW_KEY } from '../components/RecipeViews.jsx'
 import { CATEGORIES, primaryCategory } from '../lib/categories.js'
 import { useScrollLock } from '../lib/useScrollLock.js'
@@ -16,8 +16,9 @@ import ConfirmDialog from '../components/ConfirmDialog.jsx'
 import { useGoBack } from '../lib/useGoBack.js'
 import * as fs from '../lib/firestore.js'
 import SafeImage from '../components/SafeImage.jsx'
-import { findLikelyDuplicate, formatPostDate } from '../lib/socialFeed.js'
+import { findLikelyDuplicate, formatPostDate, hasLiked, likeCount, likersList, toggleLikeLocal } from '../lib/socialFeed.js'
 import PostComposer from '../components/PostComposer.jsx'
+import { tap } from '../lib/haptics.js'
 
 // Recipes whose stored category isn't one of CATEGORIES (very old data) still
 // need a home, so they land in this section after the real ones. Matches Pantry.jsx.
@@ -236,7 +237,7 @@ export default function Friends() {
         </section>
       )}
 
-      <SocialFeed me={user} myProfile={profile} friends={friends} friendsLoaded={friendsLoaded} onCopy={handleFeedCopy} />
+      <SocialFeed me={user} myProfile={profile} friends={friends} friendsLoaded={friendsLoaded} onCopy={handleFeedCopy} myRecipes={myRecipes} />
 
       {/* Friends list */}
       <section>
@@ -280,7 +281,7 @@ export default function Friends() {
 // the photo taken at post time, the linked recipe's title (opens the recipe), and Copy
 // to Pantry on friends' posts. Post (top right) picks a photo, then PostComposer links
 // a recipe to it; a new post lands at the top through the same refresh as the button.
-function SocialFeed({ me, myProfile, friends, friendsLoaded, onCopy }) {
+function SocialFeed({ me, myProfile, friends, friendsLoaded, onCopy, myRecipes = [] }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [posts, setPosts] = useState(null)
@@ -288,12 +289,21 @@ function SocialFeed({ me, myProfile, friends, friendsLoaded, onCopy }) {
   const [reloadKey, setReloadKey] = useState(0)
   // The photo picked by Post; non-null = composer open.
   const [photo, setPhoto] = useState(null)
+  const toast = useToast()
+  // My post waiting on the delete confirm, and the post whose likes sheet is open (by id,
+  // so the sheet follows a like/unlike made while it's open).
+  const [confirmDelete, setConfirmDelete] = useState(null)
+  const [likesFor, setLikesFor] = useState(null)
+  // Deleted this session: a refresh that started before the delete landed must not bring
+  // the post back. Likes in flight per post, so a fast double tap can't race itself.
+  const deletedRef = useRef(new Set())
+  const likingRef = useRef(new Set())
   const idsKey = friends.map((f) => f.id).sort().join(',')
   useEffect(() => {
     if (!friendsLoaded) return
     let alive = true
     fs.getFeedPosts([me.uid, ...(idsKey ? idsKey.split(',') : [])])
-      .then((list) => { if (alive) setPosts(list) })
+      .then((list) => { if (alive) setPosts(list.filter((p) => !deletedRef.current.has(p.id))) })
       .catch(() => { if (alive) setPosts((prev) => prev ?? []) })
       .finally(() => { if (alive) setRefreshing(false) })
     return () => { alive = false }
@@ -302,6 +312,39 @@ function SocialFeed({ me, myProfile, friends, friendsLoaded, onCopy }) {
   const byId = new Map(friends.map((f) => [f.id, f]))
   byId.set(me.uid, { ...myProfile, displayName: myProfile?.displayName || me.displayName || 'Me' })
   const openRecipe = (id) => navigate(`/recipe/${id}`, { state: { from: location.pathname } })
+  const myName = myProfile?.displayName || me.displayName || 'Someone'
+  const patchPost = (id, fn) => setPosts((list) => list && list.map((p) => (p.id === id ? fn(p) : p)))
+
+  async function toggleLike(post) {
+    if (likingRef.current.has(post.id)) return
+    likingRef.current.add(post.id)
+    const liked = !hasLiked(post, me.uid)
+    patchPost(post.id, (p) => toggleLikeLocal(p, me.uid, myName))
+    try {
+      await fs.setPostLike(post.id, me.uid, myName, liked)
+    } catch {
+      // Roll back just my key (other changes to the post since then stay).
+      patchPost(post.id, (p) => (hasLiked(p, me.uid) === liked ? toggleLikeLocal(p, me.uid, myName) : p))
+      toast(liked ? "Couldn't like that post" : "Couldn't remove your like")
+    } finally {
+      likingRef.current.delete(post.id)
+    }
+  }
+
+  async function deletePost(post) {
+    setConfirmDelete(null)
+    deletedRef.current.add(post.id)
+    setPosts((list) => list && list.filter((p) => p.id !== post.id))
+    try {
+      await fs.deletePost(post, me.uid, myRecipes)
+      toast('Post deleted')
+    } catch {
+      deletedRef.current.delete(post.id)
+      toast("Couldn't delete the post")
+      refresh()
+    }
+  }
+
   const pickPhoto = (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) setPhoto(f) }
 
   return (
@@ -345,22 +388,44 @@ function SocialFeed({ me, myProfile, friends, friendsLoaded, onCopy }) {
                       {p.recipeTitle}
                     </button>
                   </div>
-                  {!mine && <button className="btn-peach shrink-0 px-3 py-1.5 text-sm" aria-label="Copy to Pantry" onClick={() => onCopy(p)}>Copy</button>}
+                  {mine ? (
+                    <button onClick={() => setConfirmDelete(p)} aria-label="Delete post" data-post-delete
+                      className="-mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-warm-soft transition active:scale-90 hover:bg-eggshell hover:text-red-600">
+                      <TrashIcon className="h-[18px] w-[18px]" />
+                    </button>
+                  ) : (
+                    <button className="btn-peach shrink-0 px-3 py-1.5 text-sm" aria-label="Copy to Pantry" onClick={() => onCopy(p)}>Copy</button>
+                  )}
                 </div>
                 {p.imageUrl && (
                   <button onClick={() => openRecipe(p.recipeId)} className="block w-full" aria-label={`Open ${p.recipeTitle}`}>
                     <SafeImage src={p.imageUrl} alt={p.recipeTitle} className="aspect-[4/3] w-full object-cover" fallback={null} />
                   </button>
                 )}
-                {p.caption?.trim() && (
-                  <p data-post-caption className="whitespace-pre-line break-words px-3 py-3 text-[15px] leading-snug text-warm">
-                    {p.caption.trim()}
-                  </p>
-                )}
+                {/* Bottom row: caption (if any) on the left, heart + like count at the
+                    bottom right. Heart = like/unlike; the count opens who liked it. */}
+                <div className="flex items-end gap-2 py-1.5 pl-3 pr-1.5">
+                  <div className="min-w-0 flex-1 py-1.5">
+                    {p.caption?.trim() && (
+                      <p data-post-caption className="whitespace-pre-line break-words text-[15px] leading-snug text-warm">
+                        {p.caption.trim()}
+                      </p>
+                    )}
+                  </div>
+                  <LikeButton post={p} liked={hasLiked(p, me.uid)} onToggle={() => toggleLike(p)}
+                    onShowLikes={() => setLikesFor(p.id)} />
+                </div>
               </article>
             )
           })}
         </div>
+      )}
+      {confirmDelete && (
+        <ConfirmDialog message="Delete this post? It disappears from everyone's feed. Your recipe stays."
+          confirmLabel="Delete" danger onConfirm={() => deletePost(confirmDelete)} onCancel={() => setConfirmDelete(null)} />
+      )}
+      {likesFor && posts?.some((p) => p.id === likesFor) && (
+        <LikesSheet likers={likersList(posts.find((p) => p.id === likesFor), byId, me.uid)} onClose={() => setLikesFor(null)} />
       )}
       {photo && (
         <PostComposer file={photo} onChangeFile={setPhoto} onClose={() => setPhoto(null)}
@@ -652,6 +717,66 @@ function FriendsOfFriend({ friend, me, myFriendIds, incoming, onRespond }) {
         </div>
       )}
     </section>
+  )
+}
+
+// Heart + count, bottom right of a post card. The heart likes/unlikes; the count (only
+// shown once someone has liked it) opens the list of who did.
+function LikeButton({ post, liked, onToggle, onShowLikes }) {
+  const count = likeCount(post)
+  return (
+    <div className="flex shrink-0 items-center" data-post-likes>
+      <button onClick={() => { tap(); onToggle() }} aria-pressed={liked} aria-label={liked ? 'Unlike' : 'Like'}
+        className="flex h-10 w-10 items-center justify-center rounded-full text-warm-soft transition active:scale-90">
+        <HeartIcon filled={liked} className="h-6 w-6" />
+      </button>
+      {count > 0 && (
+        <button onClick={onShowLikes} aria-label={`${count} ${count === 1 ? 'like' : 'likes'}, see who`} data-post-like-count
+          className="-ml-1.5 flex h-10 min-w-[2rem] items-center justify-start rounded-full pl-1 pr-2 text-sm font-bold tabular-nums text-warm hover:underline">
+          {count}
+        </button>
+      )}
+    </div>
+  )
+}
+
+// Who liked a post: a small bottom sheet with each person's avatar (initial fallback)
+// and name. Me first as "You".
+function LikesSheet({ likers, onClose }) {
+  useScrollLock()
+  return createPortal(
+    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-warm/40 sm:items-center sm:p-6" onClick={onClose}>
+      <div data-likes-sheet onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md animate-fadein rounded-t-3xl bg-eggshell px-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-4 sm:rounded-3xl sm:pb-5">
+        <div className="mb-2 flex items-center gap-2">
+          <HeartIcon filled className="h-5 w-5" />
+          <h2 className="flex-1 text-lg font-extrabold">
+            {likers.length} {likers.length === 1 ? 'like' : 'likes'}
+          </h2>
+          <button onClick={onClose} aria-label="Close" className="-mr-2 flex h-9 w-9 items-center justify-center rounded-full text-warm-soft hover:bg-white">
+            <X className="h-5 w-5" strokeWidth={2} aria-hidden="true" />
+          </button>
+        </div>
+        {likers.length === 0 ? (
+          <p className="py-2 text-sm text-warm-soft">No likes yet.</p>
+        ) : (
+          <ul className="max-h-[50vh] space-y-1 overflow-y-auto">
+            {likers.map((l) => (
+              <li key={l.uid} className="flex items-center gap-3 py-1.5">
+                <span className="relative shrink-0">
+                  <Avatar user={{ displayName: l.avatarName, avatarUrl: l.avatarUrl }} />
+                  <span className="absolute -bottom-0.5 -right-0.5 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-white shadow-card">
+                    <HeartIcon filled className="h-3 w-3" />
+                  </span>
+                </span>
+                <span className="min-w-0 truncate font-bold">{l.name}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>,
+    document.body,
   )
 }
 
