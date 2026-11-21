@@ -6,6 +6,7 @@
 // never sent to the browser.
 
 import Anthropic from '@anthropic-ai/sdk'
+import { isIngredientHeading } from './ingredientHeading.js'
 
 const MODEL = 'claude-sonnet-4-6'
 
@@ -79,6 +80,8 @@ const INSTRUCTIONS =
   'butter is exactly 1/2 cup (8 tbsp, 4 oz, ' +
   '113 g) -- never 1/4 cup. When a source gives butter in sticks, either keep unit ' +
   '"stick" with that qty, or convert using 1 stick = 0.5 cup. ' +
+  'Every ingredients entry must be a real ingredient: never emit a section heading ' +
+  '("Ingredients", "For the sauce", "Topping:") as an ingredient. ' +
   'Clean up each ingredient name so it reads as it would in a cookbook: keep the ' +
   'food and any descriptor that matters to the dish (e.g. "boneless skinless chicken ' +
   'thighs", "large eggs", "extra-virgin olive oil", "finely diced onion"). The name ' +
@@ -208,7 +211,7 @@ function extractJson(text) {
 
 // Guarantee the recipe shape the client expects, so the editor can never crash
 // on a null/missing field. Mirrors src/lib/recipeShape.js.
-function coerceRecipe(r) {
+export function coerceRecipe(r) {
   const o = r && typeof r === 'object' ? r : {}
   const time = (t, d) => ({
     value: Number.isFinite(Number(t?.value)) ? Number(t.value) : d,
@@ -219,7 +222,7 @@ function coerceRecipe(r) {
         qty: Number.isFinite(Number(i?.qty)) ? Number(i.qty) : 0,
         unit: typeof i?.unit === 'string' ? i.unit : '',
         name: typeof i?.name === 'string' ? i.name : String(i?.name ?? ''),
-      })).filter((i) => i.name.trim())
+      })).filter((i) => i.name.trim() && !isIngredientHeading(i))
     : []
   const allowed = ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snacks', 'Drinks', 'Sauces & Dressings']
   const cats = [...new Set([...(Array.isArray(o.categories) ? o.categories : []), o.category])]

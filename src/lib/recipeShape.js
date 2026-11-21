@@ -8,6 +8,7 @@
 
 import { CATEGORIES } from './categories.js'
 import { cleanStepLinks, keepMap, remapStepLinks } from './stepLinks.js'
+import { isIngredientHeading } from '../../api/_lib/ingredientHeading.js'
 
 // Only a real web link is kept as a recipe's source; anything else is dropped.
 function asSourceUrl(u) {
@@ -43,7 +44,10 @@ export function sanitizeRecipe(raw) {
   const r = raw && typeof raw === 'object' ? raw : {}
   const categories = asCategories(r)
   const category = categories[0]
-  const ingredients = Array.isArray(r.ingredients) ? r.ingredients.map(asIngredient) : []
+  const rawIngredients = Array.isArray(r.ingredients) ? r.ingredients.map(asIngredient) : []
+  // Section-heading rows ("Ingredients", "For the sauce") never show; drop them and
+  // re-point step links past them below.
+  const ingredients = rawIngredients.filter((i) => !isIngredientHeading(i))
   const rawSteps = Array.isArray(r.instructions)
     ? r.instructions.map((s) => (typeof s === 'string' ? s : String(s ?? '')))
     : []
@@ -51,9 +55,9 @@ export function sanitizeRecipe(raw) {
   // Manual step -> ingredient picks are keyed by step position, so re-point them past
   // any empty steps dropped just above. Recipes saved before they existed get {}.
   const stepIngredientLinks = remapStepLinks(
-    cleanStepLinks(r.stepIngredientLinks, rawSteps.length, ingredients.length),
+    cleanStepLinks(r.stepIngredientLinks, rawSteps.length, rawIngredients.length),
     keepMap(rawSteps, Boolean),
-    ingredients.map((_, i) => i),
+    keepMap(rawIngredients, (i) => !isIngredientHeading(i)),
   )
 
   return {

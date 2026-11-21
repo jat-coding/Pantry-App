@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.39.7'
+export const APP_VERSION = '1.39.8'
 
 export const CHANGELOG = [
+  {
+    version: '1.39.8',
+    date: '2026-11-20',
+    changes: [
+      'Imports: section headings like "Ingredients" or "For the sauce:" no longer show up as a blank ingredient row. Real items without an amount, like "3-4 slices bacon", stay.',
+    ],
+  },
   {
     version: '1.39.7',
     date: '2026-11-14',
