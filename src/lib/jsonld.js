@@ -1,6 +1,8 @@
 // Extract a Schema.org Recipe from a page's <script type="application/ld+json"> blocks
 // and map it to our internal recipe shape.
 
+import { cleanStep, decodeHtml, isStepHeading, parseIngredientLine } from '../../api/_lib/recipeText.js'
+
 function parseDuration(iso) {
   // ISO 8601 duration like PT1H30M -> { value, unit }
   if (!iso || typeof iso !== 'string') return { value: 0, unit: 'min' }
@@ -25,51 +27,15 @@ function flattenInstructions(ri) {
     else if (step?.text) out.push(step.text)
     else if (step?.itemListElement) out.push(...flattenInstructions(step.itemListElement))
   }
-  return out.map((s) => s.replace(/\s+/g, ' ').trim()).filter(Boolean)
+  // Entities decoded, numbering stripped, and "Instructions"-style heading steps dropped.
+  return out.map((s) => cleanStep(s).replace(/\s+/g, ' ')).filter((s) => s && !isStepHeading(s))
 }
 
-// Naive ingredient string -> {qty, unit, name}
-const UNITS = ['cup', 'cups', 'tbsp', 'tablespoon', 'tablespoons', 'tsp', 'teaspoon', 'teaspoons',
-  'oz', 'ounce', 'ounces', 'lb', 'lbs', 'pound', 'pounds', 'g', 'gram', 'grams', 'kg', 'ml', 'l',
-  'clove', 'cloves', 'pinch', 'can', 'cans', 'slice', 'slices']
+// The line parser lives with the other shared cleanup so the server import uses it too.
+export { parseIngredientLine }
 
-const FRACTION_MAP = { '½': 0.5, '⅓': 1 / 3, '⅔': 2 / 3, '¼': 0.25, '¾': 0.75, '⅛': 0.125 }
-
-export function parseIngredientLine(line) {
-  let s = line.trim()
-  for (const [glyph, val] of Object.entries(FRACTION_MAP)) s = s.replace(glyph, ` ${val}`)
-  const tokens = s.split(/\s+/)
-  let qty = ''
-  let idx = 0
-  // qty may be "1", "1/2", or "1 1/2"
-  const num = (t) => {
-    if (/^\d+\/\d+$/.test(t)) { const [a, b] = t.split('/'); return Number(a) / Number(b) }
-    if (/^\d*\.?\d+$/.test(t)) return Number(t)
-    return null
-  }
-  let acc = 0
-  let matched = false
-  while (idx < tokens.length) {
-    const n = num(tokens[idx])
-    if (n == null) break
-    acc += n
-    matched = true
-    idx++
-  }
-  if (matched) qty = Math.round(acc * 100) / 100
-  let unit = ''
-  // "fl oz" / "fl. oz." / "fluid ounces" is two words; keep it as the volume unit
-  // instead of leaving "fl oz" stuck on the front of the name.
-  const two = `${tokens[idx] || ''} ${tokens[idx + 1] || ''}`.toLowerCase().replace(/\./g, '')
-  if (/^(fl|fluid) (oz|ounce|ounces)$/.test(two)) {
-    unit = 'fl oz'
-    idx += 2
-  } else if (tokens[idx] && UNITS.includes(tokens[idx].toLowerCase().replace(/\.$/, ''))) {
-    unit = tokens[idx].replace(/\.$/, '')
-    idx++
-  }
-  const name = tokens.slice(idx).join(' ')
-  return { qty, unit, name: name || line.trim() }
+function decodeTitle(t) {
+  return typeof t === 'string' ? decodeHtml(t).replace(/\s+/g, ' ').trim() : ''
 }
 
 function mapCategories(c) {
@@ -112,14 +78,14 @@ export function extractRecipeFromHtml(html, pageUrl) {
 
   const categories = mapCategories(recipeNode.recipeCategory)
   return {
-    title: recipeNode.name || 'Imported recipe',
+    title: decodeTitle(recipeNode.name) || 'Imported recipe',
     categories,
     category: categories[0],
     imageUrl,
     prepTime: parseDuration(recipeNode.prepTime),
     cookTime: parseDuration(recipeNode.cookTime),
     servings: Number.isFinite(servings) ? servings : 4,
-    ingredients: asArray(recipeNode.recipeIngredient).map(parseIngredientLine),
+    ingredients: asArray(recipeNode.recipeIngredient).filter((l) => typeof l === 'string').map(parseIngredientLine).filter((i) => i.name),
     instructions: flattenInstructions(recipeNode.recipeInstructions),
     sourceUrl: pageUrl || '',
   }

@@ -7,6 +7,7 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import { isIngredientHeading } from './ingredientHeading.js'
+import { blankZeroQty, cleanIngredientName, cleanStep, isStepHeading, liftAmountFromName } from './recipeText.js'
 
 const MODEL = 'claude-sonnet-4-6'
 
@@ -218,10 +219,11 @@ export function coerceRecipe(r) {
     unit: t?.unit === 'hr' ? 'hr' : 'min',
   })
   const ingredients = Array.isArray(o.ingredients)
-    ? o.ingredients.map((i) => ({
-        qty: Number.isFinite(Number(i?.qty)) ? Number(i.qty) : 0,
-        unit: typeof i?.unit === 'string' ? i.unit : '',
-        name: typeof i?.name === 'string' ? i.name : String(i?.name ?? ''),
+    ? o.ingredients.map((i) => liftAmountFromName({
+        // The schema forces a number, so "no amount" arrives as 0: store it blank.
+        qty: Number.isFinite(Number(i?.qty)) ? blankZeroQty(i.qty) : '',
+        unit: typeof i?.unit === 'string' ? i.unit.trim() : '',
+        name: cleanIngredientName(typeof i?.name === 'string' ? i.name : String(i?.name ?? '')),
       })).filter((i) => i.name.trim() && !isIngredientHeading(i))
     : []
   const allowed = ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snacks', 'Drinks', 'Sauces & Dressings']
@@ -238,8 +240,8 @@ export function coerceRecipe(r) {
     ingredients,
     instructions: Array.isArray(o.instructions)
       ? o.instructions
-          .map((s) => stripTranscriptArtifacts(typeof s === 'string' ? s : String(s ?? '')))
-          .filter(Boolean)
+          .map((s) => cleanStep(stripTranscriptArtifacts(typeof s === 'string' ? s : String(s ?? ''))))
+          .filter((s) => s && !isStepHeading(s))
       : [],
     imageUrl: typeof o.imageUrl === 'string' ? o.imageUrl : '',
   }

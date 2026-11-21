@@ -1,9 +1,18 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.39.8'
+export const APP_VERSION = '1.39.9'
 
 export const CHANGELOG = [
+  {
+    version: '1.39.9',
+    date: '2026-11-20',
+    changes: [
+      'Imports: amounts written as fractions (like ½ cup) or ranges (like 3-4 slices) now land in the amount box instead of the name, and "c." reads as cup.',
+      'Imports: web leftovers like &nbsp;, store prices, "(Note 3)" and broken brackets are cleaned out of ingredient names, and "Instructions" headings no longer show as a step.',
+      'Items with no amount (like "salt, to taste") show a dash instead of 0.',
+    ],
+  },
   {
     version: '1.39.8',
     date: '2026-11-20',

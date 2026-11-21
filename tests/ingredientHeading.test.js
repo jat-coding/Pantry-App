@@ -24,7 +24,7 @@ const brussels = () => ({
 
 const names = (r) => r.ingredients.map((i) => i.name)
 const expected = [
-  'Brussels sprouts, halved', '3-4 slices bacon', 'olive oil',
+  'Brussels sprouts, halved', 'bacon (up to 4)', 'olive oil',
   'balsamic vinegar', 'salt and pepper to taste',
 ]
 
@@ -51,7 +51,7 @@ test('client sanitizeRecipe drops heading rows and keeps step links pointing at 
   const r = sanitizeRecipe({ ...brussels(), stepIngredientLinks: { 0: [2], 1: [1, 3], 2: [4, 5] } })
   assert.deepEqual(names(r), expected)
   const linked = (s) => r.stepIngredientLinks[s].map((k) => r.ingredients[k].name)
-  assert.deepEqual(linked(0), ['3-4 slices bacon'])
+  assert.deepEqual(linked(0), ['bacon (up to 4)'])
   assert.deepEqual(linked(1), ['Brussels sprouts, halved', 'olive oil'])
   assert.deepEqual(linked(2), ['balsamic vinegar'])
 })
@@ -59,5 +59,5 @@ test('client sanitizeRecipe drops heading rows and keeps step links pointing at 
 test('JSON-LD lines -> sanitizeRecipe drops "Ingredients" / "For the X" lines', () => {
   const lines = ['Ingredients', '1 lb Brussels sprouts', '3-4 slices bacon', 'For the dressing:', '2 tbsp honey']
   const r = sanitizeRecipe({ ingredients: lines.map(parseIngredientLine), instructions: ['Cook.'] })
-  assert.deepEqual(names(r), ['Brussels sprouts', '3-4 slices bacon', 'honey'])
+  assert.deepEqual(names(r), ['Brussels sprouts', 'bacon (up to 4)', 'honey'])
 })
