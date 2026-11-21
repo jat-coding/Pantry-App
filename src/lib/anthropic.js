@@ -124,13 +124,34 @@ async function pollJob(startUrl, statusUrl, url, { onProgress, deadlineMs = 4 * 
   throw new Error(`Reading ${subject} is taking unusually long — please try again later.`)
 }
 
+// Video import has no fallback: downloading + transcribing needs the home video
+// service (yt-dlp, whisper). When that service can't be reached, say so plainly and
+// point at what still works, instead of a raw "could not reach ... (fetch failed)".
+export const VIDEO_SERVICE_DOWN_MESSAGE =
+  'Video import is offline right now (our video service can\'t be reached). Recipe website links still work. Try the video again in a little while, or paste the recipe text into the Paste tab.'
+
+export function isServiceUnreachable(message) {
+  return /could not reach the (transcription|video-reading|fetch) service|not configured on the server|status check failed \(5\d\d\)|could not start (transcription|reading that video) \(5\d\d\)|network error|that took too long/i
+    .test(message || '')
+}
+
+async function withVideoServiceMessage(fn) {
+  try {
+    return await fn()
+  } catch (err) {
+    if (isServiceUnreachable(err?.message)) throw new Error(VIDEO_SERVICE_DOWN_MESSAGE)
+    throw err
+  }
+}
+
 // Read a video directly (download + transcribe + sample frames) when its own
 // description doesn't contain the recipe. Slower than every other import path
 // by a wide margin.
 export async function normalizeRecipeVideo(url, { onProgress } = {}) {
   // The final check-in is also where the recipe gets built from transcript + frames,
   // which takes longer than a plain status lookup — give that one call more room.
-  const data = await pollJob('/api/video-import-start', '/api/video-import-status', url, { onProgress, statusTimeoutMs: 60000 })
+  const data = await withVideoServiceMessage(() =>
+    pollJob('/api/video-import-start', '/api/video-import-status', url, { onProgress, statusTimeoutMs: 60000 }))
   return data.recipe
 }
 
@@ -138,20 +159,57 @@ export async function normalizeRecipeVideo(url, { onProgress } = {}) {
 // (YouTube, TikTok, Instagram, Facebook) — no download, but still job-shaped
 // since even this has shown up to ~80s of YouTube-side response variance.
 export async function fetchVideoMeta(url, { onProgress } = {}) {
-  const data = await pollJob('/api/video-meta-start', '/api/video-meta-status', url, { onProgress, deadlineMs: 2 * 60 * 1000 })
+  const data = await withVideoServiceMessage(() =>
+    pollJob('/api/video-meta-start', '/api/video-meta-status', url, { onProgress, deadlineMs: 2 * 60 * 1000 }))
   return { title: data.title, description: data.description, hasCaptions: data.hasCaptions, thumbnail: data.thumbnail || null }
 }
 
-// Fetch a recipe page's HTML through the same bridge, instead of directly from
-// this Vercel function — so a slow site can't get cut off by Vercel's own
-// timeout ceiling either. Usually fast (a few seconds) but still job-shaped
-// for consistency and the same protection.
-export async function fetchPageViaBridge(url, { onProgress } = {}) {
+// The site's own verdict on the URL. Retrying through another path won't change it.
+export function isSiteVerdict(raw) {
+  return /^HTTP \d{3}$/.test(raw || '') || raw === 'page too large' || raw === 'timed out'
+    || (raw || '').includes('can’t fetch from') || raw === 'too many redirects'
+}
+
+// Fetch a recipe page's HTML. Normal path: the home bridge (it has a real browser for
+// bot-protected sites). If the bridge can't be reached, the server fetches the page
+// itself and hands the HTML straight back from the start call. If the bridge drops
+// mid-job (status polling breaks), ask the server for a direct fetch here.
+export async function fetchPageViaBridge(url, { onProgress, fetchImpl } = {}) {
+  const post = fetchImpl ? (u, b) => fetchImpl.post(u, b) : (u, b) => postJson(u, b, 35000)
+  const get = fetchImpl ? (u) => fetchImpl.get(u) : (u) => getJson(u, 20000)
+  const pause = fetchImpl?.sleep || sleep
+  const direct = async () => {
+    const d = await post('/api/recipe-fetch-direct', { url })
+    return d.html
+  }
   try {
-    const data = await pollJob('/api/recipe-proxy-start', '/api/recipe-proxy-status', url, {
-      onProgress, deadlineMs: 60 * 1000, subject: 'that page',
-    })
-    return data.html
+    let start
+    try {
+      start = await post('/api/recipe-proxy-start', { url })
+    } catch (err) {
+      if (isSiteVerdict(err.message)) throw err
+      return await direct()
+    }
+    if (start.html) return start.html
+    if (!start.jobId) return await direct()
+
+    const deadline = Date.now() + 60 * 1000
+    while (Date.now() < deadline) {
+      await pause(2000)
+      let data
+      try {
+        data = await get(`/api/recipe-proxy-status?jobId=${encodeURIComponent(start.jobId)}`)
+      } catch {
+        return await direct()
+      }
+      if (data.state === 'done') return data.html
+      if (data.state === 'error') {
+        if (isSiteVerdict(data.error)) throw new Error(data.error)
+        return await direct()
+      }
+      onProgress?.({ progress: data.progress ?? 0, etaMs: data.etaMs, stage: data.stage })
+    }
+    throw new Error('Reading that page is taking unusually long — please try again later.')
   } catch (err) {
     throw new Error(explainPageFetchError(err.message))
   }

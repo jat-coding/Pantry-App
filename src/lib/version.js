@@ -1,9 +1,17 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.39.9'
+export const APP_VERSION = '1.40.0'
 
 export const CHANGELOG = [
+  {
+    version: '1.40.0',
+    date: '2026-11-21',
+    changes: [
+      'Recipe website import keeps working when our home import service is offline: the page is now fetched a second way, with one quick retry, instead of failing.',
+      'Video import shows a clear message when the video service is offline, and points you to website links or the Paste tab.',
+    ],
+  },
   {
     version: '1.39.9',
     date: '2026-11-20',

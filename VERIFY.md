@@ -32,6 +32,15 @@ How to check work on this project for real.
   likes/unlike/delete against the real rules: friend + poster may like, a non-friend can't,
   nobody can touch another person's like or smuggle another field in with a like, only the
   poster deletes. Run it after ANY change to the `posts` rules.
+  `tests/directFetch.test.js` + `tests/pageFetchFallback.test.js` (v1.40.0) cover the
+  bridge-down fallback for URL import: SSRF guard (private/loopback/CGNAT/metadata IPs,
+  every DNS answer, each redirect hop), size cap, timeout, one retry, and the client
+  switching to the direct fetch when the bridge start/status call breaks. To simulate the
+  bridge being down for real, call the `api/recipe-proxy-start.js` handler with
+  `VIDEO_BRIDGE_URL=https://bridge-down.invalid` and check it answers `via: 'direct'`.
+  Known limit: sites with bot protection (allrecipes, seriouseats, sallysbakingaddiction,
+  budgetbytes, cookieandkate) 403 a plain fetch; only the bridge's headless browser gets
+  those, so during a bridge outage they still fail with the "site blocked" message.
   Nothing else has test coverage —
   don't claim it does; a task card's "Done when" checks are the verification for everything
   else.
