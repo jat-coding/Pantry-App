@@ -9,7 +9,8 @@ import Anthropic from '@anthropic-ai/sdk'
 import { isIngredientHeading } from './ingredientHeading.js'
 import { blankZeroQty, cleanIngredientName, cleanStep, isStepHeading, liftAmountFromName } from './recipeText.js'
 
-const MODEL = 'claude-sonnet-4-6'
+// Same model as the Cook plan (api/_lib/cookPlan.js COOK_PLAN_MODEL on the Cook branch).
+const MODEL = 'claude-sonnet-5-5'
 
 // Structured-output schema. With output_config.format the model is constrained
 // to return JSON matching this shape, so we can JSON.parse the response without

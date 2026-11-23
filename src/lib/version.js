@@ -1,9 +1,16 @@
 // App version + changelog. Surfaced at the bottom of the Profile page.
 // Add a new entry to the TOP of CHANGELOG each release and bump APP_VERSION.
 
-export const APP_VERSION = '1.40.0'
+export const APP_VERSION = '1.40.1'
 
 export const CHANGELOG = [
+  {
+    version: '1.40.1',
+    date: '2026-11-23',
+    changes: [
+      'Recipe import (website, pasted text, photo, file and video) now reads recipes with our newest AI model, the same one the Cook plan uses.',
+    ],
+  },
   {
     version: '1.40.0',
     date: '2026-11-21',
